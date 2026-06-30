@@ -1,0 +1,13 @@
+node_modules
+dist
+*.local
+.DS_Store
+
+# Internal planning / design notes — kept local, not published
+planning/
+
+# Runtime user progress (created on first run)
+data/progress.json
+
+# Generated static-demo content (rebuilt by `npm run build:static` / CI)
+public/content.json

@@ -1,0 +1,37 @@
+/* Single source of truth for colour. "Matching Gradient" palette + pink accent (#E398DD).
+   Dark theme: light text on dark surfaces. */
+:root {
+  /* Raw palette (dark → light) */
+  --c-900: #2f2f2f;
+  --c-700: #484a4f;
+  --c-600: #5e6970;
+  --c-500: #738a90;
+  --c-400: #8aacab;
+  --c-300: #a9cec2;
+  --pink: #e398dd;
+
+  /* Surfaces */
+  --bg: #2f2f2f; /* page */
+  --panel: #3a3c41; /* cards, lifted above bg */
+  --border: #4a4d53; /* subtle separators */
+
+  /* Text */
+  --ink: #edf1ef; /* primary text (near-white) */
+  --muted: #93acaa; /* secondary text (light teal-gray) */
+
+  /* Accent (pink reads well on dark) */
+  --accent: var(--pink); /* fills / highlights / borders */
+  --accent-ink: #ecb0e6; /* pink as text (a touch lighter for the soft wash) */
+  /* "-soft" = the base colour made translucent. color-mix derives it automatically,
+     so you only ever edit the solid colour above and the soft wash follows. */
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-hover: color-mix(in srgb, var(--accent) 28%, transparent);
+  --on-accent: #2f2f2f; /* dark text/icons on a (light) pink fill */
+
+  /* Status — correct = mint-green, incorrect = slate. Edit only the solid colours;
+     the soft washes update themselves via color-mix. */
+  --correct: #d3fbd8;
+  --correct-soft: color-mix(in srgb, var(--correct) 18%, transparent);
+  --incorrect: #efedff;
+  --incorrect-soft: color-mix(in srgb, var(--incorrect) 22%, transparent);
+}

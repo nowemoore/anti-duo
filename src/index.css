@@ -1,0 +1,1690 @@
+/* Colours live in colors.css. */
+:root {
+  /* Fluid root font-size: the whole UI is sized in rem, so this one clamp scales everything
+     responsively — ~12px on a small phone, ~15px on a typical desktop, up to 18px on huge screens.
+     No breakpoints, no per-element rules. */
+  font-size: clamp(12px, 0.47vw + 8.5px, 18px);
+  /* Body: Manrope (clean sans). Headings: Fraunces (warm serif). Japanese falls through to JP fonts. */
+  font-family: 'Manrope', system-ui, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
+  --font-heading: 'Fraunces', Georgia, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', serif;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Hide the page scrollbar (kept scrollable) — toggled on Settings. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* old Edge */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none; /* Chrome / Safari */
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden; /* never scroll sideways; vertical scroll stays normal */
+}
+
+button,
+input {
+  /* native form controls don't inherit color/font by default */
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  /* ease hover/active state changes so pressing buttons isn't abrupt */
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* the frame never scrolls; only .scroll-area does */
+}
+
+/* The only scroller: fills the space under the navbar, scrolls vertically, never sideways. */
+.scroll-area {
+  flex: 1;
+  min-height: 0; /* allow the flex child to shrink so it can scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Persistent footer pinned to the bottom of the frame: credit left, feedback link right. */
+.app-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.footer-heart {
+  color: var(--accent);
+}
+.footer-link {
+  color: var(--muted);
+  text-decoration: none;
+}
+.footer-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+/* Top bar spans the full width; its contents stay aligned with the page column. */
+.topbar {
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbar-inner {
+  max-width: 47.5rem; /* rem, so the page column scales with the fluid root font-size */
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+}
+
+.brand {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+/* Tiny Japanese flag next to the wordmark (inline SVG so it renders everywhere). */
+.brand-flag {
+  width: 1.2em;
+  height: 0.8em;
+  margin-left: 0.45em;
+  vertical-align: middle;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+/* Small pink version chip after the flag. */
+.brand-ver {
+  margin-left: 0.4em;
+  padding: 0.12em 0.42em;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.58em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+
+.nav {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.nav button {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nav button:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.nav button.active {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.nav-labels {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.05;
+  text-align: left;
+}
+
+.nav-labels .ja {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.nav-labels .en {
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+
+/* Stacked Japanese-over-English label for chrome titles (Bilingual component) */
+.bilingual {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+
+.bilingual .en {
+  font-size: 0.6em;
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+/* Content */
+.content {
+  width: 100%;
+  max-width: 47.5rem; /* rem, so the page column scales with the fluid root font-size */
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  /* gentle fade/slide-in when a view or study phase mounts, so swaps aren't abrupt */
+  animation: fade-in 0.25s ease;
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+/* Headings / titles in the serif (Latin only; Japanese falls through to the JP fonts) */
+.panel h2,
+.modal-title {
+  font-family: var(--font-heading);
+}
+
+/* Study flow: keep the card the same size across start / learn / practice / review,
+   with the footer (start/done button or learn pager) pinned to the bottom. */
+.intro,
+.learn,
+.practice,
+.summary {
+  min-height: 33rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.intro .actions,
+.summary .actions,
+.learn .pager {
+  margin-top: auto;
+}
+
+.practice .task-wrap {
+  flex: 1;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Settings */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 1.25rem 0;
+}
+
+.field-label {
+  font-weight: 600;
+}
+
+.field input[type='text'] {
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.field input[type='text']:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.field input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.save-state {
+  color: var(--muted);
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Settings page (multiple panels) */
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Toggle switch */
+.toggle {
+  flex: none;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.toggle.on {
+  background: var(--accent);
+}
+
+.toggle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.toggle.on .toggle-knob {
+  transform: translateX(18px);
+}
+
+/* Category list */
+.cat-list {
+  margin-top: 0.5rem;
+}
+
+.cat-block {
+  border-top: 1px solid var(--border);
+}
+
+.cat-block:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.cat-block.off .cat-name,
+.cat-block.off .cat-count {
+  color: var(--muted);
+}
+
+.cat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+}
+
+.cat-expand {
+  flex: none;
+  width: 1.9rem;
+  padding: 0.25rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cat-expand:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.cat-expand svg {
+  transition: transform 0.15s ease;
+}
+
+.cat-expand.open svg {
+  transform: rotate(180deg);
+}
+
+.cat-name {
+  font-weight: 600;
+}
+
+.cat-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Per-kanji list inside a category */
+/* Smooth roll-out / collapse: animate the row height (0fr → 1fr) and fade the content. */
+.cat-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
+}
+
+.cat-content.open {
+  grid-template-rows: 1fr;
+}
+
+/* Per-kanji list: compact 3-column grid (clipped by the roll-out container) */
+.cat-kanji {
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem 0 0.5rem 1.9rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.2rem 0.8rem;
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.cat-content.open .cat-kanji {
+  opacity: 1;
+}
+
+.ck-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.2rem 0;
+}
+
+.ck-char {
+  flex: none;
+  font-size: 1.1rem;
+  width: 1.6em;
+  text-align: center;
+}
+
+.ck-gloss {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ck-item .toggle {
+  margin-left: auto;
+}
+
+/* Per-kanji content toggles: a bit smaller + darker pink when on */
+.cat-kanji .toggle {
+  width: 34px;
+  height: 20px;
+}
+
+.cat-kanji .toggle .toggle-knob {
+  width: 14px;
+  height: 14px;
+}
+
+.cat-kanji .toggle.on .toggle-knob {
+  transform: translateX(14px);
+}
+
+.cat-kanji .toggle.on {
+  background: var(--c-400);
+}
+
+/* Buttons / actions */
+.actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.actions button {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.actions button:hover {
+  border-color: var(--accent);
+}
+
+.actions button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Nav-style pill button with a circular icon (Start / Done) */
+.actions .pill-btn {
+  border: none;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-radius: 999px;
+  padding: 0.35rem;
+  gap: 0.55rem;
+}
+
+.actions .pill-btn:hover {
+  background: var(--accent-hover);
+  filter: none;
+}
+
+.actions .pill-btn .bilingual {
+  padding: 0 0.5rem;
+}
+
+.icon-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.9rem;
+  flex: none;
+}
+
+
+.actions button.primary:hover {
+  filter: brightness(1.05);
+}
+
+/* Study home: everything centred (horizontally + vertically) in the card */
+.study-home {
+  text-align: center;
+  justify-content: center;
+}
+
+/* "n / k kanji unlocked. Continue learning or [reset]" under the welcome heading */
+.home-status {
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.9;
+}
+
+/* Reset button — small pink pill, sits inline at the end of the status sentence */
+.reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  vertical-align: middle;
+  padding: 0.2rem 0.65rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.78rem;
+}
+
+.reset-btn:hover {
+  background: var(--accent-hover);
+}
+
+.study-choices {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.study-choice {
+  flex: 1 1 0;
+  max-width: 16rem;
+  min-width: 11rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 2rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 1.15rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.study-choice:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.study-choice:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.study-choice .icon-circle {
+  width: 3.25rem;
+  height: 3.25rem;
+  font-size: 1.35rem;
+}
+
+.study-choice-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Study intro */
+.intro-plan {
+  font-size: 1.05rem;
+}
+
+/* Learn phase */
+.learn-head {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.learn-head .step {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Header (kanji + gloss) is centered; the examples table below is left-aligned. */
+.learn-card {
+  text-align: center;
+}
+
+.big-kanji {
+  font-size: 4rem;
+  line-height: 1;
+  font-weight: 600;
+  flex: none;
+}
+
+/* Kanji + magnifying-glass reveal: the kanji recentres left as the component panel slides open. */
+.kanji-reveal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kanji-box {
+  position: relative;
+  flex: none;
+  transition: transform 0.4s ease;
+}
+
+/* When open, the kanji slides left to make room; the panel (absolute) follows it. */
+.kanji-reveal.expanded .kanji-box {
+  transform: translateX(-6rem);
+}
+
+/* Magnifying-glass badge: its bottom-left corner meets the kanji block's top-right corner */
+.reveal-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(100%, -100%);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reveal-btn:hover {
+  background: var(--accent-hover);
+}
+
+.kanji-reveal.expanded .reveal-btn {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Breakdown panel: radical (in a pink frame) on top, components listed below; slides open */
+.reveal-panel {
+  /* Absolute so opening/closing the breakdown never resizes the card. Anchored to the kanji's
+     right edge; it moves with the kanji when it slides left. */
+  position: absolute;
+  left: 100%;
+  top: 0;
+  padding: 0 0 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+  min-width: 0;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none; /* never intercept the magnifying-glass click while closed */
+  transition: max-width 0.4s ease, opacity 0.3s ease;
+}
+
+.kanji-reveal.expanded .reveal-panel {
+  max-width: 26rem;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.radical-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Same shape as the nav Study button: soft-pink pill. The negative left margin cancels the pill's
+   left padding so the radical character lines up with the component characters below it. */
+.radical-frame {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  padding: 0.35rem 0.95rem;
+}
+
+/* Radical's char + meaning in pink (components below stay grey) */
+.radical-frame .comp-char,
+.radical-frame .comp-meaning {
+  color: var(--accent-ink);
+}
+
+.radical-tag {
+  color: var(--accent-ink);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.component-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  /* line component characters up under the radical character (which sits in its pill's padding) */
+  padding-left: calc(0.95rem + 1px);
+  /* cap height and scroll when a kanji has many components (radical above stays pinned) */
+  max-height: 3rem;
+  overflow-y: auto;
+  padding-right: 0.4rem;
+  scrollbar-width: none; /* hide scrollbar (Firefox) — still scrollable */
+  -ms-overflow-style: none;
+}
+
+.component-list::-webkit-scrollbar {
+  display: none; /* hide scrollbar (Chrome / Safari) */
+}
+
+.component {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+/* Characters get a fixed-width column: chars (and their meanings) align, with space before the meaning */
+.comp-char {
+  flex: none;
+  width: 1.5rem;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.comp-meaning {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.learn-card .gloss {
+  color: var(--ink);
+  font-size: 0.95rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Examples as a left-aligned table so every column starts at the same x. */
+.examples {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  /* header above is centered; the table itself is left-aligned */
+  text-align: left;
+  /* reserve the height of 5 example rows so the card is the same height regardless of how many a
+     kanji actually has (must be ≥ the real 5-row height, else a 5-example card still grows past it) */
+  min-height: 18rem;
+}
+
+/* Three equal columns: word | reading | eye (minmax(0,…) so long text can't widen the card) */
+.example {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.ex-word {
+  font-size: 1.5rem;
+  white-space: nowrap;
+}
+
+.ex-reading {
+  color: var(--muted);
+}
+
+/* Each kanji char in an example word: hover for its own meaning */
+.ex-char {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--border);
+  text-underline-offset: 0.2em;
+}
+
+.ex-char:hover {
+  text-decoration-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.ex-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Standard pronunciation button — small circle, used everywhere (learn + all tasks) */
+.speak-btn {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.speak-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.speak-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Chevron pager (Learn) */
+.pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.75rem;
+}
+
+.chevron {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.chevron.back {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--muted);
+}
+
+.chevron.back:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.chevron.back:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.chevron.next,
+.chevron.check {
+  background: var(--accent);
+  border: 1.5px solid var(--accent);
+  color: var(--on-accent);
+}
+
+.chevron.next:hover:not(:disabled),
+.chevron.check:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.chevron:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Quiz footer: optional left control + check/continue on the right */
+.quiz-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+}
+
+.quiz-actions .qa-right {
+  display: flex;
+  gap: 0.6rem;
+}
+
+/* "No clue" — styled like the nav Study/Settings pill buttons */
+.ghost {
+  font: inherit;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ghost:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* Sentence rendering (Stage 7) */
+.sentence {
+  font-size: 1.65rem;
+  line-height: 1.9;
+}
+
+.tok {
+  white-space: nowrap;
+}
+
+.tok.scaffold {
+  color: var(--muted);
+}
+
+.tok.en {
+  color: var(--ink);
+  font-size: 0.95em;
+  font-variant: small-caps;
+  letter-spacing: 0.02em;
+  padding: 0 0.1em;
+}
+
+.tok.highlight {
+  background: var(--accent-soft);
+  border-radius: 6px;
+  padding: 0 0.15em;
+}
+
+ruby {
+  ruby-position: over;
+  ruby-align: center;
+}
+
+ruby rt {
+  font-size: 0.5em;
+  color: var(--muted);
+  font-weight: 400;
+  /* Lift the reading clear of the kanji so it's legible. */
+  line-height: 1.5;
+  padding-bottom: 0.35em;
+}
+
+/* Learned word — English gloss appears in a cursor-following bubble (see .cursor-bubble) */
+.word {
+  cursor: help;
+}
+
+.hg {
+  display: inline;
+  cursor: help;
+}
+
+.cursor-bubble {
+  position: fixed;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 0.25rem 0.55rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-style: normal;
+  font-weight: 400;
+  max-width: 16rem;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+/* Cloze blank box — one hidden kanji char inside a word */
+.cloze-blank {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.12em;
+  border: 2px dashed var(--accent);
+  border-radius: 4px;
+  background: var(--accent-soft);
+}
+
+/* The mystery (blanked) word is all pink — box, okurigana, and furigana. */
+.tok.cloze {
+  /* keep furigana clear of the box */
+  line-height: 2;
+  color: var(--accent-ink);
+}
+
+.tok.cloze rt {
+  color: var(--accent-ink);
+}
+
+/* Hold-to-reveal eye (Learn phase) */
+.hold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.hold-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.1rem 0.3rem;
+  border-radius: 6px;
+}
+
+.hold-btn:hover {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.hold-content {
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.hold-content.shown {
+  opacity: 1;
+}
+
+/* Practice session (Stage 10) */
+.practice-head {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Small faint back chevron, just left of the question count */
+.practice-back {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  opacity: 0.55;
+  font-size: 0.85rem;
+  padding: 0.15rem 0.3rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.practice-back:hover {
+  opacity: 1;
+}
+
+.practice-head .score {
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* Uniform-height question window: every task fills the same height, content centered vertically. */
+.task-wrap {
+  min-height: 27rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  animation: fade-in 0.2s ease;
+}
+
+.task {
+  width: 100%;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Summary */
+.summary {
+  text-align: center;
+}
+
+.big-score {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+}
+
+/* Level up/down shown as two side-by-side columns */
+.level-columns {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+.level-head {
+  font-size: 1.6rem;
+  margin: 0 0 0.4rem;
+}
+
+.level-head.up {
+  color: var(--correct);
+}
+
+.level-head.down {
+  color: var(--incorrect);
+}
+
+.level-col .none {
+  text-align: center;
+  color: var(--muted);
+  margin: 0.75rem 0;
+}
+
+.level-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.gain-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.gain-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+}
+
+.gain-char {
+  font-size: 1.3rem;
+}
+
+.gain-delta {
+  color: var(--correct);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.gain-delta.down {
+  color: var(--incorrect);
+}
+
+/* Practice tasks (Stage 9) */
+.task {
+  text-align: center;
+}
+
+.task-prompt {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+}
+
+.prompt-word {
+  font-size: 2.6rem;
+  margin: 0.25rem 0;
+}
+
+.prompt-speak {
+  margin-left: 0.6rem;
+}
+
+.prompt-kanji {
+  font-size: 4.5rem;
+  line-height: 1.1;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.hint {
+  margin-top: 0.25rem;
+}
+
+.kana-input {
+  font: inherit;
+  font-size: 1.4rem;
+  text-align: center;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  width: 100%;
+  max-width: 280px;
+  margin: 0.75rem auto 0;
+  display: block;
+}
+
+.kana-input:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.task-sentence {
+  margin: 1.5rem 0 1.75rem;
+  line-height: 2.2;
+  text-align: center;
+}
+
+.retry-note {
+  color: var(--incorrect);
+  font-size: 0.9rem;
+  margin-top: 0.85rem;
+}
+
+/* Options */
+.option-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto;
+  max-width: 460px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+/* Cloze options are single kanji — show them large */
+.cloze-options .opt {
+  font-size: 2.2rem;
+  padding: 0.6rem;
+}
+
+/* Pronunciation speaker tucked into an option's corner */
+.opt-cell {
+  position: relative;
+}
+
+.opt-speak {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+}
+
+/* Play-whole-sentence button after a filled cloze */
+.sentence-speak {
+  margin-left: 0.4rem;
+}
+
+.opt {
+  width: 100%;
+  font: inherit;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  transition:
+    border-color 0.1s ease,
+    background 0.1s ease;
+}
+
+.opt:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.opt.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.opt-word {
+  font-size: 1.4rem;
+}
+
+.opt-reading {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.opt.reveal-correct {
+  border-color: var(--correct);
+  background: var(--correct-soft);
+  color: var(--correct);
+}
+
+.opt.reveal-wrong {
+  border-color: var(--incorrect);
+  background: var(--incorrect-soft);
+  color: var(--incorrect);
+}
+
+.opt:disabled {
+  cursor: default;
+}
+
+/* Reserved space for the feedback banner so the layout doesn't jump when it appears */
+.feedback-slot {
+  min-height: 3rem;
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feedback-slot .feedback,
+.feedback-slot .retry-note {
+  margin-top: 0;
+}
+
+/* Feedback banner */
+.feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1.25rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.feedback.ok {
+  color: var(--correct);
+  background: var(--correct-soft);
+}
+
+.feedback.bad {
+  color: var(--incorrect);
+  background: var(--incorrect-soft);
+}
+
+.feedback .detail {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* Provider loading / error states */
+.status {
+  max-width: 47.5rem; /* rem, so the page column scales with the fluid root font-size */
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+  color: var(--muted);
+}
+
+.status-error {
+  color: var(--incorrect);
+}
+
+/* Help ("?") button in the top bar */
+.help-btn {
+  /* pinned to the very left edge of the full-width topbar */
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+
+.help-btn:hover {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+/* Modal (hiragana chart) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent; /* don't dim the page — just float the popup (click outside to close) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 100;
+}
+
+.modal {
+  position: relative;
+  background: color-mix(in srgb, var(--accent) 32%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 14px;
+  padding: 2.75rem 3rem 3rem;
+  width: 100%;
+  max-width: 880px;
+  max-height: 95vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55); /* stands out without a dimmed backdrop */
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.modal-close:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.modal-title {
+  margin: 0 0 1.25rem;
+  text-align: center;
+  color: var(--ink);
+}
+
+.modal-sub {
+  font-size: 0.65em;
+  color: var(--muted);
+}
+
+/* Hiragana chart: three sections side by side, compact cells */
+.kana-chart {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.kana-section {
+  margin-bottom: 0;
+}
+
+.kana-grid {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.kana-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 26%, var(--bg));
+}
+
+.kana-cell.empty {
+  border: none;
+  background: transparent;
+}
+
+.kana-cell .kana {
+  font-size: 0.95rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.kana-cell .romaji {
+  margin-top: 0.05rem;
+  font-size: 0.52rem;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Manual — "how to use this tool" guide
+   --------------------------------------------------------------------------- */
+.manual-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Page-level title, above the section cards. */
+.manual-title {
+  font-family: var(--font-heading);
+  font-size: 2.1rem;
+  margin: 0.25rem 0 0;
+  text-align: center;
+}
+
+.manual-about p {
+  line-height: 1.7;
+}
+
+/* Bulleted "personalise" points. */
+.manual-points {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  line-height: 1.6;
+}
+.manual-points li::marker {
+  color: var(--muted);
+}
+
+.manual-flow {
+  margin: 0.75rem 0 1rem;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  line-height: 1.6;
+}
+.manual-flow li::marker {
+  color: var(--muted);
+}
+
+.manual-tasks > .muted {
+  margin-top: 0;
+}
+
+/* A single numbered task, divider above each but the first. */
+.manual-task {
+  border-top: 1px solid var(--border);
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+.manual-task:first-of-type {
+  border-top: none;
+  margin-top: 0.75rem;
+  padding-top: 0;
+}
+
+.manual-task-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 0.9rem;
+}
+.manual-task-no {
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-top: 0.1rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--c-900);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.manual-task-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.manual-task-head p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* The example box — reuses the live-task classes inside, scaled down a touch. */
+.manual-demo {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.25rem 1rem 1.4rem;
+}
+.manual-demo .prompt-word {
+  font-size: 2rem;
+}
+.manual-demo .prompt-kanji {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+.manual-demo .task-sentence {
+  margin: 0.25rem 0 1.1rem;
+}
+.manual-demo .feedback {
+  margin-top: 1rem;
+}
+
+.manual-demo-note {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.9rem 0 0;
+}
+
+/* Feedback / "help make it better" callout card. */
+.manual-help {
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.manual-help h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--accent-ink);
+}
+.manual-help p {
+  line-height: 1.7;
+  margin-bottom: 0;
+}
+.manual-mail {
+  color: var(--accent-ink);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* In-text icon chip — mirrors the round speaker button shown on tasks. */
+.inline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 0.8em;
+  vertical-align: middle;
+}
