@@ -5,9 +5,10 @@ import { ProgressProvider } from './context/ProgressContext'
 import { HelpButton } from './components/HelpButton'
 import ManualView from './views/ManualView'
 import SettingsView from './views/SettingsView'
+import StatsView from './views/StatsView'
 import StudyView from './views/StudyView'
 
-type View = 'study' | 'settings' | 'manual'
+type View = 'study' | 'stats' | 'settings' | 'manual'
 
 export default function App() {
   return (
@@ -52,6 +53,17 @@ function Shell() {
               </span>
             </button>
             <button
+              className={view === 'stats' ? 'active' : ''}
+              onClick={() => setView('stats')}
+              type="button"
+            >
+              <FontAwesomeIcon icon="chart-column" />
+              <span className="nav-labels">
+                <span className="ja">統計</span>
+                <span className="en">Stats</span>
+              </span>
+            </button>
+            <button
               className={view === 'settings' ? 'active' : ''}
               onClick={() => setView('settings')}
               type="button"
@@ -77,11 +89,15 @@ function Shell() {
         </div>
       </header>
       <div
-        className={`scroll-area${view === 'settings' || view === 'manual' ? ' no-scrollbar' : ''}`}
+        className={`scroll-area${
+          view === 'settings' || view === 'manual' || view === 'stats' ? ' no-scrollbar' : ''
+        }`}
       >
         <main className="content">
           {view === 'study' ? (
             <StudyView key={studyKey} />
+          ) : view === 'stats' ? (
+            <StatsView />
           ) : view === 'settings' ? (
             <SettingsView />
           ) : (

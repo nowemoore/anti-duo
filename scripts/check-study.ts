@@ -2,8 +2,8 @@
 // Each Learn introduces up to 5 random, distinct, unlearned kanji from the enabled set; no daily cap.
 import { loadContent } from '../server/content'
 import { buildContentIndex } from '../src/lib/content'
-import { applyLearned, introducedKanji, learnChunkSize, nextLearnChunk, unlearnedKanji } from '../src/lib/study'
-import { defaultProgress } from '../shared/constants'
+import { applyLearned, forgottenKanji, introducedKanji, learnChunkSize, nextLearnChunk, skipCard, unlearnedKanji } from '../src/lib/study'
+import { defaultProgress, INTRODUCED_LEVEL, SKIP_REQUEUE_GAP } from '../shared/constants'
 
 async function main() {
   const index = buildContentIndex(await loadContent())
@@ -55,6 +55,37 @@ async function main() {
   const oneExcluded = !unlearnedKanji(index, kanjiOff).some((k) => k.idx === oneIdx)
   const othersPresent = unlearnedKanji(index, kanjiOff).some((k) => numbersIdx.includes(k.idx))
 
+  // Re-teach priority: a kanji introduced then dropped below INTRODUCED_LEVEL (kept as a progress
+  // entry, unlike never-seen kanji) is guaranteed into the very next Learn set, ahead of new kanji.
+  let f = defaultProgress()
+  const seed = nextLearnChunk(index, f)
+  f = applyLearned(f, seed)
+  const forgottenTarget = seed[0].idx
+  f = { ...f, kanji: { ...f.kanji, [forgottenTarget]: { lvl: INTRODUCED_LEVEL - 1 } } } // simulate a downgrade
+  const forgottenBackInPool = unlearnedKanji(index, f).some((k) => k.idx === forgottenTarget)
+  const forgottenFlagged =
+    forgottenKanji(index, f).some((k) => k.idx === forgottenTarget) && forgottenKanji(index, f).length === 1
+  let alwaysReteaches = true
+  for (let t = 0; t < 30 && alwaysReteaches; t++) {
+    if (!nextLearnChunk(index, f).some((k) => k.idx === forgottenTarget)) alwaysReteaches = false
+  }
+  // A never-seen kanji (no entry, lvl defaults to 0) is NOT treated as forgotten.
+  const freshHasNoForgotten = forgottenKanji(index, defaultProgress()).length === 0
+
+  // "Not now": the skipped kanji is swapped out for the next reserve kanji and re-queued mid-reserve
+  // (not next, not last); with an empty reserve it's dropped.
+  const twelve = index.content.kanji.slice(0, 12)
+  const cards0 = twelve.slice(0, 5)
+  const reserve0 = twelve.slice(5) // 7 in reserve
+  const skipTarget = cards0[1].idx
+  const s = skipCard(cards0, reserve0, 1, SKIP_REQUEUE_GAP)
+  const swappedIn = s.cards[1].idx === reserve0[0].idx
+  const leftCards = !s.cards.some((k) => k.idx === skipTarget)
+  const requeuePos = s.reserve.findIndex((k) => k.idx === skipTarget)
+  const requeuedMiddle = requeuePos > 0 && requeuePos < s.reserve.length - 1
+  const dropped = skipCard(cards0, [], 1, SKIP_REQUEUE_GAP)
+  const dropWorks = dropped.cards.length === 4 && !dropped.cards.some((k) => k.idx === skipTarget)
+
   const checks: [string, boolean][] = [
     ['each Learn introduces 5', c1.length === 5 && c2.length === 5 && c3.length === 5],
     ['15 distinct kanji across 3 Learns (no daily cap)', distinct && Object.keys(p.kanji).length === 15],
@@ -64,6 +95,12 @@ async function main() {
     ['nothing left to learn once all introduced', noneLeft],
     ['disabled category excluded from learn pool', noNumbersInLearn],
     ['disabled single kanji excluded; siblings remain', oneExcluded && othersPresent],
+    ['forgotten kanji re-enters the unlearned pool', forgottenBackInPool],
+    ['forgotten kanji detected (never-seen not counted)', forgottenFlagged && freshHasNoForgotten],
+    ['forgotten kanji guaranteed in the next Learn set', alwaysReteaches],
+    ['"Not now" swaps in the next reserve kanji', swappedIn && leftCards],
+    ['skipped kanji re-queued mid-reserve (not next, not last)', requeuedMiddle],
+    ['"Not now" with empty reserve drops the card', dropWorks],
   ]
 
   let ok = true

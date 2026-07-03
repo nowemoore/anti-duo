@@ -11,28 +11,48 @@ interface Props {
   onResult: (delta: number) => void
 }
 
-/** T1: show a word, type its reading in kana. */
+type Phase = 'first' | 'retry' | 'revealed'
+
+/** T1: show a word, type its reading in kana. One redo before the answer is revealed. */
 export function TypeWordTaskView({ task, onResult }: Props) {
   const [value, setValue] = useState('')
-  const [result, setResult] = useState<boolean | null>(null)
+  const [phase, setPhase] = useState<Phase>('first')
+  const [score, setScore] = useState(0)
 
-  const submit = () => {
-    if (result !== null || !value.trim()) return
-    setResult(checkTypeWord(task, value))
+  const revealed = phase === 'revealed'
+
+  // First correct = full credit; correct on the redo = half; still wrong (or "No clue") = a miss.
+  // A wrong first try goes to 'retry' without revealing the answer, so the learner can fix a typo.
+  const check = () => {
+    if (revealed || !value.trim()) return
+    if (checkTypeWord(task, value)) {
+      setScore(phase === 'first' ? 1 : 0.5)
+      setPhase('revealed')
+    } else if (phase === 'first') {
+      setPhase('retry')
+    } else {
+      setScore(-1)
+      setPhase('revealed')
+    }
+  }
+
+  const giveUp = () => {
+    setScore(-1)
+    setPhase('revealed')
   }
 
   return (
     <div className="task type-word">
       <div className="prompt-word">
         {/* Meaning hint and pronunciation are only available once the answer is in. */}
-        <HoverGloss gloss={task.meaning} enabled={result !== null}>
+        <HoverGloss gloss={task.meaning} enabled={revealed}>
           {task.word}
         </HoverGloss>
         <SpeakButton
           text={task.reading}
           label={`Pronounce ${task.word}`}
           className="prompt-speak"
-          disabled={result === null}
+          disabled={!revealed}
         />
       </div>
 
@@ -42,30 +62,33 @@ export function TypeWordTaskView({ task, onResult }: Props) {
         className="kana-input"
         placeholder="かな"
         value={value}
-        disabled={result !== null}
+        disabled={revealed}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && result === null) {
+          if (e.key === 'Enter' && !revealed) {
             e.preventDefault()
-            submit()
+            check()
           }
         }}
       />
 
       <div className="feedback-slot">
-        {result !== null && (
-          <Feedback correct={result} detail={result ? undefined : task.reading} />
+        {phase === 'retry' && (
+          <p className="retry-note">Not quite — fix your answer and check once more.</p>
+        )}
+        {revealed && (
+          <Feedback correct={score > 0} detail={score > 0 ? undefined : task.reading} />
         )}
       </div>
 
       <QuizActions
-        answered={result !== null}
+        answered={revealed}
         canCheck={value.trim() !== ''}
-        onCheck={submit}
-        onContinue={() => onResult(result ? 1 : -1)}
+        onCheck={check}
+        onContinue={() => onResult(score)}
         leftExtra={
-          result === null ? (
-            <button type="button" className="ghost" onClick={() => setResult(false)}>
+          !revealed ? (
+            <button type="button" className="ghost" onClick={giveUp}>
               <FontAwesomeIcon icon="skull" />
               No clue
             </button>

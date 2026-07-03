@@ -6,6 +6,7 @@ import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { introducedKanji } from '../lib/study'
 import { awardDelta, pickTarget } from '../lib/practice'
+import { recordTaskResult } from '../lib/stats'
 import { LEVEL_FLOOR } from '../../shared/constants'
 import { generateAnyTask, type Task } from '../lib/tasks'
 import { TaskRunner } from './tasks/TaskRunner'
@@ -66,15 +67,17 @@ export function PracticeSession({ onExit }: Props) {
 
   const handleResult = (delta: number) => {
     if (!current) return
-    const { targetIdx } = current
+    const { task, targetIdx } = current
 
     if (delta !== 0) {
       const cur = workingRef.current[targetIdx]?.lvl ?? 1
       const next = Math.max(LEVEL_FLOOR, cur + delta)
       workingRef.current = { ...workingRef.current, [targetIdx]: { lvl: next } }
       minLevelRef.current[targetIdx] = Math.min(minLevelRef.current[targetIdx] ?? next, next)
-      update((p) => awardDelta(p, targetIdx, delta))
     }
+    // Record the attempt for every answer (even a net-zero which-words); the level delta only moves
+    // when nonzero, but the success tally always counts the attempt.
+    update((p) => recordTaskResult(delta !== 0 ? awardDelta(p, targetIdx, delta) : p, task.kind, delta))
     prevTargetRef.current = targetIdx
 
     const nextIteration = iteration + 1

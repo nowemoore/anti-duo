@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { Kanji } from '../../shared/types'
+import { SKIP_REQUEUE_GAP } from '../../shared/constants'
+import { skipCard } from '../lib/study'
 import { useContent } from '../context/ContentContext'
 import { Bilingual } from './Bilingual'
 import { HoldToReveal } from './HoldToReveal'
@@ -9,18 +11,37 @@ import { SpeakButton } from './SpeakButton'
 
 interface Props {
   chunk: Kanji[]
-  onComplete: () => void
+  /** Extra queued kanji used to replace a card the learner taps "Not now" on. */
+  reserve: Kanji[]
+  /** Called with the final set of cards the learner kept (skipped cards excluded). */
+  onComplete: (learned: Kanji[]) => void
 }
 
 /** Introduces new kanji one card at a time: char, glosses, and up to 5 example words. */
-export function LearnPhase({ chunk, onComplete }: Props) {
+export function LearnPhase({ chunk, reserve, onComplete }: Props) {
+  const [cards, setCards] = useState<Kanji[]>(chunk)
+  const [pool, setPool] = useState<Kanji[]>(reserve)
   const [i, setI] = useState(0)
-  const kanji = chunk[i]
+
+  const kanji = cards[i]
   const isFirst = i === 0
-  const isLast = i === chunk.length - 1
+  const isLast = i === cards.length - 1
+  // "Not now" swaps in a queued kanji when one is available; otherwise it drops the card. So it's
+  // only blocked when dropping would empty the session (the sole remaining card, nothing to swap).
+  const canSkip = pool.length > 0 || cards.length > 1
 
   const back = () => setI((n) => Math.max(0, n - 1))
-  const next = () => (isLast ? onComplete() : setI((n) => n + 1))
+  const next = () => (isLast ? onComplete(cards) : setI((n) => n + 1))
+
+  // "Not now": swap in the next queued kanji and re-queue this one a few slots back (or drop it if
+  // nothing's queued). Its progress is untouched, so a skipped forgotten kanji stays prioritized.
+  const skip = () => {
+    if (!canSkip) return
+    const res = skipCard(cards, pool, i, SKIP_REQUEUE_GAP)
+    setCards(res.cards)
+    setPool(res.reserve)
+    setI(res.index)
+  }
 
   // Arrow keys mirror the chevron buttons.
   useEffect(() => {
@@ -37,9 +58,19 @@ export function LearnPhase({ chunk, onComplete }: Props) {
       <div className="learn-head">
         <Bilingual
           className="step"
-          ja={`新しい漢字 ${i + 1} / ${chunk.length}`}
-          en={`New kanji ${i + 1} / ${chunk.length}`}
+          ja={`新しい漢字 ${i + 1} / ${cards.length}`}
+          en={`New kanji ${i + 1} / ${cards.length}`}
         />
+        <button
+          type="button"
+          className="skip-btn"
+          onClick={skip}
+          disabled={!canSkip}
+          aria-label="Skip this kanji for now"
+        >
+          <FontAwesomeIcon icon="forward" />
+          <Bilingual ja="あとで" en="Not now" />
+        </button>
       </div>
 
       <LearnCard key={kanji.idx} kanji={kanji} />

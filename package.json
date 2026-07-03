@@ -21,7 +21,8 @@
     "check:study": "tsx scripts/check-study.ts",
     "check:tasks": "tsx scripts/check-tasks.ts",
     "check:practice": "tsx scripts/check-practice.ts",
-    "check": "tsx scripts/check-content.ts && tsx scripts/check-render.ts && tsx scripts/check-study.ts && tsx scripts/check-tasks.ts && tsx scripts/check-practice.ts",
+    "check:stats": "tsx scripts/check-stats.ts",
+    "check": "tsx scripts/check-content.ts && tsx scripts/check-render.ts && tsx scripts/check-study.ts && tsx scripts/check-tasks.ts && tsx scripts/check-practice.ts && tsx scripts/check-stats.ts",
     "reset": "tsx scripts/reset-progress.ts",
     "lint": "eslint .",
     "format": "prettier --write ."

@@ -3,6 +3,12 @@ import type { Progress, Settings } from './types'
 /** Per-click Learn chunk: each Learn introduces this many new kanji (random, from enabled set). */
 export const LEARN_CHUNK = 5
 
+/**
+ * When a learner taps "Not now" on a Learn card, the skipped kanji is re-queued this many slots
+ * back in the reserve — far enough that it doesn't reappear immediately, but not dumped at the end.
+ */
+export const SKIP_REQUEUE_GAP = 3
+
 /** Level at/above which a kanji counts as introduced/learned; below it the kanji is re-taught. */
 export const INTRODUCED_LEVEL = 1
 

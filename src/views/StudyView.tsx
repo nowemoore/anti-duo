@@ -10,7 +10,7 @@ import {
   applyLearned,
   introducedKanji,
   learnChunkSize,
-  nextLearnChunk,
+  nextLearnSession,
   unlearnedKanji,
 } from '../lib/study'
 
@@ -21,20 +21,24 @@ export default function StudyView() {
   const { progress, update } = useProgress()
   const [phase, setPhase] = useState<Phase>('home')
   const [chunk, setChunk] = useState<Kanji[]>([])
+  const [reserve, setReserve] = useState<Kanji[]>([])
 
   function startLearn() {
-    const next = nextLearnChunk(index, progress)
+    const { chunk: next, reserve: rest } = nextLearnSession(index, progress)
     if (next.length === 0) return
     setChunk(next)
+    setReserve(rest)
     setPhase('learn')
   }
 
-  function finishLearning() {
-    update((p) => applyLearned(p, chunk))
+  // `learned` is the final set of cards the learner kept (skipped cards are excluded).
+  function finishLearning(learned: Kanji[]) {
+    update((p) => applyLearned(p, learned))
     setPhase('home')
   }
 
-  if (phase === 'learn') return <LearnPhase chunk={chunk} onComplete={finishLearning} />
+  if (phase === 'learn')
+    return <LearnPhase chunk={chunk} reserve={reserve} onComplete={finishLearning} />
   if (phase === 'practice') return <PracticeSession onExit={() => setPhase('home')} />
 
   return <StudyHome onLearn={startLearn} onPractice={() => setPhase('practice')} />

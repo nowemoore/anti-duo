@@ -89,10 +89,22 @@ export interface KanjiProgress {
   lvl: number
 }
 
+/**
+ * Cumulative practice tally for one task type. `points` is earned score in [0, attempts]: each
+ * answered task earns (delta + 1) / 2 out of 1 possible, so the success rate is `points / attempts`
+ * (this equals the fraction correct for the binary tasks and gives which-words per-option credit).
+ */
+export interface TaskStats {
+  attempts: number
+  points: number
+}
+
 export interface Progress {
   settings: Settings
   /** Keyed by kanji `idx` (stringified in JSON). */
   kanji: Record<number, KanjiProgress>
+  /** Cumulative per-task-type success tally, keyed by TaskType. Absent until the first answer. */
+  stats?: Record<string, TaskStats>
   /** ISO timestamp of the last Study run, if any. */
   lastRunAt?: string
 }

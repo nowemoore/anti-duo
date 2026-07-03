@@ -617,13 +617,100 @@ button {
 /* Learn phase */
 .learn-head {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 0.5rem;
 }
 
 .learn-head .step {
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+/* "Not now" — defers the current kanji, swapping in another (or dropping it if none are queued). */
+.skip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: none;
+  padding: 0.1rem 0.2rem;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.skip-btn:hover:not(:disabled) {
+  color: var(--accent-ink);
+}
+
+.skip-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Stats view */
+.stats-view h2 {
+  margin-bottom: 1.75rem;
+}
+
+.stats-empty {
+  color: var(--muted);
+}
+
+/* One shared grid across all rows (rows use display:contents) so every bar is the same length,
+   regardless of how wide each row's percentage / try-count text is. */
+.stats-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) 1fr auto;
+  align-items: center;
+  gap: 1.1rem 1rem;
+}
+
+.stats-row {
+  display: contents;
+}
+
+.stats-label {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.stats-bar {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.stats-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.stats-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fixed number cells so the % and try-count align down the column (and don't alter bar length). */
+.stats-pct {
+  min-width: 3ch;
+  text-align: right;
+}
+
+.stats-count {
+  min-width: 4.75rem;
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 /* Header (kanji + gloss) is centered; the examples table below is left-aligned. */
