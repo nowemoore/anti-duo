@@ -1895,20 +1895,18 @@ ruby rt {
   .kanji-reveal.expanded .reveal-panel {
     max-width: calc(100vw - 11rem);
   }
-  /* Give the kanji vertical breathing room (badge above, breakdown/gloss below); the absolute
-     breakdown panel doesn't reserve height, so add generous room under it when expanded — enough
-     for the fullest (uncapped) breakdown, up to the 6-component kanji. */
+  /* Reserve the breakdown's vertical space at ALL times (not only when expanded), so toggling the
+     components never resizes the card. The panel is absolute (adds no height), so a constant bottom
+     margin holds the kanji→gloss gap — and thus the whole card — the same size either way. Sized to
+     clear the fixed-height breakdown below. */
   .kanji-reveal {
-    margin: 3rem 0 1rem;
+    margin: 3rem 0 3.5rem;
   }
-  .kanji-reveal.expanded {
-    margin-bottom: 5rem;
-  }
-  /* Show every component in place — no inner scroll / "expand" for complex kanji. Rows compacted
-     so a tall breakdown stays manageable. */
+  /* Fixed-size, scrollable component list: shows ~3.5 rows, then scrolls — so the breakdown height
+     is bounded (keeps the card constant) no matter how many components a kanji has. */
   .component-list {
-    max-height: none;
-    overflow: visible;
+    max-height: 4.75rem;
+    overflow-y: auto;
     gap: 0.15rem;
   }
   .component {
