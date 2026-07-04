@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { bind, toKana, unbind } from 'wanakana'
 import { checkTypeWord, type TypeWordTask } from '../../lib/tasks'
 import { HoverGloss } from '../HoverGloss'
 import { SpeakButton } from '../SpeakButton'
@@ -13,24 +14,41 @@ interface Props {
 
 type Phase = 'first' | 'retry' | 'revealed'
 
-/** T1: show a word, type its reading in kana. One redo before the answer is revealed. */
+/** T1: show a word, type its reading in kana. Romaji is converted to kana live. One redo before reveal. */
 export function TypeWordTaskView({ task, onResult }: Props) {
-  const [value, setValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [hasValue, setHasValue] = useState(false)
   const [phase, setPhase] = useState<Phase>('first')
   const [score, setScore] = useState(0)
 
   const revealed = phase === 'revealed'
 
+  // Live romaji→kana so no Japanese keyboard is needed. wanakana's input binding tracks the raw
+  // romaji buffer, so it gets the tricky cases right (ん before a な-row syllable as in "onna",
+  // sokuon, caret position) that converting the field value on each change cannot. The task view is
+  // remounted per question (PracticeSession keys it on the iteration), so bind/unbind pairs cleanly.
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    bind(el, { IMEMode: true })
+    return () => unbind(el)
+  }, [])
+
   // First correct = full credit; correct on the redo = half; still wrong (or "No clue") = a miss.
   // A wrong first try goes to 'retry' without revealing the answer, so the learner can fix a typo.
   const check = () => {
-    if (revealed || !value.trim()) return
-    if (checkTypeWord(task, value)) {
+    const el = inputRef.current
+    if (revealed || !el || !el.value.trim()) return
+    // Flush any half-typed romaji (a trailing lone "n" stays pending in IME mode → ん) before checking.
+    const answer = toKana(el.value)
+    if (checkTypeWord(task, answer)) {
+      el.value = answer // reveal path: input is about to be disabled, so clean up the display
       setScore(phase === 'first' ? 1 : 0.5)
       setPhase('revealed')
     } else if (phase === 'first') {
-      setPhase('retry')
+      setPhase('retry') // leave the field as typed so the learner can edit (don't desync the buffer)
     } else {
+      el.value = answer
       setScore(-1)
       setPhase('revealed')
     }
@@ -57,13 +75,13 @@ export function TypeWordTaskView({ task, onResult }: Props) {
       </div>
 
       <input
+        ref={inputRef}
         autoFocus
         lang="ja"
         className="kana-input"
-        placeholder="かな"
-        value={value}
+        placeholder="かな / romaji"
         disabled={revealed}
-        onChange={(e) => setValue(e.target.value)}
+        onInput={() => setHasValue((inputRef.current?.value.trim() ?? '') !== '')}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !revealed) {
             e.preventDefault()
@@ -83,7 +101,7 @@ export function TypeWordTaskView({ task, onResult }: Props) {
 
       <QuizActions
         answered={revealed}
-        canCheck={value.trim() !== ''}
+        canCheck={hasValue}
         onCheck={check}
         onContinue={() => onResult(score)}
         leftExtra={

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { Kanji } from '../../shared/types'
 import { SKIP_REQUEUE_GAP } from '../../shared/constants'
@@ -53,8 +53,27 @@ export function LearnPhase({ chunk, reserve, onComplete }: Props) {
     return () => window.removeEventListener('keydown', handler)
   })
 
+  // Swipe left/right to page between cards (touch), mirroring the chevrons. Only a decisive,
+  // mostly-horizontal swipe counts — taps, press-and-holds, and vertical scrolls are ignored.
+  const swipeStart = useRef<{ x: number; y: number } | null>(null)
+  const onTouchStart = (e: ReactTouchEvent) => {
+    const t = e.touches[0]
+    swipeStart.current = t ? { x: t.clientX, y: t.clientY } : null
+  }
+  const onTouchEnd = (e: ReactTouchEvent) => {
+    const start = swipeStart.current
+    swipeStart.current = null
+    const t = e.changedTouches[0]
+    if (!start || !t) return
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    if (dx < 0) next() // swipe left → next
+    else if (!isFirst) back() // swipe right → previous
+  }
+
   return (
-    <section className="panel learn">
+    <section className="panel learn" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <div className="learn-head">
         <Bilingual
           className="step"

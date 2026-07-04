@@ -26,8 +26,15 @@ export function HoldToReveal({ children, label = 'Hold to reveal' }: Props) {
           e.preventDefault()
           show()
         }}
-        onTouchEnd={hide}
-        onTouchCancel={hide}
+        // Blur on release so touch doesn't leave the eye focused (and looking activated) afterward.
+        onTouchEnd={(e) => {
+          e.currentTarget.blur()
+          hide()
+        }}
+        onTouchCancel={(e) => {
+          e.currentTarget.blur()
+          hide()
+        }}
       >
         <FontAwesomeIcon icon="eye" />
       </button>

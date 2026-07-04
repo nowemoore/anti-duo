@@ -50,6 +50,7 @@ button {
 
 .app {
   height: 100vh;
+  height: 100dvh; /* dynamic viewport height: the mobile browser toolbar can't clip the frame */
   display: flex;
   flex-direction: column;
   overflow: hidden; /* the frame never scrolls; only .scroll-area does */
@@ -1078,6 +1079,9 @@ ruby rt {
 .hg {
   display: inline;
   cursor: help;
+  /* don't let a press-and-hold on touch start a text selection over the gloss word */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .cursor-bubble {
@@ -1774,4 +1778,238 @@ ruby rt {
   color: var(--ink);
   font-size: 0.8em;
   vertical-align: middle;
+}
+
+/* ===========================================================================
+   Mobile / touch layer
+   The app is desktop-first: everything is sized in rem off one root clamp that
+   floors at 12px below ~745px, and there are no other breakpoints. The rules
+   below reflow the layout on narrow screens (max-width) and enlarge tap targets
+   on touch devices (pointer: coarse). A wide, fine-pointer desktop matches
+   none of these, so its rendering is unchanged.
+   =========================================================================== */
+
+@media (max-width: 640px) {
+  /* Don't force the study/practice cards tall — .scroll-area still handles overflow, and a short
+     or landscape phone shouldn't need to scroll a mostly-empty card. */
+  .intro,
+  .learn,
+  .practice,
+  .summary {
+    min-height: auto;
+  }
+  .task-wrap {
+    min-height: 20rem;
+  }
+  .examples {
+    min-height: auto;
+  }
+
+  /* Reclaim horizontal space eaten by desktop gutters. */
+  .content {
+    padding: 1.1rem 0.85rem 2.5rem;
+  }
+  .panel {
+    padding: 1.1rem;
+  }
+  .modal-backdrop {
+    padding: 0.75rem;
+  }
+  .modal {
+    padding: 2.5rem 1.1rem 1.4rem;
+  }
+  /* Stack the Learn / Practice cards vertically instead of side-by-side. */
+  .study-choices {
+    flex-direction: column;
+    align-items: center;
+  }
+  .study-choice {
+    flex: none;
+    width: 100%;
+    max-width: 22rem;
+    padding: 1.5rem 1rem;
+  }
+
+  /* Keep the biggest display type from crowding a 320–430px screen. */
+  .prompt-kanji {
+    font-size: 3.6rem;
+  }
+  .big-kanji {
+    font-size: 3.2rem;
+  }
+  .prompt-word {
+    font-size: 2.2rem;
+  }
+  .cloze-options .opt {
+    font-size: 2rem;
+  }
+  .sentence {
+    font-size: 1.45rem;
+  }
+  .manual-title {
+    font-size: 1.7rem;
+  }
+
+  /* Top bar: icon-only nav + no version chip so the four tabs fit; reserve room on the left for the
+     absolutely-positioned help "?" so it stops overlapping the wordmark. */
+  .nav-labels {
+    display: none;
+  }
+  .brand-ver {
+    display: none;
+  }
+  .nav {
+    gap: 0.15rem;
+  }
+  .nav button {
+    padding: 0.4rem 0.55rem;
+  }
+  .topbar-inner {
+    padding-left: 3.4rem;
+  }
+  .help-btn {
+    left: 0.5rem;
+  }
+
+  /* Denser settings + stats so bars/labels fit the width. */
+  .cat-kanji {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stats-list {
+    grid-template-columns: minmax(0, 7rem) 1fr auto;
+    gap: 0.8rem 0.6rem;
+  }
+
+  /* Learn breakdown: keep it beside the kanji (not under). The desktop layout slides the kanji
+     left and floats the panel to its right; on a phone just use a smaller slide, cap the panel to
+     the screen width so it can't run off the edge, tighten the gap, and pull the zoom badge in. */
+  .kanji-reveal.expanded .kanji-box {
+    transform: translateX(-3.5rem);
+  }
+  .reveal-btn {
+    transform: translate(60%, -140%);
+  }
+  .reveal-panel {
+    padding-left: 1rem;
+  }
+  .kanji-reveal.expanded .reveal-panel {
+    max-width: calc(100vw - 11rem);
+  }
+  /* Give the kanji vertical breathing room (badge above, breakdown/gloss below); the absolute
+     breakdown panel doesn't reserve height, so add generous room under it when expanded — enough
+     for the fullest (uncapped) breakdown, up to the 6-component kanji. */
+  .kanji-reveal {
+    margin: 3rem 0 1rem;
+  }
+  .kanji-reveal.expanded {
+    margin-bottom: 5rem;
+  }
+  /* Show every component in place — no inner scroll / "expand" for complex kanji. Rows compacted
+     so a tall breakdown stays manageable. */
+  .component-list {
+    max-height: none;
+    overflow: visible;
+    gap: 0.15rem;
+  }
+  .component {
+    line-height: 1.25;
+  }
+
+  /* Example rows: the eye's meaning is revealed by opacity but stays in the layout, so it
+     permanently reserves width in the narrow actions column and overflows on hold. Shrink the
+     actions column to just the buttons and float the meaning as a popover (out of flow). */
+  .example {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .ex-actions {
+    gap: 0.5rem;
+  }
+  .hold {
+    position: relative;
+  }
+  .hold-content {
+    position: absolute;
+    bottom: calc(100% + 0.4rem);
+    right: 0;
+    width: max-content;
+    max-width: 60vw;
+    padding: 0.3rem 0.55rem;
+    border-radius: 8px;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 0.85rem;
+    line-height: 1.35;
+    text-align: left;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+    z-index: 20;
+  }
+}
+
+@media (pointer: coarse) {
+  /* Comfortable base text on any touch device — the desktop clamp pins phones to its 12px floor,
+     which makes every rem-sized control render at its smallest exactly where fingers need them big. */
+  :root {
+    font-size: clamp(13px, 2.4vw + 5px, 15px);
+  }
+
+  /* Grow finger targets that are fine with a mouse but well under ~44px for a fingertip. */
+  .speak-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 0.9rem;
+  }
+  /* Option-corner speaker stays a touch smaller so it doesn't cover the option's word. */
+  .opt-speak {
+    width: 2.1rem;
+    height: 2.1rem;
+    top: 0.4rem;
+    right: 0.4rem;
+    font-size: 0.8rem;
+  }
+  .help-btn,
+  .modal-close,
+  .reveal-btn {
+    width: 2.6rem;
+    height: 2.6rem;
+  }
+  .chevron {
+    width: 3.1rem;
+    height: 3.1rem;
+  }
+  .nav button {
+    min-height: 2.6rem;
+  }
+  /* Toggles: taller track + re-centered knob (translate stays correct for the unchanged widths). */
+  .toggle {
+    height: 28px;
+  }
+  .toggle .toggle-knob {
+    top: 5px;
+  }
+  .cat-kanji .toggle {
+    width: 40px;
+    height: 26px;
+  }
+  .cat-kanji .toggle .toggle-knob {
+    top: 6px;
+  }
+  .cat-kanji .toggle.on .toggle-knob {
+    transform: translateX(20px);
+  }
+  /* Inline text/icon buttons get a bigger hit area via padding. */
+  .reset-btn,
+  .skip-btn,
+  .practice-back,
+  .ghost,
+  .cat-expand,
+  .hold-btn {
+    padding: 0.5rem 0.7rem;
+  }
+  /* A tap leaves :hover 'stuck' on touch — don't let the eye keep the activated (pink) look
+     after the finger lifts. */
+  .hold-btn:hover {
+    background: transparent;
+    color: var(--muted);
+  }
 }

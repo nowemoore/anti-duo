@@ -8,7 +8,7 @@ import { introducedKanji } from '../lib/study'
 import { awardDelta, pickTarget } from '../lib/practice'
 import { recordTaskResult } from '../lib/stats'
 import { LEVEL_FLOOR } from '../../shared/constants'
-import { generateAnyTask, type Task } from '../lib/tasks'
+import { generateAnyTask, TASK_TUNING, type Task } from '../lib/tasks'
 import { TaskRunner } from './tasks/TaskRunner'
 import { Bilingual } from './Bilingual'
 
@@ -69,15 +69,19 @@ export function PracticeSession({ onExit }: Props) {
     if (!current) return
     const { task, targetIdx } = current
 
-    if (delta !== 0) {
+    // Scale the level change by this task type's `points` knob; Stats accuracy still uses raw `delta`.
+    const levelDelta = delta * TASK_TUNING[task.kind].points
+    if (levelDelta !== 0) {
       const cur = workingRef.current[targetIdx]?.lvl ?? 1
-      const next = Math.max(LEVEL_FLOOR, cur + delta)
+      const next = Math.max(LEVEL_FLOOR, cur + levelDelta)
       workingRef.current = { ...workingRef.current, [targetIdx]: { lvl: next } }
       minLevelRef.current[targetIdx] = Math.min(minLevelRef.current[targetIdx] ?? next, next)
     }
     // Record the attempt for every answer (even a net-zero which-words); the level delta only moves
     // when nonzero, but the success tally always counts the attempt.
-    update((p) => recordTaskResult(delta !== 0 ? awardDelta(p, targetIdx, delta) : p, task.kind, delta))
+    update((p) =>
+      recordTaskResult(levelDelta !== 0 ? awardDelta(p, targetIdx, levelDelta) : p, task.kind, delta),
+    )
     prevTargetRef.current = targetIdx
 
     const nextIteration = iteration + 1

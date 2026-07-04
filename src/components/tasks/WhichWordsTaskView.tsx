@@ -92,7 +92,10 @@ export function WhichWordsTaskView({ task, onResult }: Props) {
           <p className="retry-note">Not quite — adjust your selection and check once more.</p>
         )}
         {revealed && (
-          <Feedback correct={score >= MAX_SCORE} detail="hover a green word for reading & meaning" />
+          <Feedback
+            correct={score >= MAX_SCORE}
+            detail="hover or hold a green word for reading & meaning"
+          />
         )}
       </div>
 

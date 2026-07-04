@@ -37,7 +37,7 @@ export default function ManualView() {
         <h2>Task Types</h2>
         <p className="muted">
           Practice rotates through these five question types. After each task, the correct answer
-          shows up in green. On some tasks, you can hover over different parts of the question (the
+          shows up in green. On some tasks, you can hover or hold different parts of the question (the
           kanji or options) to view the reading, or tap the <UiIcon icon="volume-high" /> to hear it read aloud. On
           others, more information becomes available after you answer. You'll encounter the following tasks:
         </p>
@@ -47,7 +47,8 @@ export default function ManualView() {
           title="Type the reading"
           desc={
             <>
-              You're presented with a word. Your task is to type its reading in hiragana. After you answer, the <UiIcon icon="volume-high" />{' '}
+              You're presented with a word. Your task is to type its reading in hiragana — you can
+              type romaji and it converts to kana as you go. After you answer, the <UiIcon icon="volume-high" />{' '}
               reads it aloud and the meaning appears.
             </>
           }
@@ -71,7 +72,7 @@ export default function ManualView() {
           title="Which words are real"
           desc={
             <>
-              You see one kanji and four words; select those that use the kanji correctly. After you answer, the real words turn green, and you can hover
+              You see one kanji and four words; select those that use the kanji correctly. After you answer, the real words turn green, and you can hover or hold
               one for its reading and meaning or tap the <UiIcon icon="volume-high" /> to hear it.
             </>
           }
