@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   name: '',
   disabledCategories: [],
   disabledKanji: [],
+  taskWeights: {},
 }
 
 /** Fresh progress for a brand-new user: every kanji at lvl 0. */

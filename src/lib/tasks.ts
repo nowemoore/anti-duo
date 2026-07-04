@@ -26,10 +26,10 @@ export const ALL_TASK_TYPES: TaskType[] = [
  * All default to 1, which reproduces the current behaviour.
  */
 export const TASK_TUNING: Record<TaskType, { weight: number; points: number }> = {
-  'type-word': { weight: 1, points: 1 },
-  'which-words': { weight: 1, points: 1 },
+  'type-word': { weight: 1, points: 0.2 },
+  'which-words': { weight: 1, points: 0.5 },
   cloze: { weight: 1, points: 1 },
-  'pick-reading': { weight: 1, points: 1 },
+  'pick-reading': { weight: 1, points: 0.7 },
   'pick-meaning': { weight: 1, points: 1 },
 }
 
@@ -37,6 +37,8 @@ export const TASK_TUNING: Record<TaskType, { weight: number; points: number }> =
 export interface TaskContext {
   /** idx values of kanji the learner is currently reviewing — preferred cloze distractors. */
   studySet?: number[]
+  /** Per-task appearance weight override (keyed by TaskType); falls back to {@link TASK_TUNING}. */
+  taskWeights?: Record<string, number>
 }
 
 export interface Option {
@@ -385,14 +387,14 @@ export function generateTask(
 }
 
 /**
- * Task types in a weighted-random order (Efraimidis–Spirakis reservoir keys): a higher
- * {@link TASK_TUNING} `weight` makes a type more likely to come first. weight 0 sorts last, so it's
- * only used when nothing else is feasible for the target. Equal weights ⇒ a uniform shuffle.
+ * Task types in a weighted-random order (Efraimidis–Spirakis reservoir keys): a higher `weightOf`
+ * makes a type more likely to come first. weight 0 sorts last, so it's only used when nothing else
+ * is feasible for the target. Equal weights ⇒ a uniform shuffle.
  */
-function weightedTaskOrder(): TaskType[] {
+function weightedTaskOrder(weightOf: (t: TaskType) => number): TaskType[] {
   return [...ALL_TASK_TYPES]
     .map((t) => {
-      const w = Math.max(0, TASK_TUNING[t].weight)
+      const w = Math.max(0, weightOf(t))
       return { t, key: w === 0 ? 0 : Math.random() ** (1 / w) }
     })
     .sort((a, b) => b.key - a.key)
@@ -400,7 +402,8 @@ function weightedTaskOrder(): TaskType[] {
 }
 
 /**
- * Pick a feasible task for the target, trying task types in {@link TASK_TUNING}-weighted random order.
+ * Pick a feasible task for the target, trying task types in weighted-random order. The weight is the
+ * per-user override from `ctx.taskWeights` if set, else the built-in {@link TASK_TUNING} default.
  * `avoid` lets the caller discourage repeating the previous type (deferred to last when possible).
  */
 export function generateAnyTask(
@@ -409,7 +412,8 @@ export function generateAnyTask(
   ctx: TaskContext = {},
   avoid?: TaskType,
 ): Task | null {
-  const order = weightedTaskOrder()
+  const weightOf = (t: TaskType): number => ctx.taskWeights?.[t] ?? TASK_TUNING[t].weight
+  const order = weightedTaskOrder(weightOf)
   if (avoid) order.sort((a, b) => (a === avoid ? 1 : 0) - (b === avoid ? 1 : 0))
   for (const type of order) {
     const task = generateTask(index, targetIdx, type, ctx)

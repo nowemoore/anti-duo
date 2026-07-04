@@ -16,6 +16,16 @@ function normalizeStats(raw: unknown): Record<string, TaskStats> {
   return out
 }
 
+/** Keep only well-formed {taskType: weight} entries (finite, ≥ 0); drops junk and legacy keys. */
+function normalizeTaskWeights(raw: unknown): Record<string, number> {
+  if (typeof raw !== 'object' || raw === null) return {}
+  const out: Record<string, number> = {}
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) out[key] = value
+  }
+  return out
+}
+
 /** Fill defaults and coerce settings into valid shapes (drops any legacy fields). */
 export function normalizeProgress(p: Partial<Progress> | null | undefined): Progress {
   const base = defaultProgress()
@@ -24,6 +34,7 @@ export function normalizeProgress(p: Partial<Progress> | null | undefined): Prog
     name: typeof s?.name === 'string' ? s.name : base.settings.name,
     disabledCategories: Array.isArray(s?.disabledCategories) ? s.disabledCategories : [],
     disabledKanji: Array.isArray(s?.disabledKanji) ? s.disabledKanji : [],
+    taskWeights: normalizeTaskWeights(s?.taskWeights),
   }
   return {
     settings,

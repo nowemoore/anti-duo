@@ -82,6 +82,12 @@ export interface Settings {
   disabledCategories: string[]
   /** Individual kanji idx values turned off (empty = all on), within enabled categories. */
   disabledKanji: number[]
+  /**
+   * Per-task-type appearance weight, keyed by TaskType (0 = off, higher = more often). A task
+   * absent here falls back to its built-in default weight. User-facing "Practice mix" setting;
+   * only affects how often a task type is chosen, not its scoring.
+   */
+  taskWeights?: Record<string, number>
 }
 
 /** Per-kanji progress. `lvl`: 0 = unseen, 1 = introduced, +1 per correct answer. */

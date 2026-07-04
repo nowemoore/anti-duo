@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useProgress } from '../context/ProgressContext'
 import { CategorySettings } from '../components/CategorySettings'
+import { TaskFrequencySettings } from '../components/TaskFrequencySettings'
 
 export default function SettingsView() {
   const { progress, update, saving } = useProgress()
@@ -37,6 +38,8 @@ export default function SettingsView() {
       </section>
 
       <CategorySettings />
+
+      <TaskFrequencySettings />
     </div>
   )
 }

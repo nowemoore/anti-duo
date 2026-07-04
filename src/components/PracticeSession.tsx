@@ -52,7 +52,10 @@ export function PracticeSession({ onExit }: Props) {
     const targetIdx = pickTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
     if (targetIdx == null) return null
     const studySet = Object.keys(workingRef.current).map(Number)
-    const task = generateAnyTask(index, targetIdx, { studySet })
+    const task = generateAnyTask(index, targetIdx, {
+      studySet,
+      taskWeights: progress.settings.taskWeights,
+    })
     return task ? { task, targetIdx } : null
   }, [index, progress])
 
