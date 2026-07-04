@@ -1267,71 +1267,107 @@ ruby rt {
   margin: 0.5rem 0;
 }
 
-/* Level up/down shown as two side-by-side columns */
-.level-columns {
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
-  justify-content: center;
-  margin-top: 1.25rem;
-}
-
-.level-head {
-  font-size: 1.6rem;
-  margin: 0 0 0.4rem;
-}
-
-.level-head.up {
-  color: var(--correct);
-}
-
-.level-head.down {
-  color: var(--incorrect);
-}
-
-.level-col .none {
-  text-align: center;
-  color: var(--muted);
-  margin: 0.75rem 0;
-}
-
-.level-col {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.gain-list {
+/* Session result: one row per moved kanji — a bar diverging from a centre axis (its current
+   standing). Right + green = gained, left + red = slipped; length = how much it moved. */
+.move-list {
   list-style: none;
+  margin: 1.75rem auto 0;
   padding: 0;
-  margin: 0.75rem auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
+  /* Definite width: as a shrink-to-content flex child it would collapse to the kanji width (the
+     track has no intrinsic width — its bar is absolutely positioned), squashing the bars. */
+  width: min(32rem, 100%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.75rem 4.5rem;
 }
 
-.gain-list li {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: var(--bg);
-  border: 1px solid var(--border);
+.move-char {
+  display: block;
+  text-align: center;
+  font-size: 1.7rem;
+  line-height: 1;
+  margin-bottom: 0.4rem;
+}
+
+.move-track {
+  position: relative;
+  height: 0.55rem;
+}
+
+/* faint full-width axis the bar sits on */
+.move-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--border);
+  border-radius: 1px;
+  opacity: 0.5;
+}
+
+/* current-standing marker: a short tick in the centre, directly under the kanji */
+.move-axis {
+  position: absolute;
+  left: 50%;
+  top: -0.15rem;
+  bottom: -0.15rem;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--muted);
+  border-radius: 1px;
+}
+
+.move-bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
   border-radius: 999px;
-  padding: 0.3rem 0.7rem;
+  transition: width 0.4s ease;
 }
 
-.gain-char {
-  font-size: 1.3rem;
+.move-bar.up {
+  left: 50%;
+  background: var(--correct);
 }
 
-.gain-delta {
-  color: var(--correct);
-  font-size: 0.85rem;
+.move-bar.down {
+  right: 50%;
+  background: var(--incorrect);
+}
+
+/* Signed movement amount, sitting just past the outer end of the bar. */
+.move-num {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.72rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.gain-delta.down {
+.move-num.up {
+  color: var(--correct);
+}
+
+.move-num.down {
   color: var(--incorrect);
+}
+
+.move-tag {
+  display: block;
+  text-align: center;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--incorrect);
+}
+
+.summary .none {
+  color: var(--muted);
+  margin-top: 1.5rem;
 }
 
 /* Practice tasks (Stage 9) */

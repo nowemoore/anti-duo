@@ -7,7 +7,7 @@ import { useProgress } from '../context/ProgressContext'
 import { introducedKanji } from '../lib/study'
 import { awardDelta, pickTarget } from '../lib/practice'
 import { recordTaskResult } from '../lib/stats'
-import { LEVEL_FLOOR } from '../../shared/constants'
+import { INTRODUCED_LEVEL, LEVEL_FLOOR } from '../../shared/constants'
 import { generateAnyTask, TASK_TUNING, type Task } from '../lib/tasks'
 import { TaskRunner } from './tasks/TaskRunner'
 import { Bilingual } from './Bilingual'
@@ -23,7 +23,15 @@ interface Current {
 
 type Levels = Record<number, { lvl: number }>
 
-const round1 = (n: number): number => Math.round(n * 10) / 10
+/**
+ * Bar length in [0, 1] for a move, relative to the session's biggest move. A √ curve boosts smaller
+ * moves so they read at a glance (the raw ratio makes them nearly invisible), plus a small floor so
+ * any real move shows. 1 = fills the half-track.
+ */
+function barFraction(delta: number, maxAbs: number): number {
+  if (maxAbs === 0) return 0
+  return Math.max(0.14, Math.sqrt(Math.abs(delta) / maxAbs))
+}
 
 /** Runs PRACTICE_ITERATIONS tasks, evening kanji levels and persisting each correct answer. */
 export function PracticeSession({ onExit }: Props) {
@@ -39,8 +47,6 @@ export function PracticeSession({ onExit }: Props) {
   const startLevelsRef = useRef<Record<number, number>>(
     Object.fromEntries(Object.entries(workingRef.current).map(([i, v]) => [Number(i), v.lvl])),
   )
-  // Lowest level each kanji reached this session — so a dip shows even if it later recovered.
-  const minLevelRef = useRef<Record<number, number>>({ ...startLevelsRef.current })
   const prevTargetRef = useRef<number | null>(null)
 
   const [iteration, setIteration] = useState(0)
@@ -78,7 +84,6 @@ export function PracticeSession({ onExit }: Props) {
       const cur = workingRef.current[targetIdx]?.lvl ?? 1
       const next = Math.max(LEVEL_FLOOR, cur + levelDelta)
       workingRef.current = { ...workingRef.current, [targetIdx]: { lvl: next } }
-      minLevelRef.current[targetIdx] = Math.min(minLevelRef.current[targetIdx] ?? next, next)
     }
     // Record the attempt for every answer (even a net-zero which-words); the level delta only moves
     // when nonzero, but the success tally always counts the attempt.
@@ -104,7 +109,6 @@ export function PracticeSession({ onExit }: Props) {
       <Summary
         working={workingRef.current}
         startLevels={startLevelsRef.current}
-        minLevels={minLevelRef.current}
         index={index}
         onExit={onExit}
       />
@@ -144,76 +148,66 @@ export function PracticeSession({ onExit }: Props) {
 interface SummaryProps {
   working: Levels
   startLevels: Record<number, number>
-  minLevels: Record<number, number>
   index: ReturnType<typeof useContent>
   onExit: () => void
 }
 
-function Summary({ working, startLevels, minLevels, index, onExit }: SummaryProps) {
-  const changes = Object.entries(working).map(([idx, v]) => ({
-    idx: Number(idx),
-    char: index.byIdx.get(Number(idx))?.char ?? '?',
-    from: startLevels[Number(idx)] ?? v.lvl,
-    to: v.lvl,
-    min: minLevels[Number(idx)] ?? startLevels[Number(idx)] ?? v.lvl,
-  }))
-  // Clean wins: improved and never dipped. Missed: dropped at some point (even if recovered).
-  const gained = changes
-    .filter((g) => g.to > g.from && g.min >= g.from)
-    .sort((a, b) => b.to - b.from - (a.to - a.from))
-  const dipped = changes
-    .filter((g) => g.min < g.from)
-    .sort((a, b) => a.to - a.from - (b.to - b.from))
+function Summary({ working, startLevels, index, onExit }: SummaryProps) {
+  // How far each touched kanji moved this session (net). Direction sets the side + colour of the
+  // bar; magnitude sets its length. No raw levels/points shown — just the shape of the change.
+  const moves = Object.entries(working)
+    .map(([idx, v]) => {
+      const i = Number(idx)
+      return {
+        idx: i,
+        char: index.byIdx.get(i)?.char ?? '?',
+        delta: v.lvl - (startLevels[i] ?? v.lvl),
+        reteach: v.lvl < INTRODUCED_LEVEL, // fell below intro → goes back into Learn
+      }
+    })
+    .filter((m) => m.delta !== 0)
+    .sort((a, b) => b.delta - a.delta) // biggest gains on top, biggest slips at the bottom
+
+  // Scale bars to the session's largest move, so the row that moved most fills the half-track.
+  const maxAbs = moves.reduce((m, x) => Math.max(m, Math.abs(x.delta)), 0)
 
   return (
     <section className="panel summary">
       <h2>
-        <Bilingual ja="練習完了" en="Practice complete" />
+        <Bilingual ja="進捗概要" en="Progress overview" />
       </h2>
 
-      <div className="level-columns">
-        <div className="level-col">
-          <h3 className="level-head up">
-            <FontAwesomeIcon icon="arrow-up" />
-          </h3>
-          {gained.length > 0 ? (
-            <ul className="gain-list">
-              {gained.map((g) => (
-                <li key={g.idx}>
-                  <span className="gain-char">{g.char}</span>
-                  <span className="gain-delta">
-                    {round1(g.from)} → {round1(g.to)}
+      {moves.length === 0 ? (
+        <p className="none">No changes this round.</p>
+      ) : (
+        <ul className="move-list">
+          {moves.map((m) => {
+            const up = m.delta > 0
+            const endPct = barFraction(m.delta, maxAbs) * 44 // leave room past the bar for the number
+            return (
+              <li key={m.idx} className="move-row">
+                <span className="move-char">{m.char}</span>
+                <div className="move-track">
+                  <span className="move-axis" />
+                  <span className={`move-bar ${up ? 'up' : 'down'}`} style={{ width: `${endPct}%` }} />
+                  <span
+                    className={`move-num ${up ? 'up' : 'down'}`}
+                    style={
+                      up
+                        ? { left: `calc(50% + ${endPct}% + 0.3rem)` }
+                        : { right: `calc(50% + ${endPct}% + 0.3rem)` }
+                    }
+                  >
+                    {up ? '+' : ''}
+                    {m.delta.toFixed(1)}
                   </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="none">—</p>
-          )}
-        </div>
-
-        <div className="level-col">
-          <h3 className="level-head down">
-            <FontAwesomeIcon icon="arrow-down" />
-          </h3>
-          {dipped.length > 0 ? (
-            <ul className="gain-list">
-              {dipped.map((g) => (
-                <li key={g.idx} className="lost">
-                  <span className="gain-char">{g.char}</span>
-                  <span className="gain-delta down">
-                    {round1(g.from)} → {round1(g.to)}
-                    {g.min < g.to ? ` ↓${round1(g.min)}` : ''}
-                    {g.to < 1 ? ' · 再学習 (re-teach)' : ''}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="none">—</p>
-          )}
-        </div>
-      </div>
+                </div>
+                {m.reteach && <span className="move-tag">back to learning</span>}
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
       <div className="actions">
         <button type="button" className="pill-btn" onClick={onExit}>
