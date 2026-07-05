@@ -3,6 +3,16 @@ dist
 *.local
 .DS_Store
 
+# secrets / credentials — never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.p8
+*.p12
+*.key
+service-account*.json
+
 # Internal planning / design notes — kept local, not published
 planning/
 
@@ -11,3 +21,5 @@ data/progress.json
 
 # Generated static-demo content (rebuilt by `npm run build:static` / CI)
 public/content.json
+
+

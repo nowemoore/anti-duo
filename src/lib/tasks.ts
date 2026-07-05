@@ -6,7 +6,13 @@ import { pick, sample, shuffle } from './random'
 // Task model
 // ---------------------------------------------------------------------------
 
-export type TaskType = 'type-word' | 'which-words' | 'cloze' | 'pick-reading' | 'pick-meaning'
+export type TaskType =
+  | 'type-word'
+  | 'which-words'
+  | 'cloze'
+  | 'pick-reading'
+  | 'pick-meaning'
+  | 'draw-kanji'
 
 export const ALL_TASK_TYPES: TaskType[] = [
   'type-word',
@@ -14,6 +20,7 @@ export const ALL_TASK_TYPES: TaskType[] = [
   'cloze',
   'pick-reading',
   'pick-meaning',
+  'draw-kanji',
 ]
 
 /**
@@ -31,6 +38,7 @@ export const TASK_TUNING: Record<TaskType, { weight: number; points: number }> =
   cloze: { weight: 1, points: 1 },
   'pick-reading': { weight: 1, points: 0.7 },
   'pick-meaning': { weight: 1, points: 1 },
+  'draw-kanji': { weight: 1, points: 1 },
 }
 
 /** Optional context for task generation (e.g. the kanji currently in review). */
@@ -39,6 +47,12 @@ export interface TaskContext {
   studySet?: number[]
   /** Per-task appearance weight override (keyed by TaskType); falls back to {@link TASK_TUNING}. */
   taskWeights?: Record<string, number>
+  /**
+   * Whether a word can be an auto-graded draw target. Only the mobile client (which has the
+   * handwriting recognizer) passes this; its presence is what enables 'draw-kanji' generation, so
+   * the web app never produces a draw task it can't render.
+   */
+  canDraw?: (word: string) => boolean
 }
 
 export interface Option {
@@ -93,7 +107,21 @@ export interface ChoiceTask {
 /** Number of options in a cloze task. */
 export const CLOZE_OPTIONS = 4
 
-export type Task = TypeWordTask | WhichWordsTask | ChoiceTask
+/** T4: draw a word (all kanji, ≤3 chars) from its reading. Graded on-device by the recognizer. */
+export interface DrawKanjiTask {
+  kind: 'draw-kanji'
+  targetIdx: number
+  /** The word to draw (kanji only). */
+  word: string
+  /** Kana reading shown as the prompt (empty when the target is a bare kanji). */
+  reading: string
+  meaning: string
+}
+
+/** Max characters in a drawable word (kept short so guided segmentation stays reliable). */
+export const DRAW_MAX_CHARS = 3
+
+export type Task = TypeWordTask | WhichWordsTask | ChoiceTask | DrawKanjiTask
 
 // ---------------------------------------------------------------------------
 // Distractor pools (built once per content index)
@@ -364,6 +392,23 @@ function buildPick(
   }
 }
 
+const KANJI_ONLY = /^[一-鿿]+$/
+
+/** T4: an all-kanji, short word (or the bare kanji) to draw. Prefers words the caller can grade. */
+function buildDrawKanji(target: Kanji, ctx: TaskContext): DrawKanjiTask | null {
+  const ok = (w: string) =>
+    ctx.canDraw ? ctx.canDraw(w) : KANJI_ONLY.test(w) && [...w].length <= DRAW_MAX_CHARS
+  const words = target.examples.filter((e) => ok(e.word))
+  if (words.length) {
+    const ex = words[Math.floor(Math.random() * words.length)]
+    return { kind: 'draw-kanji', targetIdx: target.idx, word: ex.word, reading: ex.reading, meaning: ex.meaning }
+  }
+  if (ok(target.char)) {
+    return { kind: 'draw-kanji', targetIdx: target.idx, word: target.char, reading: '', meaning: target.gloss.join(', ') }
+  }
+  return null
+}
+
 /** Build a task of `type` for `targetIdx`, or null if the data doesn't support it. */
 export function generateTask(
   index: ContentIndex,
@@ -383,6 +428,8 @@ export function generateTask(
     case 'pick-reading':
     case 'pick-meaning':
       return buildPick(type, target, index)
+    case 'draw-kanji':
+      return buildDrawKanji(target, ctx)
   }
 }
 
@@ -391,8 +438,8 @@ export function generateTask(
  * makes a type more likely to come first. weight 0 sorts last, so it's only used when nothing else
  * is feasible for the target. Equal weights ⇒ a uniform shuffle.
  */
-function weightedTaskOrder(weightOf: (t: TaskType) => number): TaskType[] {
-  return [...ALL_TASK_TYPES]
+function weightedTaskOrder(types: TaskType[], weightOf: (t: TaskType) => number): TaskType[] {
+  return [...types]
     .map((t) => {
       const w = Math.max(0, weightOf(t))
       return { t, key: w === 0 ? 0 : Math.random() ** (1 / w) }
@@ -412,8 +459,10 @@ export function generateAnyTask(
   ctx: TaskContext = {},
   avoid?: TaskType,
 ): Task | null {
+  // Only offer draw-kanji when the caller can grade it (mobile); the web app never generates it.
+  const types = ctx.canDraw ? ALL_TASK_TYPES : ALL_TASK_TYPES.filter((t) => t !== 'draw-kanji')
   const weightOf = (t: TaskType): number => ctx.taskWeights?.[t] ?? TASK_TUNING[t].weight
-  const order = weightedTaskOrder(weightOf)
+  const order = weightedTaskOrder(types, weightOf)
   if (avoid) order.sort((a, b) => (a === avoid ? 1 : 0) - (b === avoid ? 1 : 0))
   for (const type of order) {
     const task = generateTask(index, targetIdx, type, ctx)
@@ -456,5 +505,9 @@ export function checkChoice(task: ChoiceTask, chosenIndex: number): boolean {
 
 /** Convenience: does this kanji currently support at least one task type? */
 export function hasAnyTask(index: ContentIndex, targetIdx: number): boolean {
-  return ALL_TASK_TYPES.some((t) => generateTask(index, targetIdx, t) !== null)
+  // draw-kanji needs the mobile recognizer, so a kanji is "practicable" on the strength of the
+  // standard task types alone.
+  return ALL_TASK_TYPES.filter((t) => t !== 'draw-kanji').some(
+    (t) => generateTask(index, targetIdx, t) !== null,
+  )
 }

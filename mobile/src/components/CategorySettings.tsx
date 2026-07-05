@@ -1,0 +1,112 @@
+import { useState } from 'react'
+import { View, Text, Pressable, StyleSheet, LayoutAnimation } from 'react-native'
+import { useContent } from '../context/ContentContext'
+import { useProgress } from '../context/ProgressContext'
+import { enabledKanjiCount, isCategoryEnabled, isKanjiEnabled, toggleInList } from '@lib/categories'
+import { Toggle } from './Toggle'
+import { Icon } from './Icon'
+import { colors, fonts, radius, shadow, spacing } from '../theme'
+
+/** Settings section: pick which kanji to study by toggling categories or individual kanji. */
+export function CategorySettings() {
+  const index = useContent()
+  const { progress, update } = useProgress()
+  const settings = progress.settings
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  const toggleExpand = (name: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
+
+  const toggleCategory = (name: string) =>
+    update((p) => {
+      const disabledCategories = toggleInList(p.settings.disabledCategories, name)
+      const newSettings = { ...p.settings, disabledCategories }
+      if (enabledKanjiCount(index, newSettings) === 0) return p
+      return { ...p, settings: newSettings }
+    })
+
+  const toggleKanji = (idx: number) =>
+    update((p) => {
+      const disabledKanji = toggleInList(p.settings.disabledKanji, idx)
+      const newSettings = { ...p.settings, disabledKanji }
+      if (enabledKanjiCount(index, newSettings) === 0) return p
+      return { ...p, settings: newSettings }
+    })
+
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.h2}>Your learning</Text>
+      <Text style={styles.muted}>Pick which kanji to study. Expand a category to fine-tune individual kanji.</Text>
+
+      <View style={styles.list}>
+        {index.categories.map((cat) => {
+          const catOn = isCategoryEnabled(settings, cat.name)
+          const isOpen = catOn && expanded.has(cat.name)
+          const enabledInCat = cat.kanji.filter((k) => isKanjiEnabled(settings, k)).length
+          return (
+            <View key={cat.name} style={styles.block}>
+              <View style={styles.row}>
+                <Pressable
+                  onPress={() => catOn && toggleExpand(cat.name)}
+                  disabled={!catOn}
+                  style={styles.expand}
+                  hitSlop={6}
+                >
+                  <Icon name="chevron-down" size={14} color={catOn ? colors.muted : colors.border} />
+                </Pressable>
+                <Text style={[styles.catName, !catOn && styles.off]}>{cat.name}</Text>
+                <Text style={[styles.catCount, !catOn && styles.off]}>
+                  {enabledInCat}/{cat.kanji.length}
+                </Text>
+                <Toggle checked={catOn} onChange={() => toggleCategory(cat.name)} label={cat.name} />
+              </View>
+
+              {isOpen && (
+                <View style={styles.kanjiGrid}>
+                  {cat.kanji.map((k) => (
+                    <View key={k.idx} style={styles.ckItem}>
+                      <Text style={styles.ckChar}>{k.char}</Text>
+                      <Text style={styles.ckGloss} numberOfLines={1}>
+                        {k.gloss.join(', ')}
+                      </Text>
+                      <Toggle
+                        small
+                        checked={!settings.disabledKanji.includes(k.idx)}
+                        onChange={() => toggleKanji(k.idx)}
+                        label={k.char}
+                      />
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )
+        })}
+      </View>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
+  h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: 6 },
+  muted: { color: colors.muted, fontFamily: fonts.body, fontSize: 13, marginBottom: spacing.sm },
+  list: { marginTop: 4 },
+  block: { borderTopColor: colors.border, borderTopWidth: 1 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+  expand: { width: 24, alignItems: 'center' },
+  catName: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 15 },
+  catCount: { marginLeft: 'auto', color: colors.muted, fontFamily: fonts.body, fontSize: 13 },
+  off: { color: colors.muted, opacity: 0.7 },
+  kanjiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingBottom: 8, paddingLeft: 24 },
+  ckItem: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5 },
+  ckChar: { fontSize: 18, color: colors.ink, width: 26, textAlign: 'center' },
+  ckGloss: { flex: 1, color: colors.muted, fontFamily: fonts.body, fontSize: 12 },
+})

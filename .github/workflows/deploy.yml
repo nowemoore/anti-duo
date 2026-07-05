@@ -1,7 +1,10 @@
 name: Deploy demo to GitHub Pages
 
-# Builds the no-backend static demo (npm run build:static) and publishes it to GitHub Pages.
-# The cloned repo + Express backend are unaffected — this only deploys the browser-only build.
+# Builds the no-backend static demo (npm run build:static) at the site root, and the native-UI Expo
+# PWA (npm run build:web) into an /app sub-folder, then publishes both to GitHub Pages:
+#   /<repo>/      → the browser demo
+#   /<repo>/app/  → the installable offline PWA
+# The cloned repo + Express backend are unaffected — this only deploys the browser-only builds.
 
 on:
   push:
@@ -33,6 +36,19 @@ jobs:
         env:
           # Serve under https://<owner>.github.io/<repo>/ — matches the repo name automatically.
           BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Build Expo PWA into /app
+        working-directory: mobile
+        run: |
+          npm ci
+          npm run build:web -- --output-dir ../dist/app
+        env:
+          # Serve the PWA from https://<owner>.github.io/<repo>/app/ (sub-path of the demo).
+          EXPO_WEB_BASE_URL: /${{ github.event.repository.name }}/app
+          # Supabase keys come from repo secrets, not the codebase. Add them under
+          # Settings → Secrets and variables → Actions. If unset, the PWA still deploys but runs
+          # offline-only (no cloud sync).
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

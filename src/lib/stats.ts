@@ -8,6 +8,7 @@ export const TASK_LABELS: Record<TaskType, string> = {
   cloze: 'Fill in the kanji',
   'pick-reading': 'Pick the reading',
   'pick-meaning': 'Pick the meaning',
+  'draw-kanji': 'Draw the kanji',
 }
 
 /**
