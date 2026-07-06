@@ -211,7 +211,7 @@ function LearnCard({ kanji }: { kanji: Kanji }) {
         </View>
       )}
 
-      {/* Reserve 3 lines so the card height doesn't jump between kanji with short vs long meanings. */}
+      {/* Reserve 2 lines so the card height doesn't jump between kanji with short vs long meanings. */}
       <View style={styles.glossWrap}>
         <Text style={styles.gloss}>{kanji.gloss.join(', ')}</Text>
       </View>
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   compChar: { fontSize: 16, color: colors.muted, width: 22, textAlign: 'center' },
   compMeaning: { fontSize: 13, color: colors.muted, fontFamily: fonts.body },
   accentText: { color: colors.accentInk },
-  glossWrap: { alignSelf: 'stretch', minHeight: 66, justifyContent: 'center', marginTop: spacing.lg, marginBottom: spacing.md },
+  glossWrap: { alignSelf: 'stretch', minHeight: 44, justifyContent: 'center', marginTop: spacing.lg, marginBottom: spacing.md },
   gloss: { color: colors.ink, fontFamily: fonts.body, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   examples: { alignSelf: 'stretch', minHeight: 48 * 5 }, // reserve 5 rows so cards match
   example: {
