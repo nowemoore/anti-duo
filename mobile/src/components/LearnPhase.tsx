@@ -314,19 +314,18 @@ function ExampleWord({
 function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
   const anim = useRef(new Animated.Value(open ? 1 : 0)).current
   const [height, setHeight] = useState(0)
-  const opened = useRef(open)
-  if (open) opened.current = true
 
   useEffect(() => {
     Animated.timing(anim, {
       toValue: open ? 1 : 0,
-      duration: 220,
+      duration: 240,
       easing: Easing.inOut(Easing.cubic),
       useNativeDriver: false,
     }).start()
   }, [open, anim])
 
-  if (!opened.current) return null
+  // The inner is always rendered (out of flow) so its height is measured on mount — the card remounts
+  // per kanji, so without this the first expand would animate from an unmeasured 0 and just pop open.
   return (
     <Animated.View
       style={{

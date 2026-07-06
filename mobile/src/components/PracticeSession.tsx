@@ -255,18 +255,17 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
               onGiveUp={giveUp}
             />
           </FadeView>
+          {/* Draw override sits right under the answer — the recognizer can misread a correct drawing. */}
+          {isDraw && revealed && !correct && !overridden && (
+            <Pressable style={styles.keepLink} onPress={keepKanji} hitSlop={8}>
+              <Text style={styles.keepText}>I think I got this one right</Text>
+            </Pressable>
+          )}
         </ScrollView>
       </RevealContextProvider>
 
       {/* Bottom reveal strip: hold a word/kanji to see its reading/meaning here (not for drawing). */}
       {!isDraw && <RevealStrip text={reveal} hint={revealHint(qa)} />}
-
-      {/* Draw override: the recognizer can misread a correct drawing, so let the learner keep the kanji. */}
-      {isDraw && revealed && !correct && !overridden && (
-        <Pressable style={styles.keepLink} onPress={keepKanji} hitSlop={8}>
-          <Text style={styles.keepText}>I think I got this one right</Text>
-        </Pressable>
-      )}
 
       <View style={styles.pager}>
         <Pressable
@@ -436,7 +435,7 @@ const styles = StyleSheet.create({
   verdictWrong: { backgroundColor: colors.incorrectSoft },
   verdictKept: { backgroundColor: colors.border },
   verdictText: { fontFamily: fonts.semibold, fontSize: 14 },
-  keepLink: { alignItems: 'center', paddingVertical: 2, marginBottom: -8 },
+  keepLink: { alignItems: 'center', paddingVertical: 2, marginTop: -6 },
   keepText: { color: colors.accentInk, fontFamily: fonts.medium, fontSize: 13, textDecorationLine: 'underline' },
   disabled: { opacity: 0.35 },
   none: { color: colors.muted, fontFamily: fonts.body, textAlign: 'center' },
