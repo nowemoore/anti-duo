@@ -50,6 +50,13 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
   const isLast = i === cards.length - 1
   const canSkip = pool.length > 0 || cards.length > 1
 
+  // The card is a fixed height that normally fits, so only allow vertical scrolling when it genuinely
+  // overflows (e.g. the breakdown is expanded). Otherwise it wouldn't scroll into empty reserved space.
+  const [scrollEnabled, setScrollEnabled] = useState(false)
+  const viewportH = useRef(0)
+  const contentH = useRef(0)
+  const syncScrollable = () => setScrollEnabled(contentH.current - viewportH.current > 1)
+
   // The card tracks the finger horizontally via this value; releasing past a threshold slides it out
   // and swaps in the next card (which slides in from the opposite side).
   const dragX = useRef(new Animated.Value(0)).current
@@ -122,6 +129,17 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
         style={styles.cardScroll}
         contentContainerStyle={styles.cardScrollContent}
         keyboardShouldPersistTaps="handled"
+        scrollEnabled={scrollEnabled}
+        bounces={false}
+        overScrollMode="never"
+        onLayout={(e) => {
+          viewportH.current = e.nativeEvent.layout.height
+          syncScrollable()
+        }}
+        onContentSizeChange={(_w, h) => {
+          contentH.current = h
+          syncScrollable()
+        }}
       >
         <Animated.View style={{ transform: [{ translateX: dragX }] }}>
           <LearnCard key={kanji.idx} kanji={kanji} />

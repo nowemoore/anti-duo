@@ -198,12 +198,28 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
     setPos(history.length)
   }
 
+  /**
+   * Draw-kanji only: the recognizer read the answer as wrong, but the learner says it was right. Undo
+   * the penalty that lock-in already applied (so the kanji isn't discounted), mark it kept, and move
+   * on. It doesn't award points — it just declines to punish a likely-misread drawing.
+   */
+  const keepKanji = () => {
+    if (!qa || qa.task.kind !== 'draw-kanji' || qa.phase !== 'revealed' || isCorrect(qa) || qa.overridden) return
+    const correction = -qa.score * TASK_TUNING['draw-kanji'].pointsDown // score was < 0 → positive undo
+    const cur = workingRef.current[qa.targetIdx]?.lvl ?? 1
+    workingRef.current = { ...workingRef.current, [qa.targetIdx]: { lvl: Math.max(LEVEL_FLOOR, cur + correction) } }
+    patch({ ...qa, score: 0, overridden: true })
+    update((p) => awardDelta(p, qa.targetIdx, correction))
+    next()
+  }
+
   if (done || !qa) {
     return <Summary working={workingRef.current} startLevels={startLevelsRef.current} index={index} onExit={onExit} />
   }
 
   const revealed = qa.phase === 'revealed'
   const correct = revealed && isCorrect(qa)
+  const overridden = revealed && !!qa.overridden
   const isType = qa.task.kind === 'type-word'
   const isDraw = qa.task.kind === 'draw-kanji'
   const hasAnswer =
@@ -245,6 +261,13 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
       {/* Bottom reveal strip: hold a word/kanji to see its reading/meaning here (not for drawing). */}
       {!isDraw && <RevealStrip text={reveal} hint={revealHint(qa)} />}
 
+      {/* Draw override: the recognizer can misread a correct drawing, so let the learner keep the kanji. */}
+      {isDraw && revealed && !correct && !overridden && (
+        <Pressable style={styles.keepLink} onPress={keepKanji} hitSlop={8}>
+          <Text style={styles.keepText}>I think I got this one right</Text>
+        </Pressable>
+      )}
+
       <View style={styles.pager}>
         <Pressable
           style={[styles.chevron, styles.chevSide, !canPrev && styles.disabled]}
@@ -256,9 +279,9 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
         </Pressable>
 
         {revealed ? (
-          <View style={[styles.verdict, correct ? styles.verdictCorrect : styles.verdictWrong]}>
-            <Text style={[styles.verdictText, { color: correct ? colors.correct : colors.incorrect }]}>
-              {correct ? 'Correct' : 'Incorrect'}
+          <View style={[styles.verdict, overridden ? styles.verdictKept : correct ? styles.verdictCorrect : styles.verdictWrong]}>
+            <Text style={[styles.verdictText, { color: overridden ? colors.muted : correct ? colors.correct : colors.incorrect }]}>
+              {overridden ? 'Kept' : correct ? 'Correct' : 'Incorrect'}
             </Text>
           </View>
         ) : isType ? (
@@ -411,7 +434,10 @@ const styles = StyleSheet.create({
   verdict: { flex: 1, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   verdictCorrect: { backgroundColor: colors.correctSoft },
   verdictWrong: { backgroundColor: colors.incorrectSoft },
+  verdictKept: { backgroundColor: colors.border },
   verdictText: { fontFamily: fonts.semibold, fontSize: 14 },
+  keepLink: { alignItems: 'center', paddingVertical: 4, marginBottom: 6 },
+  keepText: { color: colors.accentInk, fontFamily: fonts.medium, fontSize: 13, textDecorationLine: 'underline' },
   disabled: { opacity: 0.35 },
   none: { color: colors.muted, fontFamily: fonts.body, textAlign: 'center' },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },

@@ -14,4 +14,5 @@ export interface QA {
   phase: QAPhase
   score: number // final delta once revealed
   recorded: boolean // whether it has been applied to progress
+  overridden?: boolean // draw-kanji: user overrode an "incorrect" verdict (penalty cancelled)
 }
