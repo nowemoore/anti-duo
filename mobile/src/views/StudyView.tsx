@@ -160,6 +160,9 @@ function StudyMenu({
 
   return (
     <View style={styles.menuWrap}>
+      <Text style={styles.unlockedHeader}>
+        {introduced} / {introduced + remainingToLearn} kanji unlocked
+      </Text>
       <View style={styles.choicesCol}>
         <ChoiceCard
           icon="graduation-cap"
@@ -221,6 +224,16 @@ function ChoiceCard({
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   menuWrap: { flex: 1, justifyContent: 'center' },
+  // Faint section header over the Learn/Practice cards.
+  unlockedHeader: {
+    textAlign: 'center',
+    color: colors.muted,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    opacity: 0.7,
+    marginBottom: spacing.lg,
+    fontVariant: ['tabular-nums'],
+  },
   home: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, width: '100%' },
   cardsCol: { alignSelf: 'stretch', gap: spacing.md },
   entryCard: {

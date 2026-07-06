@@ -15,9 +15,8 @@ import {
 } from 'react-native'
 import type { Kanji } from '@shared/types'
 import { SKIP_REQUEUE_GAP } from '@shared/constants'
-import { skipCard, introducedKanji, unlearnedKanji } from '@lib/study'
+import { skipCard } from '@lib/study'
 import { useContent } from '../context/ContentContext'
-import { useProgress } from '../context/ProgressContext'
 import { Bilingual } from './Bilingual'
 import { Icon } from './Icon'
 import { SpeakButton } from './SpeakButton'
@@ -50,12 +49,6 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
   const isFirst = i === 0
   const isLast = i === cards.length - 1
   const canSkip = pool.length > 0 || cards.length > 1
-
-  // Cumulative progress across all sessions (grows when a Learn set is completed).
-  const index = useContent()
-  const { progress } = useProgress()
-  const unlocked = introducedKanji(index, progress).length
-  const enabledTotal = unlocked + unlearnedKanji(index, progress).length
 
   // The card tracks the finger horizontally via this value; releasing past a threshold slides it out
   // and swaps in the next card (which slides in from the opposite side).
@@ -125,9 +118,6 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
 
   return (
     <View style={styles.panel} {...pan.current.panHandlers}>
-      <Text style={styles.unlocked}>
-        {unlocked} / {enabledTotal} kanji unlocked
-      </Text>
       <ScrollView
         style={styles.cardScroll}
         contentContainerStyle={styles.cardScrollContent}
@@ -325,14 +315,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: spacing.lg,
-  },
-  unlocked: {
-    textAlign: 'center',
-    color: colors.muted,
-    fontFamily: fonts.body,
-    fontSize: 13,
-    marginBottom: spacing.sm,
-    fontVariant: ['tabular-nums'],
   },
   cardScroll: { flex: 1 },
   cardScrollContent: { flexGrow: 1 },
