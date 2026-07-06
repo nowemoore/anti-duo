@@ -33,7 +33,11 @@ if (!html.includes('apple-mobile-web-app-capable')) {
     '<meta name="apple-mobile-web-app-title" content="Anti-Duo" />',
     '<link rel="manifest" href="manifest.webmanifest" />',
     '<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />',
-    '<style>html,body{margin:0;background-color:#2f2f2f}#root{min-height:100vh;background-color:#2f2f2f}</style>',
+    '<style>html,body{margin:0;background-color:#2f2f2f}#root{min-height:100vh;background-color:#2f2f2f}' +
+      // No iOS long-press "Copy" callout / text selection on the app UI (hold-to-reveal must not
+      // trigger selection); text inputs keep normal selection.
+      '*{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}' +
+      'input,textarea{-webkit-user-select:text;user-select:text}</style>',
     "<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}</script>",
   ].join('\n    ')
   html = html.replace('</head>', `    ${inject}\n  </head>`)
