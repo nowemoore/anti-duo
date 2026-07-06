@@ -120,7 +120,9 @@ export function DrawCanvas({
       </View>
 
       <View style={styles.surface} {...pan.current.panHandlers}>
-        <Svg pointerEvents="none" style={StyleSheet.absoluteFill}>
+        {/* width/height 100% are required on web — without them react-native-svg falls back to the
+            SVG default 150px height, so strokes below ~the top half never render. */}
+        <Svg width="100%" height="100%" pointerEvents="none" style={StyleSheet.absoluteFill}>
           {strokes.map((s, i) => (
             <Path key={i} d={toPath(s)} stroke={colors.ink} strokeWidth={8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ))}
