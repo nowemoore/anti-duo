@@ -24,21 +24,25 @@ export const ALL_TASK_TYPES: TaskType[] = [
 ]
 
 /**
- * The ten practice-tuning knobs — two per task type. Edit these to rebalance practice:
+ * The practice-tuning knobs — edit these to rebalance practice. Each task type has:
  *  - `weight`: how often this task type appears, relative to the others (among the types feasible
  *    for the chosen kanji). 0 disables it. Equal weights ⇒ uniform pick, the original behaviour.
- *  - `points`: how much a fully-correct answer raises the kanji's level — and a fully-wrong one
- *    lowers it. The task's raw score (−1…+1; partial credit for which-words, half on a redo) is
- *    multiplied by this. It scales **leveling only**; the Stats success rate stays pure accuracy.
- * All default to 1, which reproduces the current behaviour.
+ *  - `pointsUp`: how much a fully-correct answer raises the kanji's level (reward).
+ *  - `pointsDown`: how much a fully-wrong answer lowers it (penalty).
+ * The task's raw score (−1…+1; partial credit for which-words, half on a redo) is multiplied by
+ * `pointsUp` when it's positive and `pointsDown` when negative — so reward and penalty can differ
+ * per task (e.g. drawing rewards a lot when right but barely penalizes a miss). These scale
+ * **leveling only**; the Stats success rate stays pure accuracy. Set `pointsUp === pointsDown` for
+ * symmetric scoring.
  */
-export const TASK_TUNING: Record<TaskType, { weight: number; points: number }> = {
-  'type-word': { weight: 1, points: 0.2 },
-  'which-words': { weight: 1, points: 0.5 },
-  cloze: { weight: 1, points: 1 },
-  'pick-reading': { weight: 1, points: 0.7 },
-  'pick-meaning': { weight: 1, points: 1 },
-  'draw-kanji': { weight: 1, points: 1 },
+export const TASK_TUNING: Record<TaskType, { weight: number; pointsUp: number; pointsDown: number }> = {
+  'type-word': { weight: 1, pointsUp: 0.8, pointsDown: 0.4 },
+  'which-words': { weight: 1, pointsUp: 0.5, pointsDown: 0.5 },
+  cloze: { weight: 1, pointsUp: 0.7, pointsDown: 0.7 },
+  'pick-reading': { weight: 1, pointsUp: 0.7, pointsDown: 0.7 },
+  'pick-meaning': { weight: 1, pointsUp: 0.5, pointsDown: 0.5 },
+  // Drawing is the hardest task: reward it strongly when right, penalize a miss only lightly.
+  'draw-kanji': { weight: 1, pointsUp: 1, pointsDown: 0.2 },
 }
 
 /** Optional context for task generation (e.g. the kanji currently in review). */

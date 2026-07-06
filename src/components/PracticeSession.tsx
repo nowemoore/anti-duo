@@ -78,8 +78,10 @@ export function PracticeSession({ onExit }: Props) {
     if (!current) return
     const { task, targetIdx } = current
 
-    // Scale the level change by this task type's `points` knob; Stats accuracy still uses raw `delta`.
-    const levelDelta = delta * TASK_TUNING[task.kind].points
+    // Scale the level change by this task type's reward/penalty knob (pointsUp when the answer helped,
+    // pointsDown when it hurt); Stats accuracy still uses raw `delta`.
+    const tuning = TASK_TUNING[task.kind]
+    const levelDelta = delta * (delta >= 0 ? tuning.pointsUp : tuning.pointsDown)
     if (levelDelta !== 0) {
       const cur = workingRef.current[targetIdx]?.lvl ?? 1
       const next = Math.max(LEVEL_FLOOR, cur + levelDelta)

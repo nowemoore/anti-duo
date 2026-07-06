@@ -102,7 +102,8 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
 
   /** Apply a revealed question's score to the working levels + persisted progress (once). */
   const record = (item: QA) => {
-    const levelDelta = item.score * TASK_TUNING[item.task.kind].points
+    const tuning = TASK_TUNING[item.task.kind]
+    const levelDelta = item.score * (item.score >= 0 ? tuning.pointsUp : tuning.pointsDown)
     if (levelDelta !== 0) {
       const cur = workingRef.current[item.targetIdx]?.lvl ?? 1
       const nextLvl = Math.max(LEVEL_FLOOR, cur + levelDelta)
