@@ -35,7 +35,9 @@ export function ChoiceTaskView({ task, chosen, revealed, onChoose }: Props) {
   return (
     <View style={styles.root}>
       <View style={styles.sentenceRow}>
-        <SentenceView tokens={task.sentence.tokens} overrides={overrides} revealMeanings={revealed} />
+        <View style={styles.sentenceWrap}>
+          <SentenceView tokens={task.sentence.tokens} overrides={overrides} revealMeanings={revealed} />
+        </View>
         <SpeakButton text={sentenceSpeech(task)} label="Play sentence" disabled={!revealed} small />
       </View>
 
@@ -93,7 +95,10 @@ function optTextStyle(state: string) {
 const styles = StyleSheet.create({
   // Natural height; the card's scroll view centers it vertically when it fits.
   root: { width: '100%' },
-  sentenceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' },
+  sentenceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20 },
+  // Let the sentence shrink below its one-line width (minWidth:0 is required for that on web), which
+  // triggers SentenceView's own flexWrap → the sentence flows onto multiple lines instead of clipping.
+  sentenceWrap: { flexShrink: 1, minWidth: 0 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, alignSelf: 'center', width: '100%', maxWidth: 460 },
   gridCol: { flexDirection: 'column', flexWrap: 'nowrap', rowGap: 10, maxWidth: 340 },
   cell: { width: '48%' },
