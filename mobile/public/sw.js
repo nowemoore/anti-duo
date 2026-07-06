@@ -5,7 +5,7 @@
  * no separate data file to cache. Cross-origin requests (Supabase) bypass the cache and just fail
  * gracefully offline — sync is best-effort and resumes when you're back online.
  */
-const CACHE = 'anti-duo-v1'
+const CACHE = 'anti-duo-v2'
 
 self.addEventListener('install', () => {
   self.skipWaiting()
