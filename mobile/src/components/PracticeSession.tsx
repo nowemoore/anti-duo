@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   verdictWrong: { backgroundColor: colors.incorrectSoft },
   verdictKept: { backgroundColor: colors.border },
   verdictText: { fontFamily: fonts.semibold, fontSize: 14 },
-  keepLink: { alignItems: 'center', paddingVertical: 4, marginBottom: 6 },
+  keepLink: { alignItems: 'center', paddingVertical: 2, marginBottom: -8 },
   keepText: { color: colors.accentInk, fontFamily: fonts.medium, fontSize: 13, textDecorationLine: 'underline' },
   disabled: { opacity: 0.35 },
   none: { color: colors.muted, fontFamily: fonts.body, textAlign: 'center' },

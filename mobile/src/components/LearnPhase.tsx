@@ -1,18 +1,5 @@
-import { useRef, useState } from 'react'
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  PanResponder,
-  Animated,
-  Dimensions,
-  Easing,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-} from 'react-native'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { View, Text, Pressable, ScrollView, StyleSheet, PanResponder, Animated, Dimensions, Easing } from 'react-native'
 import type { Kanji } from '@shared/types'
 import { SKIP_REQUEUE_GAP } from '@shared/constants'
 import { skipCard } from '@lib/study'
@@ -22,10 +9,6 @@ import { Icon } from './Icon'
 import { SpeakButton } from './SpeakButton'
 import { useScreenHeader } from '../context/HeaderContext'
 import { colors, fonts, radius, shadow, spacing } from '../theme'
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
 
 const SCREEN_W = Dimensions.get('window').width
 
@@ -174,10 +157,7 @@ function LearnCard({ kanji }: { kanji: Kanji }) {
   const hasReveal = Boolean(radical) || components.length > 0
   const [expanded, setExpanded] = useState(false)
 
-  const toggle = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-    setExpanded((v) => !v)
-  }
+  const toggle = () => setExpanded((v) => !v)
 
   // Hold-to-reveal: the meaning shows in the caption strip only while a kanji/eye is held,
   // reverting to the hint on release. Resets per card (LearnCard is keyed by kanji).
@@ -197,18 +177,20 @@ function LearnCard({ kanji }: { kanji: Kanji }) {
         )}
       </View>
 
-      {hasReveal && expanded && (
-        <View style={styles.breakdown}>
-          {radical ? (
-            <View style={styles.radicalRow}>
-              <CompRow char={radical} meaning={meanings[radical]} accent />
-              <Text style={styles.radicalTag}>RADICAL</Text>
-            </View>
-          ) : null}
-          {components.map((c) => (
-            <CompRow key={c} char={c} meaning={meanings[c]} />
-          ))}
-        </View>
+      {hasReveal && (
+        <Collapse open={expanded}>
+          <View style={styles.breakdown}>
+            {radical ? (
+              <View style={styles.radicalRow}>
+                <CompRow char={radical} meaning={meanings[radical]} accent />
+                <Text style={styles.radicalTag}>RADICAL</Text>
+              </View>
+            ) : null}
+            {components.map((c) => (
+              <CompRow key={c} char={c} meaning={meanings[c]} />
+            ))}
+          </View>
+        </Collapse>
       )}
 
       {/* Reserve 2 lines so the card height doesn't jump between kanji with short vs long meanings. */}
@@ -324,6 +306,43 @@ function ExampleWord({
   )
 }
 
+/**
+ * Cross-platform height + fade reveal for the kanji breakdown. Replaces LayoutAnimation, which is a
+ * no-op on react-native-web (so the breakdown used to pop open on the PWA instead of animating). The
+ * content is measured out-of-flow and centered to match the card.
+ */
+function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
+  const anim = useRef(new Animated.Value(open ? 1 : 0)).current
+  const [height, setHeight] = useState(0)
+  const opened = useRef(open)
+  if (open) opened.current = true
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: open ? 1 : 0,
+      duration: 220,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: false,
+    }).start()
+  }, [open, anim])
+
+  if (!opened.current) return null
+  return (
+    <Animated.View
+      style={{
+        alignSelf: 'stretch',
+        height: anim.interpolate({ inputRange: [0, 1], outputRange: [0, height] }),
+        opacity: anim,
+        overflow: 'hidden',
+      }}
+    >
+      <View style={styles.collapseInner} onLayout={(e) => setHeight(e.nativeEvent.layout.height)}>
+        {children}
+      </View>
+    </Animated.View>
+  )
+}
+
 const styles = StyleSheet.create({
   panel: {
     ...shadow,
@@ -361,7 +380,8 @@ const styles = StyleSheet.create({
   compChar: { fontSize: 16, color: colors.muted, width: 22, textAlign: 'center' },
   compMeaning: { fontSize: 13, color: colors.muted, fontFamily: fonts.body },
   accentText: { color: colors.accentInk },
-  glossWrap: { alignSelf: 'stretch', minHeight: 44, justifyContent: 'center', marginTop: spacing.lg, marginBottom: spacing.md },
+  collapseInner: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
+  glossWrap: { alignSelf: 'stretch', minHeight: 44, justifyContent: 'center', marginTop: spacing.sm, marginBottom: spacing.md },
   gloss: { color: colors.ink, fontFamily: fonts.body, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   examples: { alignSelf: 'stretch', minHeight: 48 * 5 }, // reserve 5 rows so cards match
   example: {
