@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet, LayoutAnimation } from 'react-native'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { View, Text, Pressable, StyleSheet, Animated, Easing } from 'react-native'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { enabledKanjiCount, isCategoryEnabled, isKanjiEnabled, toggleInList } from '@lib/categories'
@@ -15,7 +15,6 @@ export function CategorySettings() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const toggleExpand = (name: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setExpanded((prev) => {
       const next = new Set(prev)
       if (next.has(name)) next.delete(name)
@@ -59,7 +58,7 @@ export function CategorySettings() {
                   style={styles.expand}
                   hitSlop={6}
                 >
-                  <Icon name="chevron-down" size={14} color={catOn ? colors.muted : colors.border} />
+                  <Chevron open={isOpen} color={catOn ? colors.muted : colors.border} />
                 </Pressable>
                 <Text style={[styles.catName, !catOn && styles.off]}>{cat.name}</Text>
                 <Text style={[styles.catCount, !catOn && styles.off]}>
@@ -68,7 +67,7 @@ export function CategorySettings() {
                 <Toggle checked={catOn} onChange={() => toggleCategory(cat.name)} label={cat.name} />
               </View>
 
-              {isOpen && (
+              <Collapsible open={isOpen}>
                 <View style={styles.kanjiGrid}>
                   {cat.kanji.map((k) => (
                     <View key={k.idx} style={styles.ckItem}>
@@ -85,7 +84,7 @@ export function CategorySettings() {
                     </View>
                   ))}
                 </View>
-              )}
+              </Collapsible>
             </View>
           )
         })}
@@ -94,8 +93,65 @@ export function CategorySettings() {
   )
 }
 
+/** A disclosure chevron that rotates from ▶ (closed) to ▼ (open). */
+function Chevron({ open, color }: { open: boolean; color: string }) {
+  const rot = useRef(new Animated.Value(open ? 1 : 0)).current
+  useEffect(() => {
+    Animated.timing(rot, {
+      toValue: open ? 1 : 0,
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start()
+  }, [open, rot])
+  const rotate = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] })
+  return (
+    <Animated.View style={{ transform: [{ rotate }] }}>
+      <Icon name="chevron-right" size={13} color={color} />
+    </Animated.View>
+  )
+}
+
+/**
+ * Smoothly expands/collapses its children by animating height + opacity. The inner view is measured
+ * out-of-flow (absolute) so the animated height is driven purely by the interpolation. Works on web
+ * and native (LayoutAnimation is a no-op on react-native-web). Stays mounted after the first open so
+ * the measured height is cached and later toggles animate cleanly.
+ */
+function Collapsible({ open, children }: { open: boolean; children: ReactNode }) {
+  const anim = useRef(new Animated.Value(open ? 1 : 0)).current
+  const [height, setHeight] = useState(0)
+  const opened = useRef(open)
+  if (open) opened.current = true
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: open ? 1 : 0,
+      duration: 240,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: false,
+    }).start()
+  }, [open, anim])
+
+  if (!opened.current) return null
+  return (
+    <Animated.View
+      style={{
+        height: anim.interpolate({ inputRange: [0, 1], outputRange: [0, height] }),
+        opacity: anim,
+        overflow: 'hidden',
+      }}
+    >
+      <View style={styles.collapseInner} onLayout={(e) => setHeight(e.nativeEvent.layout.height)}>
+        {children}
+      </View>
+    </Animated.View>
+  )
+}
+
 const styles = StyleSheet.create({
   panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
+  collapseInner: { position: 'absolute', left: 0, right: 0 },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: 6 },
   muted: { color: colors.muted, fontFamily: fonts.body, fontSize: 13, marginBottom: spacing.sm },
   list: { marginTop: 4 },
