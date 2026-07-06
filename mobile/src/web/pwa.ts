@@ -23,6 +23,17 @@ export function setupPwa() {
     return el
   }
 
+  // Opt the viewport into the safe areas so content fills the notch/home-indicator regions and
+  // env(safe-area-inset-*) is non-zero (matches the build-time patch; helps dev + in-browser).
+  const viewport = document.querySelector('meta[name="viewport"]')
+  if (viewport) {
+    const content = viewport.getAttribute('content') ?? ''
+    if (!content.includes('viewport-fit')) viewport.setAttribute('content', `${content}, viewport-fit=cover`)
+  }
+  // Dark page background so there's no white strip behind the status bar.
+  document.documentElement.style.backgroundColor = '#2f2f2f'
+  document.body.style.backgroundColor = '#2f2f2f'
+
   addOnce('link[rel="manifest"]', () => linkEl('manifest', 'manifest.webmanifest'))
   addOnce('meta[name="theme-color"]', () => metaEl('theme-color', '#2f2f2f'))
   addOnce('meta[name="apple-mobile-web-app-capable"]', () => metaEl('apple-mobile-web-app-capable', 'yes'))

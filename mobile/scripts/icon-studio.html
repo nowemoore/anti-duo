@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Anti-Duo · Icon studio</title>
+<style>
+  :root {
+    --bg: #232125;
+    --panel: rgba(255, 255, 255, 0.055);
+    --panel-line: rgba(255, 255, 255, 0.12);
+    --ink: #f3eef2;
+    --muted: #a99fa7;
+    --accent: #e398dd;
+    --accent-ink: #ecb0e6;
+    --accent-soft: rgba(227, 152, 221, 0.16);
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(60% 50% at 20% 0%, rgba(227, 152, 221, 0.10), transparent 70%),
+      radial-gradient(50% 40% at 100% 100%, rgba(138, 172, 171, 0.07), transparent 70%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    display: flex;
+    justify-content: center;
+    padding: clamp(20px, 5vw, 56px) 20px 64px;
+  }
+  .wrap { width: 100%; max-width: 560px; }
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-ink);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(30px, 7vw, 42px);
+    letter-spacing: -0.01em;
+    margin: 0 0 8px;
+    text-wrap: balance;
+  }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 15px; }
+
+  .stage {
+    display: flex;
+    justify-content: center;
+    padding: 30px;
+    border: 1px solid var(--panel-line);
+    border-radius: 20px;
+    background:
+      linear-gradient(var(--panel), var(--panel)),
+      repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 / 22px 22px;
+    margin-bottom: 26px;
+  }
+  #preview {
+    width: 224px;
+    height: 224px;
+    border-radius: 50px; /* ≈ iOS superellipse look */
+    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5);
+    display: block;
+  }
+
+  .group { margin-bottom: 20px; }
+  .label {
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 0 0 9px;
+  }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    appearance: none;
+    border: 1px solid var(--panel-line);
+    background: var(--panel);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    padding: 8px 15px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .pill.glyph { font-size: 19px; line-height: 1; padding: 7px 15px; }
+  .pill:hover { border-color: var(--accent); }
+  .pill[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #2f2b31;
+    font-weight: 600;
+  }
+  .pill:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+
+  .downloads { margin-top: 30px; display: flex; flex-direction: column; gap: 10px; }
+  .btn {
+    appearance: none;
+    font: inherit;
+    cursor: pointer;
+    border-radius: 12px;
+    padding: 13px 18px;
+    border: 1px solid transparent;
+    transition: filter 0.15s, background 0.15s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #2f2b31;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .sizes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn-ghost {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    border-color: var(--panel-line);
+    font-size: 13px;
+    padding: 9px 14px;
+    flex: 1 1 auto;
+  }
+  .btn-ghost:hover { background: rgba(227, 152, 221, 0.24); }
+  .btn:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+
+  .place {
+    margin-top: 30px;
+    border-top: 1px solid var(--panel-line);
+    padding-top: 22px;
+  }
+  .place h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0 0 4px;
+  }
+  .place p { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  .rows { display: grid; gap: 8px; }
+  .row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 13px;
+  }
+  code {
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    padding: 2px 7px;
+    border-radius: 6px;
+    color: var(--accent-ink);
+    white-space: nowrap;
+  }
+  .dest { color: var(--muted); font-family: "SF Mono", "Cascadia Code", Consolas, monospace; }
+  .note { margin-top: 22px; font-size: 13px; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">Anti-Duo</p>
+    <h1>Icon studio</h1>
+    <p class="sub">Tweak it, then export every size. Files download to your Downloads folder — drop them into the paths below.</p>
+
+    <div class="stage">
+      <canvas id="preview" width="1024" height="1024" aria-label="App icon preview"></canvas>
+    </div>
+
+    <div class="group">
+      <p class="label">Character</p>
+      <div class="pills" id="glyphs"></div>
+    </div>
+
+    <div class="group">
+      <p class="label">Ground</p>
+      <div class="pills" id="grounds">
+        <button class="pill" data-ground="dark" aria-pressed="true">Dark + pink glyph</button>
+        <button class="pill" data-ground="pink" aria-pressed="false">Pink + dark glyph</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="label">Style</p>
+      <div class="pills" id="faces">
+        <button class="pill" data-face="gothic" aria-pressed="true">Gothic</button>
+        <button class="pill" data-face="mincho" aria-pressed="false">Serif (Mincho)</button>
+      </div>
+    </div>
+
+    <div class="downloads">
+      <button class="btn btn-primary" id="all">Download all 5 files</button>
+      <div class="sizes" id="single"></div>
+    </div>
+
+    <div class="place">
+      <h2>Where each file goes</h2>
+      <p>Replace these files in your project, then redeploy. All paths are relative to the repo root.</p>
+      <div class="rows">
+        <div class="row"><code>icon.png</code><span class="dest">mobile/assets/icon.png</span></div>
+        <div class="row"><code>apple-touch-icon.png</code><span class="dest">mobile/public/icons/apple-touch-icon.png</span></div>
+        <div class="row"><code>icon-512.png</code><span class="dest">mobile/public/icons/icon-512.png</span></div>
+        <div class="row"><code>icon-192.png</code><span class="dest">mobile/public/icons/icon-192.png</span></div>
+        <div class="row"><code>favicon.png</code><span class="dest">mobile/assets/favicon.png</span></div>
+      </div>
+      <p class="note">Tip: if the browser asks to "allow multiple downloads," say yes — that's the five sizes coming through.</p>
+    </div>
+  </div>
+
+<script>
+  const GLYPHS = ["字", "学", "文", "語"];
+  const FILES = [[1024, "icon.png"], [512, "icon-512.png"], [192, "icon-192.png"], [180, "apple-touch-icon.png"], [48, "favicon.png"]];
+  const state = { glyph: "字", ground: "dark", face: "gothic" };
+
+  const faceStack = (f) =>
+    f === "mincho"
+      ? '"Yu Mincho","Hiragino Mincho ProN","MS Mincho",serif'
+      : '"Yu Gothic UI","Yu Gothic","Hiragino Sans","Hiragino Kaku Gothic ProN","Meiryo","MS Gothic",sans-serif';
+
+  function draw(ctx, S) {
+    ctx.clearRect(0, 0, S, S);
+    let glyphColor, glow;
+
+    if (state.ground === "dark") {
+      const g = ctx.createLinearGradient(0, 0, S, S);
+      g.addColorStop(0, "#3b3641"); g.addColorStop(1, "#242226");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+      const rg = ctx.createRadialGradient(S * 0.28, S * 0.24, 0, S * 0.28, S * 0.24, S * 0.85);
+      rg.addColorStop(0, "rgba(227,152,221,0.30)"); rg.addColorStop(1, "rgba(227,152,221,0)");
+      ctx.fillStyle = rg; ctx.fillRect(0, 0, S, S);
+      glyphColor = "#ecb0e6"; glow = "rgba(236,176,230,0.55)";
+    } else {
+      const g = ctx.createLinearGradient(0, 0, 0, S);
+      g.addColorStop(0, "#ec9fe1"); g.addColorStop(1, "#d585c8");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+      const rg = ctx.createRadialGradient(S * 0.3, S * 0.18, 0, S * 0.3, S * 0.18, S * 0.75);
+      rg.addColorStop(0, "rgba(255,255,255,0.26)"); rg.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = rg; ctx.fillRect(0, 0, S, S);
+      glyphColor = "#2f2b31"; glow = "rgba(0,0,0,0.14)";
+    }
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "600 " + (S * 0.56) + 'px ' + faceStack(state.face);
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = S * 0.055;
+    ctx.shadowOffsetY = S * 0.012;
+    ctx.fillStyle = glyphColor;
+    ctx.fillText(state.glyph, S / 2, S * 0.545);
+
+    ctx.shadowColor = "transparent";
+    ctx.lineWidth = Math.max(1, S * 0.006);
+    ctx.strokeStyle = state.ground === "dark" ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.24)";
+    ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, S - ctx.lineWidth, S - ctx.lineWidth);
+  }
+
+  const preview = document.getElementById("preview");
+  const pctx = preview.getContext("2d");
+  function render() { draw(pctx, preview.width); }
+
+  function savePng(size, name) {
+    const c = document.createElement("canvas");
+    c.width = c.height = size;
+    draw(c.getContext("2d"), size);
+    c.toBlob((blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 1000);
+    }, "image/png");
+  }
+
+  // Character pills
+  const glyphWrap = document.getElementById("glyphs");
+  GLYPHS.forEach((g, i) => {
+    const b = document.createElement("button");
+    b.className = "pill glyph";
+    b.textContent = g;
+    b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+    b.addEventListener("click", () => {
+      state.glyph = g;
+      [...glyphWrap.children].forEach((c) => c.setAttribute("aria-pressed", c === b ? "true" : "false"));
+      render();
+    });
+    glyphWrap.appendChild(b);
+  });
+
+  function bindToggle(id, key) {
+    const wrap = document.getElementById(id);
+    wrap.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      state[key] = btn.dataset[key];
+      [...wrap.children].forEach((c) => c.setAttribute("aria-pressed", c === btn ? "true" : "false"));
+      render();
+    });
+  }
+  bindToggle("grounds", "ground");
+  bindToggle("faces", "face");
+
+  // Single-size buttons
+  const single = document.getElementById("single");
+  FILES.forEach(([size, name]) => {
+    const b = document.createElement("button");
+    b.className = "btn btn-ghost";
+    b.textContent = name + " (" + size + ")";
+    b.addEventListener("click", () => savePng(size, name));
+    single.appendChild(b);
+  });
+
+  document.getElementById("all").addEventListener("click", () => {
+    FILES.forEach(([size, name], i) => setTimeout(() => savePng(size, name), i * 300));
+  });
+
+  // Fonts may load a beat late; redraw shortly after to be safe.
+  render();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+  setTimeout(render, 400);
+</script>
+</body>
+</html>

@@ -40,9 +40,11 @@ jobs:
         working-directory: mobile
         run: |
           npm ci
-          npm run build:web -- --output-dir ../dist/app
+          npm run build:web
         env:
-          # Serve the PWA from https://<owner>.github.io/<repo>/app/ (sub-path of the demo).
+          # Build into the demo's dist under /app, and serve from
+          # https://<owner>.github.io/<repo>/app/ (sub-path of the demo).
+          EXPO_WEB_OUTPUT: ../dist/app
           EXPO_WEB_BASE_URL: /${{ github.event.repository.name }}/app
           # Supabase keys come from repo secrets, not the codebase. Add them under
           # Settings → Secrets and variables → Actions. If unset, the PWA still deploys but runs
