@@ -44,6 +44,6 @@ const styles = StyleSheet.create({
   canvasBox: { height: 260 },
   answerSlot: { height: 70, justifyContent: 'center', marginTop: 12 }, // reserved so the answer isn't covered
   answer: { alignItems: 'center', gap: 2 },
-  answerWord: { color: colors.ink, fontSize: 42 },
-  answerMeaning: { color: colors.muted, fontFamily: fonts.body, fontSize: 14 },
+  answerWord: { color: colors.ink, fontSize: 30 },
+  answerMeaning: { color: colors.muted, fontFamily: fonts.body, fontSize: 12 },
 })
