@@ -48,7 +48,8 @@ function isCorrect(qa: QA): boolean {
 /** Default hint for the bottom reveal strip, per task + answer state. */
 function revealHint(qa: QA): string {
   const revealed = qa.phase === 'revealed'
-  if (qa.task.kind === 'type-word') return revealed ? 'Hold a kanji for its meaning' : 'Type the reading, then lock in'
+  if (qa.task.kind === 'type-word')
+    return revealed ? 'Hold a kanji, or the answer for the whole word' : 'Type the reading, then lock in'
   return revealed ? 'Hold a word for its reading & meaning' : 'Hold a word for its reading'
 }
 

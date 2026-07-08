@@ -86,10 +86,18 @@ export function TypeWordTaskView({ task, value, phase, score, onChange, onLock, 
           {phase === 'retry' && (
             <Text style={styles.retry}>Not quite — fix your answer and lock in once more.</Text>
           )}
-          {revealed && score <= 0 && (
-            <Text style={styles.answer}>
-              Answer: <Text style={styles.answerReading}>{task.reading}</Text>
-            </Text>
+          {revealed && (
+            <Pressable
+              onPressIn={() => reveal.show(`${task.word}  ·  ${task.meaning.split(';')[0].trim()}`)}
+              onPressOut={reveal.hide}
+              hitSlop={6}
+            >
+              <Text style={styles.answer}>
+                {score <= 0 ? 'Answer: ' : ''}
+                <Text style={styles.answerReading}>{task.reading}</Text>
+              </Text>
+              <Text style={styles.answerHint}>hold for the whole word’s meaning</Text>
+            </Pressable>
           )}
         </View>
     </View>
@@ -132,6 +140,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
   retry: { color: colors.incorrect, fontFamily: fonts.body, fontSize: 13, textAlign: 'center' },
   answer: { color: colors.muted, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
-  answerReading: { color: colors.ink, fontFamily: fonts.semibold },
+  answerReading: { color: colors.ink, fontFamily: fonts.semibold, textDecorationLine: 'underline', textDecorationColor: colors.border },
+  answerHint: { color: colors.muted, fontFamily: fonts.body, fontSize: 11, textAlign: 'center', marginTop: 2, opacity: 0.8 },
 })
 
