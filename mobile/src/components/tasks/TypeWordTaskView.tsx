@@ -1,4 +1,5 @@
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native'
+import { useEffect } from 'react'
+import { View, Text, TextInput, Pressable, Keyboard, StyleSheet } from 'react-native'
 import { toKana } from 'wanakana'
 import { type TypeWordTask } from '@lib/tasks'
 import { useContent } from '../../context/ContentContext'
@@ -25,6 +26,12 @@ export function TypeWordTaskView({ task, value, phase, score, onChange, onLock, 
   const { content } = useContent()
   const meanings = content.kanjiMeanings
   const reveal = useReveal()
+
+  // Once answered, drop the keyboard — otherwise it stays up and hides the answer (below the input),
+  // so you can't reach it to hold for the word's meaning.
+  useEffect(() => {
+    if (revealed) Keyboard.dismiss()
+  }, [revealed])
 
   return (
     <View style={styles.root}>
