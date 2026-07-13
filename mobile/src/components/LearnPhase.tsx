@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { View, Text, Pressable, ScrollView, StyleSheet, PanResponder, Animated, Dimensions, Easing } from 'react-native'
-import type { Kanji } from '@shared/types'
+import type { Unit } from '@shared/types'
 import { SKIP_REQUEUE_GAP } from '@shared/constants'
 import { skipCard } from '@lib/study'
 import { useContent } from '../context/ContentContext'
+import { useLanguage } from '../context/LanguageContext'
 import { Bilingual } from './Bilingual'
 import { Icon } from './Icon'
 import { SpeakButton } from './SpeakButton'
@@ -13,22 +14,23 @@ import { colors, fonts, radius, shadow, spacing } from '../theme'
 const SCREEN_W = Dimensions.get('window').width
 
 interface Props {
-  chunk: Kanji[]
-  reserve: Kanji[]
-  onComplete: (learned: Kanji[]) => void
-  /** Back to the kanji page (Learn/Practice menu). */
+  chunk: Unit[]
+  reserve: Unit[]
+  onComplete: (learned: Unit[]) => void
+  /** Back to the unit page (Learn/Practice menu). */
   onExit: () => void
   /** Total progress dots across learn + the write review that follows (defaults to just this set). */
   totalSteps?: number
 }
 
-/** Introduces new kanji one card at a time: char, glosses, breakdown, and up to 5 example words. */
+/** Introduces new unit one card at a time: char, glosses, breakdown, and up to 5 example words. */
 export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: Props) {
-  const [cards, setCards] = useState<Kanji[]>(chunk)
-  const [pool, setPool] = useState<Kanji[]>(reserve)
+  const [cards, setCards] = useState<Unit[]>(chunk)
+  const [pool, setPool] = useState<Unit[]>(reserve)
   const [i, setI] = useState(0)
+  const { ui } = useLanguage()
 
-  const kanji = cards[i]
+  const unit = cards[i]
   const isFirst = i === 0
   const isLast = i === cards.length - 1
   const canSkip = pool.length > 0 || cards.length > 1
@@ -100,9 +102,10 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
   })
 
   // Back button, step label, and progress bar live in the app-level top bar (above the card).
+  const learnHead = ui.learnHeader(i + 1, cards.length)
   useScreenHeader(
     onExit,
-    { ja: `新しい漢字 ${i + 1} / ${cards.length}`, en: `New kanji ${i + 1} / ${cards.length}` },
+    { ja: learnHead.native, en: learnHead.en },
     { current: i + 1, total: totalSteps ?? cards.length },
   )
 
@@ -125,7 +128,7 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
         }}
       >
         <Animated.View style={{ transform: [{ translateX: dragX }] }}>
-          <LearnCard key={kanji.idx} kanji={kanji} />
+          <LearnCard key={unit.idx} unit={unit} />
         </Animated.View>
       </ScrollView>
 
@@ -139,7 +142,7 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
         </Pressable>
         <Pressable style={[styles.skip, !canSkip && styles.disabled]} onPress={skip} disabled={!canSkip}>
           <Icon name="forward" size={13} color={colors.muted} />
-          <Bilingual ja="あとで" en="Not now" />
+          <Bilingual native={ui.notNow.native} en={ui.notNow.en} />
         </Pressable>
         <Pressable style={[styles.chevron, styles.chevNext]} onPress={goNext}>
           <Icon name="chevron-right" size={18} color={colors.onAccent} />
@@ -149,27 +152,27 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
   )
 }
 
-function LearnCard({ kanji }: { kanji: Kanji }) {
+function LearnCard({ unit }: { unit: Unit }) {
   const { content } = useContent()
-  const meanings = content.kanjiMeanings
-  const radical = content.kanjiRadicals[kanji.char]
-  const components = content.kanjiComponents[kanji.char] ?? []
-  const hasReveal = Boolean(radical) || components.length > 0
+  const pack = useLanguage()
+  const charGloss = (ch: string) => pack.charGloss?.(content, ch)
+  const DetailView = pack.detail?.View
+  const hasReveal = pack.detail ? pack.detail.has(content, unit) : false
   const [expanded, setExpanded] = useState(false)
 
   const toggle = () => setExpanded((v) => !v)
 
-  // Hold-to-reveal: the meaning shows in the caption strip only while a kanji/eye is held,
-  // reverting to the hint on release. Resets per card (LearnCard is keyed by kanji).
+  // Hold-to-reveal: the meaning shows in the caption strip only while a unit/eye is held,
+  // reverting to the hint on release. Resets per card (LearnCard is keyed by unit).
   const [caption, setCaption] = useState<{ key: string; label: string; meaning: string } | null>(null)
   const show = (key: string, label: string, meaning: string) => setCaption({ key, label, meaning })
   const hide = () => setCaption(null)
 
   return (
     <View style={styles.card}>
-      <View style={styles.kanjiRow}>
-        {hasReveal && <View style={styles.kanjiSpacer} />}
-        <Text style={styles.bigKanji}>{kanji.char}</Text>
+      <View style={styles.formRow}>
+        {hasReveal && <View style={styles.formSpacer} />}
+        <Text style={styles.bigForm}>{unit.form}</Text>
         {hasReveal && (
           <Pressable style={[styles.revealBtn, expanded && styles.revealBtnOn]} onPress={toggle}>
             <Icon name="magnifying-glass" size={13} color={expanded ? colors.onAccent : colors.ink} />
@@ -177,30 +180,20 @@ function LearnCard({ kanji }: { kanji: Kanji }) {
         )}
       </View>
 
-      {hasReveal && (
+      {hasReveal && DetailView && (
         <Collapse open={expanded}>
-          <View style={styles.breakdown}>
-            {radical ? (
-              <View style={styles.radicalRow}>
-                <CompRow char={radical} meaning={meanings[radical]} accent />
-                <Text style={styles.radicalTag}>RADICAL</Text>
-              </View>
-            ) : null}
-            {components.map((c) => (
-              <CompRow key={c} char={c} meaning={meanings[c]} />
-            ))}
-          </View>
+          <DetailView unit={unit} />
         </Collapse>
       )}
 
-      {/* Reserve 2 lines so the card height doesn't jump between kanji with short vs long meanings. */}
+      {/* Reserve 2 lines so the card height doesn't jump between unit with short vs long meanings. */}
       <View style={styles.glossWrap}>
-        <Text style={styles.gloss}>{kanji.gloss.join(', ')}</Text>
+        <Text style={styles.gloss}>{unit.gloss.join(', ')}</Text>
       </View>
 
       {/* minHeight reserves 5 rows so the card is the same height regardless of example count. */}
       <View style={styles.examples}>
-        {kanji.examples.slice(0, 5).map((ex, idx) => {
+        {unit.examples.slice(0, 5).map((ex, idx) => {
           const wordKey = `w:${idx}`
           const wordOn = caption?.key === wordKey
           return (
@@ -209,7 +202,7 @@ function LearnCard({ kanji }: { kanji: Kanji }) {
                 <ExampleWord
                   word={ex.word}
                   wordIndex={idx}
-                  meanings={meanings}
+                  gloss={charGloss}
                   activeKey={caption?.key}
                   onShow={show}
                   onHide={hide}
@@ -242,7 +235,7 @@ function LearnCard({ kanji }: { kanji: Kanji }) {
           </Text>
         ) : (
           <Text style={styles.captionHint} numberOfLines={2}>
-            Hold a kanji or the eye button to reveal its meaning here
+            Hold a {pack.ui.noun} or the eye button to reveal its meaning here
           </Text>
         )}
       </View>
@@ -250,28 +243,18 @@ function LearnCard({ kanji }: { kanji: Kanji }) {
   )
 }
 
-function CompRow({ char, meaning, accent }: { char: string; meaning?: string; accent?: boolean }) {
-  const m = meaning ? meaning.split(';')[0].trim() : '—'
-  return (
-    <View style={styles.comp}>
-      <Text style={[styles.compChar, accent && styles.accentText]}>{char}</Text>
-      <Text style={[styles.compMeaning, accent && styles.accentText]}>{m}</Text>
-    </View>
-  )
-}
-
-/** A word whose kanji characters reveal their meaning in the caption strip while held. */
+/** A word whose unit characters reveal their meaning in the caption strip while held. */
 function ExampleWord({
   word,
   wordIndex,
-  meanings,
+  gloss,
   activeKey,
   onShow,
   onHide,
 }: {
   word: string
   wordIndex: number
-  meanings: Record<string, string>
+  gloss: (char: string) => string | undefined
   activeKey?: string
   onShow: (key: string, label: string, meaning: string) => void
   onHide: () => void
@@ -279,21 +262,21 @@ function ExampleWord({
   return (
     <View style={styles.exWordRow}>
       {[...word].map((ch, i) => {
-        const gloss = meanings[ch]
-        if (!gloss) {
+        const g = gloss(ch)
+        if (!g) {
           return (
             <Text key={i} style={styles.exWord}>
               {ch}
             </Text>
           )
         }
-        // Key by position so holding one instance highlights only it, not every copy of the kanji.
+        // Key by position so holding one instance highlights only it, not every copy of the unit.
         const key = `k:${wordIndex}:${i}`
         const on = activeKey === key
         return (
           <Pressable
             key={i}
-            onPressIn={() => onShow(key, ch, gloss.split(';')[0].trim())}
+            onPressIn={() => onShow(key, ch, g.split(';')[0].trim())}
             onPressOut={onHide}
             hitSlop={4}
             style={[styles.charBtn, on && styles.charBtnOn]}
@@ -307,7 +290,7 @@ function ExampleWord({
 }
 
 /**
- * Cross-platform height + fade reveal for the kanji breakdown. Replaces LayoutAnimation, which is a
+ * Cross-platform height + fade reveal for the unit breakdown. Replaces LayoutAnimation, which is a
  * no-op on react-native-web (so the breakdown used to pop open on the PWA instead of animating). The
  * content is measured out-of-flow and centered to match the card.
  */
@@ -325,7 +308,7 @@ function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
   }, [open, anim])
 
   // The inner is always rendered (out of flow) so its height is measured on mount — the card remounts
-  // per kanji, so without this the first expand would animate from an unmeasured 0 and just pop open.
+  // per unit, so without this the first expand would animate from an unmeasured 0 and just pop open.
   return (
     <Animated.View
       style={{
@@ -357,9 +340,9 @@ const styles = StyleSheet.create({
   skip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   disabled: { opacity: 0.3 },
   card: { alignItems: 'center' },
-  kanjiRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 8, marginTop: spacing.md },
-  kanjiSpacer: { width: 34 }, // balances the reveal button so the kanji stays centered
-  bigKanji: { fontSize: 64, lineHeight: 70, color: colors.ink, fontWeight: '600' },
+  formRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 8, marginTop: spacing.md },
+  formSpacer: { width: 34 }, // balances the reveal button so the unit stays centered
+  bigForm: { fontSize: 64, lineHeight: 70, color: colors.ink, fontWeight: '600' },
   revealBtn: {
     width: 34,
     height: 34,
@@ -396,7 +379,7 @@ const styles = StyleSheet.create({
   exWordCell: { flex: 1 },
   exWordRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   exWord: { fontSize: 25, color: colors.ink },
-  // Underline as a bottom border with a gap, so it sits below the (now larger) kanji instead of overlapping.
+  // Underline as a bottom border with a gap, so it sits below the (now larger) unit instead of overlapping.
   charBtn: { borderBottomWidth: 1.5, borderBottomColor: colors.border, paddingBottom: 3 },
   charBtnOn: { borderBottomColor: colors.accent },
   exCharOn: { color: colors.accentInk },

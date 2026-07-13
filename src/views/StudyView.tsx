@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import type { Kanji } from '../../shared/types'
+import type { Unit } from '../../shared/types'
 import { Bilingual } from '../components/Bilingual'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
@@ -8,10 +8,10 @@ import { LearnPhase } from '../components/LearnPhase'
 import { PracticeSession } from '../components/PracticeSession'
 import {
   applyLearned,
-  introducedKanji,
+  introducedUnits,
   learnChunkSize,
   nextLearnSession,
-  unlearnedKanji,
+  unlearnedUnits,
 } from '../lib/study'
 
 type Phase = 'home' | 'learn' | 'practice'
@@ -20,8 +20,8 @@ export default function StudyView() {
   const index = useContent()
   const { progress, update } = useProgress()
   const [phase, setPhase] = useState<Phase>('home')
-  const [chunk, setChunk] = useState<Kanji[]>([])
-  const [reserve, setReserve] = useState<Kanji[]>([])
+  const [chunk, setChunk] = useState<Unit[]>([])
+  const [reserve, setReserve] = useState<Unit[]>([])
 
   function startLearn() {
     const { chunk: next, reserve: rest } = nextLearnSession(index, progress)
@@ -32,7 +32,7 @@ export default function StudyView() {
   }
 
   // `learned` is the final set of cards the learner kept (skipped cards are excluded).
-  function finishLearning(learned: Kanji[]) {
+  function finishLearning(learned: Unit[]) {
     update((p) => applyLearned(p, learned))
     setPhase('home')
   }
@@ -48,8 +48,8 @@ function StudyHome({ onLearn, onPractice }: { onLearn: () => void; onPractice: (
   const index = useContent()
   const { progress, update } = useProgress()
 
-  const introduced = introducedKanji(index, progress).length
-  const remainingToLearn = unlearnedKanji(index, progress).length
+  const introduced = introducedUnits(index, progress).length
+  const remainingToLearn = unlearnedUnits(index, progress).length
   const enabledTotal = introduced + remainingToLearn
   const chunkSize = learnChunkSize(index, progress)
   const name = progress.settings.name.trim()
@@ -59,7 +59,7 @@ function StudyHome({ onLearn, onPractice }: { onLearn: () => void; onPractice: (
 
   // Greeting: first visit (no name AND no saved progress) → はじめまして; otherwise welcome them back,
   // with their name when we have it.
-  const hasRecord = Object.keys(progress.kanji).length > 0
+  const hasRecord = Object.keys(progress.units).length > 0
   const greeting = name
     ? { ja: `おかえりなさい、${name}`, en: 'Welcome back' }
     : hasRecord
@@ -70,7 +70,7 @@ function StudyHome({ onLearn, onPractice }: { onLearn: () => void; onPractice: (
     if (!window.confirm('Reset all learning progress? Your introduced kanji and levels will be cleared (your name and dataset selection are kept).')) {
       return
     }
-    update((p) => ({ settings: p.settings, kanji: {} }))
+    update((p) => ({ settings: p.settings, units: {} }))
   }
 
   return (

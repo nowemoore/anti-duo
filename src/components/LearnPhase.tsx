@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import type { Kanji } from '../../shared/types'
+import type { Unit } from '../../shared/types'
 import { SKIP_REQUEUE_GAP } from '../../shared/constants'
 import { skipCard } from '../lib/study'
 import { useContent } from '../context/ContentContext'
@@ -10,17 +10,17 @@ import { HoverGloss } from './HoverGloss'
 import { SpeakButton } from './SpeakButton'
 
 interface Props {
-  chunk: Kanji[]
+  chunk: Unit[]
   /** Extra queued kanji used to replace a card the learner taps "Not now" on. */
-  reserve: Kanji[]
+  reserve: Unit[]
   /** Called with the final set of cards the learner kept (skipped cards excluded). */
-  onComplete: (learned: Kanji[]) => void
+  onComplete: (learned: Unit[]) => void
 }
 
 /** Introduces new kanji one card at a time: char, glosses, and up to 5 example words. */
 export function LearnPhase({ chunk, reserve, onComplete }: Props) {
-  const [cards, setCards] = useState<Kanji[]>(chunk)
-  const [pool, setPool] = useState<Kanji[]>(reserve)
+  const [cards, setCards] = useState<Unit[]>(chunk)
+  const [pool, setPool] = useState<Unit[]>(reserve)
   const [i, setI] = useState(0)
 
   const kanji = cards[i]
@@ -117,11 +117,11 @@ export function LearnPhase({ chunk, reserve, onComplete }: Props) {
   )
 }
 
-function LearnCard({ kanji }: { kanji: Kanji }) {
+function LearnCard({ kanji }: { kanji: Unit }) {
   const { content } = useContent()
   const meanings = content.kanjiMeanings
-  const radical = content.kanjiRadicals[kanji.char]
-  const components = content.kanjiComponents[kanji.char] ?? []
+  const radical = content.kanjiRadicals[kanji.form]
+  const components = content.kanjiComponents[kanji.form] ?? []
   const hasReveal = Boolean(radical) || components.length > 0
   const [expanded, setExpanded] = useState(false)
 
@@ -129,7 +129,7 @@ function LearnCard({ kanji }: { kanji: Kanji }) {
     <div className="learn-card">
       <div className={`kanji-reveal${expanded ? ' expanded' : ''}`}>
         <div className="kanji-box">
-          <div className="big-kanji">{kanji.char}</div>
+          <div className="big-kanji">{kanji.form}</div>
           {hasReveal && (
             <button
               type="button"

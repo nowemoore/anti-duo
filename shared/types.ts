@@ -1,74 +1,88 @@
 // Shared domain model — imported by both the client (src/) and the server (server/).
+//
+// Neutral across languages: a "Unit" is the atom you learn (a kanji, an Arabic root, …), and a
+// Sentence is a stream of Tokens. Anything a specific language needs that the engine doesn't — an
+// Arabic word's voweled form, a plural, a token's lemma — rides in the optional `extra` bag, read
+// only by that language's pack. The engine never looks inside `extra`.
 
 // ---------------------------------------------------------------------------
-// Content (read-only, parsed from kanji.csv + sentences.csv)
+// Content (read-only, parsed from the per-language dbs)
 // ---------------------------------------------------------------------------
 
-/** A dictionary word: surface form, kana reading, English meaning. */
+/** A dictionary word: surface form, reading, meaning. */
 export interface Word {
   word: string
   reading: string
   meaning: string
+  /** Language-specific fields (e.g. Arabic `voweled`, `plural`) — read only by the language pack. */
+  extra?: Record<string, unknown>
 }
 
-/** One kanji and its teaching material (row of kanji.csv). */
-export interface Kanji {
-  /** 1–100, teaching order. */
+/** One learnable unit and its teaching material (a kanji, an Arabic root, …). */
+export interface Unit {
+  /** Teaching order. */
   idx: number
-  char: string
-  /** Author-defined difficulty tier; new kanji are drawn from the lowest unlearned batch first. */
+  /** The unit's written form (a kanji character, a root, …). */
+  form: string
+  /** Author-defined difficulty tier; new units are drawn from the lowest unlearned batch first. */
   batch: number
-  /** Topical category (e.g. "Numbers", "Food & Drink") — used for learning-set selection. */
+  /** Topical category — used for learning-set selection. */
   category: string
   /** English meanings. */
   gloss: string[]
-  /** Real words using this kanji — Learn-mode intro + Type-2 correct answers. */
+  /** Real words built on this unit — Learn-mode intro + correct answers. */
   examples: Word[]
-  /** Fake words containing this kanji — Type-2 distractors. */
+  /** Plausible fake words — distractors. */
   distractors: Word[]
+  /** Language-specific fields (e.g. Arabic `batchesReleased`) — read only by the language pack. */
+  extra?: Record<string, unknown>
 }
 
-/** A particle token — standalone grammar (は, を, です, …). Always rendered as kana verbatim; never blanked. */
+/** A particle/scaffold token — standalone grammar; always rendered verbatim, never blanked. */
 export interface ParticleToken {
   kind: 'particle'
-  kana: string
+  surface: string
 }
 
-/** A content word token (okurigana included in `ja`) — renders English or Japanese by learned state. */
+/** A content word token — renders gloss or surface form by learned state. */
 export interface WordToken {
   kind: 'word'
-  /** Full surface form including okurigana (e.g. 食べる). */
-  ja: string
-  /** Whole-word kana reading (use directly for furigana; do not derive from kanji.csv). */
+  /** Full surface form (e.g. 食べる). */
+  surface: string
+  /** Whole-word reading (use directly for the reading annotation). */
   reading: string
-  /** English gloss (shown while no kanji learned; revealed on hover otherwise). */
-  en: string
-  /** Tracked kanji characters (in the 100-set) contained in this word. */
-  kanji: string[]
-  /** idx values of the kanji in this word that may be blanked (cloze targets). */
+  /** English gloss (shown while the unit isn't learned; revealed on hold otherwise). */
+  gloss: string
+  /** Tracked unit forms contained in this word. */
+  units: string[]
+  /** idx values of the units in this word that may be blanked (cloze targets). */
   targets: number[]
+  /** Language-specific fields (e.g. Arabic `lemma`, `inflected`) — read only by the language pack. */
+  extra?: Record<string, unknown>
 }
 
 export type Token = ParticleToken | WordToken
 
-/** One example sentence (row of sentences.csv). */
+/** One example sentence. */
 export interface Sentence {
   id: string
-  /** kanji `idx` values appearing in this sentence. */
-  kanjiList: number[]
+  /** unit `idx` values appearing in this sentence. */
+  unitList: number[]
   tokens: Token[]
 }
 
 /** Everything served read-only by GET /api/content. */
 export interface Content {
-  kanji: Kanji[]
+  /** Content language id — selects the engine-tier LangEngine. Defaults to 'ja' when absent. */
+  lang?: string
+  units: Unit[]
   sentences: Sentence[]
-  /** Per-character English meaning (from allkanji_meanings.csv), for every kanji used by the
-   *  curriculum, its example words, radical, or components. Powers per-character look-up glosses. */
+  /** Per-character English meaning, for every char used by the curriculum, its example words,
+   *  radical, or components. Powers per-character look-up glosses. (JA breakdown data.) */
   kanjiMeanings: Record<string, string>
-  /** The classifying radical char of each curriculum kanji, from allkanji_meanings.csv. */
+  /** The classifying radical char of each curriculum unit. (JA breakdown data.) */
   kanjiRadicals: Record<string, string>
-  /** Component characters of each curriculum kanji (excluding itself and its radical). */
+  /** Component characters of each curriculum unit (excluding itself and its radical). (JA.) */
   kanjiComponents: Record<string, string[]>
 }
 
@@ -78,27 +92,25 @@ export interface Content {
 
 export interface Settings {
   name: string
-  /** Category names turned off (empty = all on). A disabled category pauses all its kanji. */
+  /** Category names turned off (empty = all on). A disabled category pauses all its units. */
   disabledCategories: string[]
-  /** Individual kanji idx values turned off (empty = all on), within enabled categories. */
-  disabledKanji: number[]
+  /** Individual unit idx values turned off (empty = all on), within enabled categories. */
+  disabledUnits: number[]
   /**
    * Per-task-type appearance weight, keyed by TaskType (0 = off, higher = more often). A task
-   * absent here falls back to its built-in default weight. User-facing "Practice mix" setting;
-   * only affects how often a task type is chosen, not its scoring.
+   * absent here falls back to its built-in default weight.
    */
   taskWeights?: Record<string, number>
 }
 
-/** Per-kanji progress. `lvl`: 0 = unseen, 1 = introduced, +1 per correct answer. */
-export interface KanjiProgress {
+/** Per-unit progress. `lvl`: 0 = unseen, 1 = introduced, +1 per correct answer. */
+export interface UnitProgress {
   lvl: number
 }
 
 /**
  * Cumulative practice tally for one task type. `points` is earned score in [0, attempts]: each
- * answered task earns (delta + 1) / 2 out of 1 possible, so the success rate is `points / attempts`
- * (this equals the fraction correct for the binary tasks and gives which-words per-option credit).
+ * answered task earns (delta + 1) / 2 out of 1 possible, so the success rate is `points / attempts`.
  */
 export interface TaskStats {
   attempts: number
@@ -107,8 +119,8 @@ export interface TaskStats {
 
 export interface Progress {
   settings: Settings
-  /** Keyed by kanji `idx` (stringified in JSON). */
-  kanji: Record<number, KanjiProgress>
+  /** Keyed by unit `idx` (stringified in JSON). */
+  units: Record<number, UnitProgress>
   /** Cumulative per-task-type success tally, keyed by TaskType. Absent until the first answer. */
   stats?: Record<string, TaskStats>
   /** ISO timestamp of the last Study run, if any. */

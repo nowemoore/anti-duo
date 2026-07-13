@@ -18,7 +18,7 @@ import {
 
 async function main() {
   const index = buildContentIndex(await loadContent())
-  const allIdx = index.content.kanji.map((k) => k.idx)
+  const allIdx = index.content.units.map((k) => k.idx)
   const ctx = { studySet: allIdx } // cloze distractors drawn from the full set in tests
   const checks: [string, boolean][] = []
 
@@ -56,9 +56,9 @@ async function main() {
         // Cloze: 4 kanji-char options, correct == target char, char present in the focus word.
         if (c.kind === 'cloze') {
           if (c.options.length !== CLOZE_OPTIONS) clozeOk = false
-          if (c.blankChar !== index.byIdx.get(i)!.char) clozeOk = false
-          if (c.options[correctIdx].label !== index.byIdx.get(i)!.char) clozeOk = false
-          if (tok.kind === 'word' && !tok.ja.includes(c.blankChar!)) clozeOk = false
+          if (c.blankChar !== index.byIdx.get(i)!.form) clozeOk = false
+          if (c.options[correctIdx].label !== index.byIdx.get(i)!.form) clozeOk = false
+          if (tok.kind === 'word' && !tok.surface.includes(c.blankChar!)) clozeOk = false
           if (new Set(c.options.map((o) => o.label)).size !== CLOZE_OPTIONS) clozeOk = false // distinct
         }
       } else if (task.kind === 'which-words') {

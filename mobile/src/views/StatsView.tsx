@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { useProgress } from '../context/ProgressContext'
+import { useLanguage } from '../context/LanguageContext'
 import { taskRates, TASK_LABELS } from '@lib/stats'
 import { Bilingual } from '../components/Bilingual'
 import { colors, fonts, radius, shadow, spacing } from '../theme'
@@ -7,13 +8,14 @@ import { colors, fonts, radius, shadow, spacing } from '../theme'
 /** Success rate per task type — earned points ÷ attempts, cumulative across all practice. */
 export function StatsView() {
   const { progress } = useProgress()
-  const rates = taskRates(progress)
+  const { ui, tasks } = useLanguage()
+  const rates = taskRates(progress, tasks)
   const totalAttempts = rates.reduce((n, r) => n + r.attempts, 0)
 
   return (
     <View style={styles.panel}>
       <View style={styles.titleRow}>
-        <Bilingual ja="統計" en="Stats" />
+        <Bilingual native={ui.statsTitle.native} en={ui.statsTitle.en} />
       </View>
 
       {totalAttempts === 0 ? (

@@ -1,15 +1,11 @@
 import type { Progress } from '../../shared/types'
-import { ALL_TASK_TYPES, type TaskType } from './tasks'
+import { ALL_TASK_TYPES, TASK_SPECS, type TaskType } from './tasks'
 
-/** Human labels for each task type (mirrors the Manual's task titles). */
-export const TASK_LABELS: Record<TaskType, string> = {
-  'type-word': 'Type the reading',
-  'which-words': 'Which words are real',
-  cloze: 'Fill in the kanji',
-  'pick-reading': 'Pick the reading',
-  'pick-meaning': 'Pick the meaning',
-  'draw-kanji': 'Draw the kanji',
-}
+/** Human labels per task type — derived from the task registry (single source of truth). */
+export const TASK_LABELS = Object.fromEntries(TASK_SPECS.map((s) => [s.kind, s.label])) as Record<
+  TaskType,
+  string
+>
 
 /**
  * Points earned by one answer, in [0, 1]. Task deltas run [-1, +1] (−1 = fully wrong, +1 = fully
@@ -39,9 +35,9 @@ export interface TaskRate {
   rate: number | null
 }
 
-/** Success rate per task type, in a stable order, for the Stats view. */
-export function taskRates(progress: Progress): TaskRate[] {
-  return ALL_TASK_TYPES.map((type) => {
+/** Success rate per task type (defaults to the built-in roster; pass a language's `tasks` to scope it). */
+export function taskRates(progress: Progress, types: readonly TaskType[] = ALL_TASK_TYPES): TaskRate[] {
+  return types.map((type) => {
     const s = progress.stats?.[type]
     return {
       type,

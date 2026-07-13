@@ -24,14 +24,14 @@ export const TOTAL_KANJI = 121
 export const DEFAULT_SETTINGS: Settings = {
   name: '',
   disabledCategories: [],
-  disabledKanji: [],
+  disabledUnits: [],
   taskWeights: {},
 }
 
-/** Fresh progress for a brand-new user: every kanji at lvl 0. */
+/** Fresh progress for a brand-new user: every unit at lvl 0. */
 export function defaultProgress(): Progress {
   return {
     settings: { ...DEFAULT_SETTINGS },
-    kanji: {},
+    units: {},
   }
 }

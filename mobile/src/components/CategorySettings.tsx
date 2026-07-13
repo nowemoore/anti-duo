@@ -2,15 +2,17 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { View, Text, Pressable, StyleSheet, Animated, Easing } from 'react-native'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
-import { enabledKanjiCount, isCategoryEnabled, isKanjiEnabled, toggleInList } from '@lib/categories'
+import { useLanguage } from '../context/LanguageContext'
+import { enabledUnitCount, isCategoryEnabled, isUnitEnabled, toggleInList } from '@lib/categories'
 import { Toggle } from './Toggle'
 import { Icon } from './Icon'
 import { colors, fonts, radius, shadow, spacing } from '../theme'
 
-/** Settings section: pick which kanji to study by toggling categories or individual kanji. */
+/** Settings section: pick which units to study by toggling categories or individual units. */
 export function CategorySettings() {
   const index = useContent()
   const { progress, update } = useProgress()
+  const { ui } = useLanguage()
   const settings = progress.settings
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -27,28 +29,28 @@ export function CategorySettings() {
     update((p) => {
       const disabledCategories = toggleInList(p.settings.disabledCategories, name)
       const newSettings = { ...p.settings, disabledCategories }
-      if (enabledKanjiCount(index, newSettings) === 0) return p
+      if (enabledUnitCount(index, newSettings) === 0) return p
       return { ...p, settings: newSettings }
     })
 
-  const toggleKanji = (idx: number) =>
+  const toggleUnit = (idx: number) =>
     update((p) => {
-      const disabledKanji = toggleInList(p.settings.disabledKanji, idx)
-      const newSettings = { ...p.settings, disabledKanji }
-      if (enabledKanjiCount(index, newSettings) === 0) return p
+      const disabledUnits = toggleInList(p.settings.disabledUnits, idx)
+      const newSettings = { ...p.settings, disabledUnits }
+      if (enabledUnitCount(index, newSettings) === 0) return p
       return { ...p, settings: newSettings }
     })
 
   return (
     <View style={styles.panel}>
       <Text style={styles.h2}>Your learning</Text>
-      <Text style={styles.muted}>Pick which kanji to study. Expand a category to fine-tune individual kanji.</Text>
+      <Text style={styles.muted}>Pick which {ui.noun} to study. Expand a category to fine-tune individual {ui.noun}.</Text>
 
       <View style={styles.list}>
         {index.categories.map((cat) => {
           const catOn = isCategoryEnabled(settings, cat.name)
           const isOpen = catOn && expanded.has(cat.name)
-          const enabledInCat = cat.kanji.filter((k) => isKanjiEnabled(settings, k)).length
+          const enabledInCat = cat.units.filter((k) => isUnitEnabled(settings, k)).length
           return (
             <View key={cat.name} style={styles.block}>
               <View style={styles.row}>
@@ -62,24 +64,24 @@ export function CategorySettings() {
                 </Pressable>
                 <Text style={[styles.catName, !catOn && styles.off]}>{cat.name}</Text>
                 <Text style={[styles.catCount, !catOn && styles.off]}>
-                  {enabledInCat}/{cat.kanji.length}
+                  {enabledInCat}/{cat.units.length}
                 </Text>
                 <Toggle checked={catOn} onChange={() => toggleCategory(cat.name)} label={cat.name} />
               </View>
 
               <Collapsible open={isOpen}>
-                <View style={styles.kanjiGrid}>
-                  {cat.kanji.map((k) => (
+                <View style={styles.unitGrid}>
+                  {cat.units.map((k) => (
                     <View key={k.idx} style={styles.ckItem}>
-                      <Text style={styles.ckChar}>{k.char}</Text>
+                      <Text style={styles.ckChar}>{k.form}</Text>
                       <Text style={styles.ckGloss} numberOfLines={1}>
                         {k.gloss.join(', ')}
                       </Text>
                       <Toggle
                         small
-                        checked={!settings.disabledKanji.includes(k.idx)}
-                        onChange={() => toggleKanji(k.idx)}
-                        label={k.char}
+                        checked={!settings.disabledUnits.includes(k.idx)}
+                        onChange={() => toggleUnit(k.idx)}
+                        label={k.form}
                       />
                     </View>
                   ))}
@@ -161,7 +163,7 @@ const styles = StyleSheet.create({
   catName: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 15 },
   catCount: { marginLeft: 'auto', color: colors.muted, fontFamily: fonts.body, fontSize: 13 },
   off: { color: colors.muted, opacity: 0.7 },
-  kanjiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingBottom: 8, paddingLeft: 24 },
+  unitGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingBottom: 8, paddingLeft: 24 },
   ckItem: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5 },
   ckChar: { fontSize: 18, color: colors.ink, width: 26, textAlign: 'center' },
   ckGloss: { flex: 1, color: colors.muted, fontFamily: fonts.body, fontSize: 12 },

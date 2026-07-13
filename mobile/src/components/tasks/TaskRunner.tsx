@@ -1,48 +1,29 @@
-import { ChoiceTaskView } from './ChoiceTaskView'
-import { TypeWordTaskView } from './TypeWordTaskView'
-import { WhichWordsTaskView } from './WhichWordsTaskView'
-import { DrawKanjiTaskView } from './DrawKanjiTaskView'
+import { useLanguage } from '../../context/LanguageContext'
+import { getTaskUI } from './registry'
 import type { QA } from './types'
-import type { RawStroke } from '../../lib/handwriting'
 
 interface Props {
   qa: QA
-  onChoose: (i: number) => void
-  onToggle: (i: number) => void
-  onChange: (v: string) => void
-  onStrokes: (s: RawStroke[]) => void
+  setAnswer: (a: unknown) => void
   onLock: () => void
   onGiveUp: () => void
 }
 
-/** Renders the right controlled task view for a question. Answer state lives in the session. */
-export function TaskRunner({ qa, onChoose, onToggle, onChange, onStrokes, onLock, onGiveUp }: Props) {
-  switch (qa.task.kind) {
-    case 'type-word':
-      return (
-        <TypeWordTaskView
-          task={qa.task}
-          value={qa.typed}
-          phase={qa.phase}
-          score={qa.score}
-          onChange={onChange}
-          onLock={onLock}
-          onGiveUp={onGiveUp}
-        />
-      )
-    case 'which-words':
-      return <WhichWordsTaskView task={qa.task} selected={qa.selected} phase={qa.phase} onToggle={onToggle} />
-    case 'draw-kanji':
-      return (
-        <DrawKanjiTaskView
-          task={qa.task}
-          revealed={qa.phase === 'revealed'}
-          strokes={qa.strokes}
-          onStrokes={onStrokes}
-          onGiveUp={onGiveUp}
-        />
-      )
-    default:
-      return <ChoiceTaskView task={qa.task} chosen={qa.chosen} revealed={qa.phase === 'revealed'} onChoose={onChoose} />
-  }
+/** Renders the active task's view, looked up from the registry (built-in or pack-contributed). */
+export function TaskRunner({ qa, setAnswer, onLock, onGiveUp }: Props) {
+  const pack = useLanguage()
+  const ui = getTaskUI(qa.task.kind, pack)
+  if (!ui) return null
+  const TaskView = ui.View
+  return (
+    <TaskView
+      task={qa.task}
+      answer={qa.answer}
+      setAnswer={setAnswer}
+      phase={qa.phase}
+      score={qa.score}
+      onLock={onLock}
+      onGiveUp={onGiveUp}
+    />
+  )
 }

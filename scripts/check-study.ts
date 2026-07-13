@@ -2,7 +2,7 @@
 // Each Learn introduces up to 5 random, distinct, unlearned kanji from the enabled set; no daily cap.
 import { loadContent } from '../server/content'
 import { buildContentIndex } from '../src/lib/content'
-import { applyLearned, forgottenKanji, introducedKanji, learnChunkSize, nextLearnChunk, skipCard, unlearnedKanji } from '../src/lib/study'
+import { applyLearned, forgottenUnits, introducedUnits, learnChunkSize, nextLearnChunk, skipCard, unlearnedUnits } from '../src/lib/study'
 import { defaultProgress, INTRODUCED_LEVEL, SKIP_REQUEUE_GAP } from '../shared/constants'
 
 async function main() {
@@ -32,7 +32,7 @@ async function main() {
   let q = defaultProgress()
   let clicks = 0
   let everyChunkAtMost5 = true
-  while (unlearnedKanji(index, q).length > 0) {
+  while (unlearnedUnits(index, q).length > 0) {
     const chunk = nextLearnChunk(index, q)
     if (chunk.length === 0 || chunk.length > 5) {
       everyChunkAtMost5 = false
@@ -41,19 +41,19 @@ async function main() {
     q = applyLearned(q, chunk)
     clicks++
   }
-  const allIntroduced = introducedKanji(index, q).length === index.content.kanji.length
+  const allIntroduced = introducedUnits(index, q).length === index.content.units.length
   const noneLeft = learnChunkSize(index, q) === 0 && nextLearnChunk(index, q).length === 0
 
   // Category / per-kanji selection: disabling a category excludes its kanji; one disabled kanji too.
-  const numbersIdx = index.content.kanji.filter((k) => k.category === 'Numbers').map((k) => k.idx)
-  const oneIdx = index.byChar.get('一')!.idx
+  const numbersIdx = index.content.units.filter((k) => k.category === 'Numbers').map((k) => k.idx)
+  const oneIdx = index.byForm.get('一')!.idx
 
   const catOff = { ...defaultProgress(), settings: { ...defaultProgress().settings, disabledCategories: ['Numbers'] } }
-  const noNumbersInLearn = unlearnedKanji(index, catOff).every((k) => k.category !== 'Numbers')
+  const noNumbersInLearn = unlearnedUnits(index, catOff).every((k) => k.category !== 'Numbers')
 
-  const kanjiOff = { ...defaultProgress(), settings: { ...defaultProgress().settings, disabledKanji: [oneIdx] } }
-  const oneExcluded = !unlearnedKanji(index, kanjiOff).some((k) => k.idx === oneIdx)
-  const othersPresent = unlearnedKanji(index, kanjiOff).some((k) => numbersIdx.includes(k.idx))
+  const kanjiOff = { ...defaultProgress(), settings: { ...defaultProgress().settings, disabledUnits: [oneIdx] } }
+  const oneExcluded = !unlearnedUnits(index, kanjiOff).some((k) => k.idx === oneIdx)
+  const othersPresent = unlearnedUnits(index, kanjiOff).some((k) => numbersIdx.includes(k.idx))
 
   // Re-teach priority: a kanji introduced then dropped below INTRODUCED_LEVEL (kept as a progress
   // entry, unlike never-seen kanji) is guaranteed into the very next Learn set, ahead of new kanji.
@@ -61,20 +61,20 @@ async function main() {
   const seed = nextLearnChunk(index, f)
   f = applyLearned(f, seed)
   const forgottenTarget = seed[0].idx
-  f = { ...f, kanji: { ...f.kanji, [forgottenTarget]: { lvl: INTRODUCED_LEVEL - 1 } } } // simulate a downgrade
-  const forgottenBackInPool = unlearnedKanji(index, f).some((k) => k.idx === forgottenTarget)
+  f = { ...f, units: { ...f.units, [forgottenTarget]: { lvl: INTRODUCED_LEVEL - 1 } } } // simulate a downgrade
+  const forgottenBackInPool = unlearnedUnits(index, f).some((k) => k.idx === forgottenTarget)
   const forgottenFlagged =
-    forgottenKanji(index, f).some((k) => k.idx === forgottenTarget) && forgottenKanji(index, f).length === 1
+    forgottenUnits(index, f).some((k) => k.idx === forgottenTarget) && forgottenUnits(index, f).length === 1
   let alwaysReteaches = true
   for (let t = 0; t < 30 && alwaysReteaches; t++) {
     if (!nextLearnChunk(index, f).some((k) => k.idx === forgottenTarget)) alwaysReteaches = false
   }
   // A never-seen kanji (no entry, lvl defaults to 0) is NOT treated as forgotten.
-  const freshHasNoForgotten = forgottenKanji(index, defaultProgress()).length === 0
+  const freshHasNoForgotten = forgottenUnits(index, defaultProgress()).length === 0
 
   // "Not now": the skipped kanji is swapped out for the next reserve kanji and re-queued mid-reserve
   // (not next, not last); with an empty reserve it's dropped.
-  const twelve = index.content.kanji.slice(0, 12)
+  const twelve = index.content.units.slice(0, 12)
   const cards0 = twelve.slice(0, 5)
   const reserve0 = twelve.slice(5) // 7 in reserve
   const skipTarget = cards0[1].idx
@@ -88,7 +88,7 @@ async function main() {
 
   const checks: [string, boolean][] = [
     ['each Learn introduces 5', c1.length === 5 && c2.length === 5 && c3.length === 5],
-    ['15 distinct kanji across 3 Learns (no daily cap)', distinct && Object.keys(p.kanji).length === 15],
+    ['15 distinct kanji across 3 Learns (no daily cap)', distinct && Object.keys(p.units).length === 15],
     ['selection is random across fresh profiles', differs],
     ['every chunk is ≤ 5', everyChunkAtMost5],
     [`whole pool drained over ${clicks} Learns`, allIntroduced],

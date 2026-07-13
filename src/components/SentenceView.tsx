@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Token } from '../../shared/types'
 import { contentTokenDisplay } from '../lib/learned'
 import { useLearned } from '../lib/useLearned'
+import { useContent } from '../context/ContentContext'
 import { HoverGloss } from './HoverGloss'
 
 export interface TokenOverride {
@@ -34,6 +35,7 @@ export function SentenceView({
   revealMeanings = false,
 }: SentenceViewProps) {
   const isLearned = useLearned()
+  const index = useContent()
 
   return (
     <span className={className ? `sentence ${className}` : 'sentence'}>
@@ -44,7 +46,7 @@ export function SentenceView({
         if (tok.kind === 'particle') {
           return (
             <span key={key} className="tok scaffold">
-              {tok.kana}
+              {tok.surface}
             </span>
           )
         }
@@ -54,7 +56,7 @@ export function SentenceView({
           return (
             <span key={key} className="tok content word cloze">
               <ruby>
-                {blankOut(tok.ja, o.blankChar)}
+                {blankOut(tok.surface, o.blankChar)}
                 <rt>{tok.reading}</rt>
               </ruby>
             </span>
@@ -66,25 +68,25 @@ export function SentenceView({
           return (
             <HoverGloss
               key={key}
-              gloss={tok.en}
+              gloss={tok.gloss}
               enabled
               className={`tok content word jp${o.highlight ? ' highlight' : ''}`}
             >
               <ruby>
-                {tok.ja}
+                {tok.surface}
                 <rt>{tok.reading}</rt>
               </ruby>
             </HoverGloss>
           )
         }
 
-        const display = contentTokenDisplay(tok, isLearned)
+        const display = contentTokenDisplay(tok, isLearned, index.lang)
         const cls = `tok content${o?.highlight ? ' highlight' : ''}`
 
         if (display === 'english') {
           return (
             <span key={key} className={`${cls} en`}>
-              {tok.en}
+              {tok.gloss}
             </span>
           )
         }
@@ -93,9 +95,9 @@ export function SentenceView({
           <GlossWord
             key={key}
             className={cls}
-            ja={tok.ja}
+            ja={tok.surface}
             reading={tok.reading}
-            en={tok.en}
+            en={tok.gloss}
             showReading={!o?.hideReading}
             showMeaning={revealMeanings && !o?.hideMeaning}
           />

@@ -14,6 +14,7 @@ import {
 import { Fraunces_400Regular, Fraunces_700Bold } from '@expo-google-fonts/fraunces'
 import './src/icons' // registers the FontAwesome library (side effect)
 import { setupPwa } from './src/web/pwa'
+import { LanguageProvider } from './src/context/LanguageContext'
 import { ContentProvider } from './src/context/ContentContext'
 import { ProgressProvider } from './src/context/ProgressContext'
 import { HeaderProvider, useHeaderConfig } from './src/context/HeaderContext'
@@ -60,19 +61,21 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <ContentProvider>
-        <ProgressProvider>
-          <AuthProvider>
-            <SyncProvider>
-              <OverlayProvider>
-                <HeaderProvider>
-                  <Shell />
-                </HeaderProvider>
-              </OverlayProvider>
-            </SyncProvider>
-          </AuthProvider>
-        </ProgressProvider>
-      </ContentProvider>
+      <LanguageProvider>
+        <ContentProvider>
+          <ProgressProvider>
+            <AuthProvider>
+              <SyncProvider>
+                <OverlayProvider>
+                  <HeaderProvider>
+                    <Shell />
+                  </HeaderProvider>
+                </OverlayProvider>
+              </SyncProvider>
+            </AuthProvider>
+          </ProgressProvider>
+        </ContentProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   )
 }
@@ -96,7 +99,7 @@ function Shell() {
       </View>
       {header.title && (
         <View style={styles.titleRow}>
-          <Bilingual ja={header.title.ja} en={header.title.en} />
+          <Bilingual native={header.title.ja} en={header.title.en} />
         </View>
       )}
       {header.progress != null && (

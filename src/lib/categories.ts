@@ -1,4 +1,4 @@
-import type { Kanji, Settings } from '../../shared/types'
+import type { Unit, Settings } from '../../shared/types'
 import type { ContentIndex } from './content'
 
 /** A category is on unless explicitly disabled. */
@@ -7,13 +7,13 @@ export function isCategoryEnabled(settings: Settings, name: string): boolean {
 }
 
 /** A kanji is in play iff its category is on AND it isn't individually disabled. */
-export function isKanjiEnabled(settings: Settings, kanji: Kanji): boolean {
-  return isCategoryEnabled(settings, kanji.category) && !settings.disabledKanji.includes(kanji.idx)
+export function isUnitEnabled(settings: Settings, kanji: Unit): boolean {
+  return isCategoryEnabled(settings, kanji.category) && !settings.disabledUnits.includes(kanji.idx)
 }
 
 /** How many kanji are currently in play across the whole curriculum. */
-export function enabledKanjiCount(index: ContentIndex, settings: Settings): number {
-  return index.content.kanji.reduce((n, k) => n + (isKanjiEnabled(settings, k) ? 1 : 0), 0)
+export function enabledUnitCount(index: ContentIndex, settings: Settings): number {
+  return index.content.units.reduce((n, k) => n + (isUnitEnabled(settings, k) ? 1 : 0), 0)
 }
 
 /** Toggle helpers return new arrays (immutable update). */

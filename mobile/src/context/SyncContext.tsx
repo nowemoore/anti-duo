@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { useAuth } from './AuthContext'
 import { useProgress } from './ProgressContext'
+import { useLanguage } from './LanguageContext'
 import { getLocalRev, setLocalRev } from '../lib/storage'
 import { pullRemote, pushRemote } from '../lib/sync'
 
@@ -32,6 +33,7 @@ const PUSH_DEBOUNCE_MS = 1500
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
   const { progress, update } = useProgress()
+  const lang = useLanguage().id
 
   const [state, setState] = useState<SyncState>('idle')
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
@@ -57,20 +59,20 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setError(null)
     ;(async () => {
       try {
-        const localRev = await getLocalRev()
+        const localRev = await getLocalRev(lang)
         const remote = await pullRemote(userId)
         if (cancelled) return
         if (remote && remote.rev > localRev) {
           // Cloud is newer (another device, or a fresh install) → adopt it.
           snapshot.current = JSON.stringify(remote.data)
           update(() => remote.data)
-          await setLocalRev(remote.rev)
+          await setLocalRev(lang, remote.rev)
         } else {
           // Local is newer or the cloud has nothing yet → upload local.
           const local = progressRef.current
           const rev = localRev || Date.now()
           snapshot.current = JSON.stringify(local)
-          await setLocalRev(rev)
+          await setLocalRev(lang, rev)
           await pushRemote(userId, local, rev)
         }
         if (cancelled) return
@@ -98,7 +100,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       try {
         setState('syncing')
         const rev = Date.now()
-        await setLocalRev(rev)
+        await setLocalRev(lang, rev)
         await pushRemote(userId, progressRef.current, rev)
         snapshot.current = JSON.stringify(progressRef.current)
         setLastSyncedAt(Date.now())

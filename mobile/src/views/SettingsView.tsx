@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View, Text, TextInput, Pressable, Alert, Modal, ScrollView, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useProgress } from '../context/ProgressContext'
+import { useLanguage } from '../context/LanguageContext'
 import { AccountSettings } from '../components/AccountSettings'
 import { CategorySettings } from '../components/CategorySettings'
 import { TaskFrequencySettings } from '../components/TaskFrequencySettings'
@@ -11,19 +12,20 @@ import { colors, fonts, radius, shadow, spacing } from '../theme'
 
 export function SettingsView() {
   const { progress, update, saving } = useProgress()
+  const { ui } = useLanguage()
   const [manualOpen, setManualOpen] = useState(false)
   const insets = useSafeAreaInsets()
 
   function resetProgress() {
     Alert.alert(
       'Reset progress?',
-      'Your introduced kanji and levels will be cleared (your name and dataset selection are kept).',
+      `Your introduced ${ui.noun} and levels will be cleared (your name and dataset selection are kept).`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Reset',
           style: 'destructive',
-          onPress: () => update((p) => ({ settings: p.settings, kanji: {} })),
+          onPress: () => update((p) => ({ settings: p.settings, units: {} })),
         },
       ],
     )

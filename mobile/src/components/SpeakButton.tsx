@@ -1,6 +1,7 @@
 import * as Speech from 'expo-speech'
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { Icon } from './Icon'
+import { useLanguage } from '../context/LanguageContext'
 import { colors } from '../theme'
 
 interface Props {
@@ -13,11 +14,12 @@ interface Props {
   style?: StyleProp<ViewStyle>
 }
 
-/** Speaks Japanese via the OS TTS (expo-speech) — no backend, nothing leaves the device. */
+/** Speaks the reading via the OS TTS (expo-speech), in the active language — nothing leaves the device. */
 export function SpeakButton({ text, label, disabled, small, style }: Props) {
+  const { ttsLang } = useLanguage()
   const speak = () => {
     Speech.stop()
-    Speech.speak(text, { language: 'ja-JP', rate: 0.95 })
+    Speech.speak(text, { language: ttsLang, rate: 0.95 })
   }
   return (
     <Pressable

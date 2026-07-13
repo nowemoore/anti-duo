@@ -34,7 +34,7 @@ export function setupPwa() {
   document.documentElement.style.backgroundColor = '#2f2f2f'
   document.body.style.backgroundColor = '#2f2f2f'
 
-  // Disable the iOS long-press "Copy" callout / text selection on the app UI, so holding a kanji to
+  // Disable the iOS long-press "Copy" callout / text selection on the app UI, so holding a character to
   // reveal its meaning doesn't trigger selection. Text inputs keep normal selection.
   if (!document.getElementById('pwa-noselect')) {
     const style = document.createElement('style')

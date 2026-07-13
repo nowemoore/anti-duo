@@ -12,7 +12,7 @@ interface Props {
 
 /** Speakable surface form of a sentence (particles as kana, words as their ja). */
 function sentenceSpeech(task: ChoiceTask): string {
-  return task.sentence.tokens.map((t) => (t.kind === 'particle' ? t.kana : t.ja)).join('')
+  return task.sentence.tokens.map((t) => (t.kind === 'particle' ? t.surface : t.surface)).join('')
 }
 
 /** T3a/b/c: read the sentence, pick one option. */

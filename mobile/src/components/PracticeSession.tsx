@@ -1,31 +1,22 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
-import { toKana } from 'wanakana'
 import type { Progress } from '@shared/types'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR, PRACTICE_ITERATIONS } from '@shared/constants'
-import { introducedKanji } from '@lib/study'
+import { introducedUnits } from '@lib/study'
 import { awardDelta, pickTarget } from '@lib/practice'
 import { recordTaskResult } from '@lib/stats'
-import {
-  checkChoice,
-  checkTypeWord,
-  generateAnyTask,
-  isWhichWordsPerfect,
-  scoreWhichWords,
-  TASK_TUNING,
-  WHICH_WORDS_OPTIONS,
-  WHICH_WORDS_POINT,
-} from '@lib/tasks'
+import { generateAnyTask, TASK_TUNING, WHICH_WORDS_OPTIONS, WHICH_WORDS_POINT } from '@lib/tasks'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
+import { useLanguage } from '../context/LanguageContext'
 import { useScreenHeader } from '../context/HeaderContext'
 import { Bilingual } from './Bilingual'
 import { Icon } from './Icon'
 import { FadeView } from './FadeView'
 import { RevealContextProvider, RevealStrip } from './RevealStrip'
 import { TaskRunner } from './tasks/TaskRunner'
+import { getTaskUI } from './tasks/registry'
 import type { QA } from './tasks/types'
-import { scoreWord, type RawStroke } from '../lib/handwriting'
 import { useDrawableWord } from '../hooks/useDrawableWord'
 import { colors, fonts, radius, shadow, spacing } from '../theme'
 
@@ -45,22 +36,15 @@ function isCorrect(qa: QA): boolean {
   return qa.score > 0
 }
 
-/** Default hint for the bottom reveal strip, per task + answer state. */
-function revealHint(qa: QA): string {
-  const revealed = qa.phase === 'revealed'
-  if (qa.task.kind === 'type-word')
-    return revealed ? 'Hold a kanji, or the answer for the whole word' : 'Type the reading, then lock in'
-  return revealed ? 'Hold a word for its reading & meaning' : 'Hold a word for its reading'
-}
-
 export function PracticeSession({ onExit }: { onExit: () => void }) {
   const index = useContent()
   const { progress, update } = useProgress()
   const canDrawWord = useDrawableWord()
+  const pack = useLanguage()
 
   const workingRef = useRef<Levels>(
     Object.fromEntries(
-      introducedKanji(index, progress).map((k) => [k.idx, { lvl: progress.kanji[k.idx]?.lvl ?? 1 }]),
+      introducedUnits(index, progress).map((k) => [k.idx, { lvl: progress.units[k.idx]?.lvl ?? 1 }]),
     ),
   )
   const startLevelsRef = useRef<Record<number, number>>(
@@ -69,18 +53,20 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
   const prevTargetRef = useRef<number | null>(null)
 
   const makeQA = useCallback((): QA | null => {
-    const synthetic: Progress = { ...progress, kanji: workingRef.current }
+    const synthetic: Progress = { ...progress, units: workingRef.current }
     const targetIdx = pickTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
     if (targetIdx == null) return null
     const studySet = Object.keys(workingRef.current).map(Number)
     const task = generateAnyTask(index, targetIdx, {
       studySet,
       taskWeights: progress.settings.taskWeights,
-      canDraw: canDrawWord, // enables 'draw-kanji' (mobile-only) for all-learned words
+      tasks: pack.tasks, // the active language's task inventory
+      canDraw: canDrawWord, // enables 'draw' (mobile-only) for all-learned words
     })
     if (!task) return null
-    return { task, targetIdx, chosen: null, selected: [], typed: '', strokes: [], phase: 'first', score: 0, recorded: false }
-  }, [index, progress, canDrawWord])
+    const ui = getTaskUI(task.kind, pack)
+    return { task, targetIdx, answer: ui ? ui.emptyAnswer() : null, phase: 'first', score: 0, recorded: false }
+  }, [index, progress, canDrawWord, pack])
 
   const [history, setHistory] = useState<QA[]>(() => {
     const first = makeQA()
@@ -95,9 +81,10 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
   const total = PRACTICE_ITERATIONS
 
   // Step label + progress bar go in the app top bar; the summary keeps only the back button.
+  const qHead = pack.ui.questionHeader(pos + 1, total)
   useScreenHeader(
     onExit,
-    done || !qa ? undefined : { ja: `問題 ${pos + 1} / ${total}`, en: `Question ${pos + 1} / ${total}` },
+    done || !qa ? undefined : { ja: qHead.native, en: qHead.en },
     done || !qa ? undefined : { current: pos + 1, total },
   )
 
@@ -120,36 +107,17 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
 
   const lockIn = () => {
     if (!qa || qa.phase === 'revealed') return
-    let updated: QA
-    if (qa.task.kind === 'which-words') {
-      const sel = new Set(qa.selected)
-      updated =
-        qa.phase === 'first' && !isWhichWordsPerfect(qa.task, sel)
-          ? { ...qa, phase: 'retry' }
-          : { ...qa, phase: 'revealed', score: scoreWhichWords(qa.task, sel) }
-    } else if (qa.task.kind === 'type-word') {
-      const answer = toKana(qa.typed)
-      const typed = answer !== qa.typed ? answer : qa.typed
-      if (checkTypeWord(qa.task, answer)) {
-        updated = { ...qa, typed, phase: 'revealed', score: qa.phase === 'first' ? 1 : 0.5 }
-      } else if (qa.phase === 'first') {
-        updated = { ...qa, typed, phase: 'retry' }
-      } else {
-        updated = { ...qa, typed, phase: 'revealed', score: -1 }
-      }
-    } else if (qa.task.kind === 'draw-kanji') {
-      updated = { ...qa, phase: 'revealed', score: scoreWord(qa.task.word, qa.strokes).correct ? 1 : -1 }
-    } else {
-      if (qa.chosen == null) return
-      updated = { ...qa, phase: 'revealed', score: checkChoice(qa.task, qa.chosen) ? 1 : -1 }
+    const ui = getTaskUI(qa.task.kind, pack)
+    if (!ui) return
+    const res = ui.resolve(qa.task, qa.answer, qa.phase, pack)
+    const answer = res.answer !== undefined ? res.answer : qa.answer
+    if (res.phase === 'retry') {
+      patch({ ...qa, answer, phase: 'retry' })
+      return
     }
-    if (updated.phase === 'revealed') {
-      updated = { ...updated, recorded: true }
-      patch(updated)
-      record(updated)
-    } else {
-      patch(updated)
-    }
+    const updated: QA = { ...qa, answer, phase: 'revealed', score: res.score, recorded: true }
+    patch(updated)
+    record(updated)
   }
 
   const giveUp = () => {
@@ -159,21 +127,8 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
     record(updated)
   }
 
-  const setChosen = (i: number) =>
-    setHistory((h) => h.map((x, k) => (k === pos && x.phase !== 'revealed' ? { ...x, chosen: i } : x)))
-  const toggleSel = (i: number) =>
-    setHistory((h) =>
-      h.map((x, k) => {
-        if (k !== pos || x.phase === 'revealed') return x
-        const s = new Set(x.selected)
-        s.has(i) ? s.delete(i) : s.add(i)
-        return { ...x, selected: [...s] }
-      }),
-    )
-  const setTyped = (v: string) =>
-    setHistory((h) => h.map((x, k) => (k === pos && x.phase !== 'revealed' ? { ...x, typed: v } : x)))
-  const setStrokes = (s: RawStroke[]) =>
-    setHistory((h) => h.map((x, k) => (k === pos && x.phase !== 'revealed' ? { ...x, strokes: s } : x)))
+  const setAnswer = (a: unknown) =>
+    setHistory((h) => h.map((x, k) => (k === pos && x.phase !== 'revealed' ? { ...x, answer: a } : x)))
 
   const prev = () => {
     setReveal(null)
@@ -200,13 +155,13 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
   }
 
   /**
-   * Draw-kanji only: the recognizer read the answer as wrong, but the learner says it was right. Undo
-   * the penalty that lock-in already applied (so the kanji isn't discounted), mark it kept, and move
-   * on. It doesn't award points — it just declines to punish a likely-misread drawing.
+   * A task's verdict override (offered when the task sets `overrideLabel` — e.g. draw, where the
+   * recognizer can misread a correct drawing). Undo the penalty lock-in applied (so the unit isn't
+   * discounted), mark it kept, and move on. It doesn't award points — it just declines to punish.
    */
-  const keepKanji = () => {
-    if (!qa || qa.task.kind !== 'draw-kanji' || qa.phase !== 'revealed' || isCorrect(qa) || qa.overridden) return
-    const correction = -qa.score * TASK_TUNING['draw-kanji'].pointsDown // score was < 0 → positive undo
+  const override = () => {
+    if (!qa || qa.phase !== 'revealed' || isCorrect(qa) || qa.overridden) return
+    const correction = -qa.score * TASK_TUNING[qa.task.kind].pointsDown // score was < 0 → positive undo
     const cur = workingRef.current[qa.targetIdx]?.lvl ?? 1
     workingRef.current = { ...workingRef.current, [qa.targetIdx]: { lvl: Math.max(LEVEL_FLOOR, cur + correction) } }
     patch({ ...qa, score: 0, overridden: true })
@@ -218,20 +173,12 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
     return <Summary working={workingRef.current} startLevels={startLevelsRef.current} index={index} onExit={onExit} />
   }
 
+  const ui = getTaskUI(qa.task.kind, pack)
   const revealed = qa.phase === 'revealed'
   const correct = revealed && isCorrect(qa)
   const overridden = revealed && !!qa.overridden
-  const isType = qa.task.kind === 'type-word'
-  const isDraw = qa.task.kind === 'draw-kanji'
-  const hasAnswer =
-    qa.task.kind === 'type-word'
-      ? qa.typed.trim() !== ''
-      : qa.task.kind === 'which-words'
-        ? true
-        : qa.task.kind === 'draw-kanji'
-          ? qa.strokes.length > 0
-          : qa.chosen != null
-  const canLock = !revealed && hasAnswer
+  const pagerLock = ui?.pagerLock !== false // type-word renders its own inline lock
+  const canLock = !revealed && !!ui && ui.hasAnswer(qa.answer)
   const canPrev = pos > 0
   const canNext = pos < history.length - 1 || revealed
 
@@ -242,31 +189,23 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
           style={styles.taskScroll}
           contentContainerStyle={styles.taskScrollContent}
           keyboardShouldPersistTaps="handled"
-          scrollEnabled={!isDraw} // let finger-drawing own vertical drags on the canvas
+          scrollEnabled={ui?.scrollable !== false} // a task (draw) may disable scroll to own its gestures
         >
           {/* key on pos fades each question in and gives a clean mount; back-nav replays answers. */}
           <FadeView key={pos}>
-            <TaskRunner
-              qa={qa}
-              onChoose={setChosen}
-              onToggle={toggleSel}
-              onChange={setTyped}
-              onStrokes={setStrokes}
-              onLock={lockIn}
-              onGiveUp={giveUp}
-            />
+            <TaskRunner qa={qa} setAnswer={setAnswer} onLock={lockIn} onGiveUp={giveUp} />
           </FadeView>
-          {/* Draw override sits right under the answer — the recognizer can misread a correct drawing. */}
-          {isDraw && revealed && !correct && !overridden && (
-            <Pressable style={styles.keepLink} onPress={keepKanji} hitSlop={8}>
-              <Text style={styles.keepText}>I think I got this one right</Text>
+          {/* A task's verdict override (draw) sits right under the answer. */}
+          {ui?.overrideLabel && revealed && !correct && !overridden && (
+            <Pressable style={styles.keepLink} onPress={override} hitSlop={8}>
+              <Text style={styles.keepText}>{ui.overrideLabel}</Text>
             </Pressable>
           )}
         </ScrollView>
       </RevealContextProvider>
 
-      {/* Bottom reveal strip: hold a word/kanji to see its reading/meaning here (not for drawing). */}
-      {!isDraw && <RevealStrip text={reveal} hint={revealHint(qa)} />}
+      {/* Bottom reveal strip: hold a word to see its reading/meaning. Tasks that own their space (draw) omit it. */}
+      {ui?.revealHint && <RevealStrip text={reveal} hint={ui.revealHint(qa.phase, pack)} />}
 
       <View style={styles.pager}>
         <Pressable
@@ -284,9 +223,7 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
               {overridden ? 'Kept' : correct ? 'Correct' : 'Incorrect'}
             </Text>
           </View>
-        ) : isType ? (
-          <View style={styles.lockSlot} />
-        ) : (
+        ) : pagerLock ? (
           <Pressable
             style={[styles.lockBtn, styles.lockActive, !canLock && styles.disabled]}
             onPress={lockIn}
@@ -296,6 +233,8 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
             <Icon name="lock" size={15} color={colors.onAccent} />
             <Text style={[styles.lockText, { color: colors.onAccent }]}>Lock in answer</Text>
           </Pressable>
+        ) : (
+          <View style={styles.lockSlot} />
         )}
 
         <Pressable
@@ -319,12 +258,13 @@ interface SummaryProps {
 }
 
 function Summary({ working, startLevels, index, onExit }: SummaryProps) {
+  const { ui } = useLanguage()
   const moves = Object.entries(working)
     .map(([idx, v]) => {
       const i = Number(idx)
       return {
         idx: i,
-        char: index.byIdx.get(i)?.char ?? '?',
+        form: index.byIdx.get(i)?.form ?? '?',
         delta: v.lvl - (startLevels[i] ?? v.lvl),
         reteach: v.lvl < INTRODUCED_LEVEL,
       }
@@ -337,7 +277,7 @@ function Summary({ working, startLevels, index, onExit }: SummaryProps) {
   return (
     <View style={styles.panel}>
       <View style={styles.summaryTitle}>
-        <Bilingual ja="進捗概要" en="Progress overview" large />
+        <Bilingual native={ui.summaryTitle.native} en={ui.summaryTitle.en} large />
       </View>
 
       {moves.length === 0 ? (
@@ -366,7 +306,7 @@ function Summary({ working, startLevels, index, onExit }: SummaryProps) {
             const label = `${up ? '+' : ''}${m.delta.toFixed(1)}`
             return (
               <View key={m.idx} style={styles.moveCell}>
-                <Text style={styles.moveChar}>{m.char}</Text>
+                <Text style={styles.moveChar}>{m.form}</Text>
                 <View style={styles.track}>
                   <View style={[styles.half, styles.halfLeft]}>
                     {!up && (

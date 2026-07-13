@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
-import type { Kanji } from '@shared/types'
-import { useScreenHeader } from '../context/HeaderContext'
-import { Bilingual } from './Bilingual'
-import { Icon } from './Icon'
-import { FadeView } from './FadeView'
-import { DrawCanvas } from './DrawCanvas'
-import { scoreWord, type RawStroke } from '../lib/handwriting'
-import { useDrawableWord } from '../hooks/useDrawableWord'
-import { colors, fonts, radius, shadow, spacing } from '../theme'
+import type { Unit } from '@shared/types'
+import { useScreenHeader } from '../../context/HeaderContext'
+import { Bilingual } from '../../components/Bilingual'
+import { Icon } from '../../components/Icon'
+import { FadeView } from '../../components/FadeView'
+import { DrawCanvas } from '../../components/DrawCanvas'
+import { scoreWord, drawable, type RawStroke } from './handwriting'
+import { useLearned } from '../../hooks/useLearned'
+import type { DrawReviewProps } from '../types'
+import { colors, fonts, radius, shadow, spacing } from '../../theme'
 
 interface Target {
   word: string
@@ -24,36 +25,29 @@ interface Slot {
   attempt: number
 }
 
-function toTarget(k: Kanji, canDraw: (w: string) => boolean): Target | null {
+function toTarget(k: Unit, canDraw: (w: string) => boolean): Target | null {
   const words = k.examples.filter((e) => canDraw(e.word))
   if (words.length) {
     const ex = words[Math.floor(Math.random() * words.length)]
     return { word: ex.word, reading: ex.reading, meaning: ex.meaning }
   }
-  if (canDraw(k.char)) return { word: k.char, reading: '', meaning: k.gloss.join(', ') }
+  if (canDraw(k.form)) return { word: k.form, reading: '', meaning: k.gloss.join(', ') }
   return null
 }
 
 /**
- * Write-it reinforcement after a Learn set: one word per just-learned kanji. Same lock-in + chevron
+ * Write-it reinforcement after a Learn set: one word per just-learned unit. Same lock-in + chevron
  * pager as Practice; ✓/✗ shows in the corner and the button becomes Try again. Low-stakes (no stats).
  * Answers persist per item, so paging back shows a passed word already done.
  */
-export function DrawReview({
-  kanji,
-  onDone,
-  baseStep = 0,
-  totalSteps,
-}: {
-  kanji: Kanji[]
-  onDone: () => void
-  baseStep?: number
-  totalSteps?: number
-}) {
-  const canDraw = useDrawableWord()
+export function DrawReview({ units, onDone, baseStep = 0, totalSteps }: DrawReviewProps) {
+  // Same rule as the global useDrawableWord hook, sourced directly (this lives inside the pack) so the
+  // pack doesn't import LanguageContext → registry → pack (a cycle).
+  const isLearned = useLearned()
+  const canDraw = useCallback((w: string) => drawable(w) && [...w].every((c) => isLearned(c)), [isLearned])
   const targets = useMemo(
-    () => kanji.map((k) => toTarget(k, canDraw)).filter((t): t is Target => t !== null),
-    [kanji, canDraw],
+    () => units.map((k) => toTarget(k, canDraw)).filter((t): t is Target => t !== null),
+    [units, canDraw],
   )
   const [slots, setSlots] = useState<Slot[]>(() =>
     targets.map(() => ({ strokes: [], revealed: false, correct: false, attempt: 0 })),
@@ -74,7 +68,7 @@ export function DrawReview({
     return (
       <View style={styles.panel}>
         <View style={styles.doneWrap}>
-          <Bilingual ja="よくできました" en="Nice work!" large />
+          <Bilingual native="よくできました" en="Nice work!" large />
           <Pressable style={styles.donePrimary} onPress={onDone}>
             <Text style={styles.lockText}>Done</Text>
           </Pressable>

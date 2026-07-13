@@ -60,7 +60,7 @@ export function WhichWordsTaskView({ task, onResult }: Props) {
   return (
     <div className="task which-words">
       {/* No meaning shown here: this task tests which words are real, not the kanji's meaning. */}
-      <div className="prompt-kanji">{task.char}</div>
+      <div className="prompt-kanji">{task.form}</div>
 
       <ul className="option-grid">
         {task.options.map((o, i) => (

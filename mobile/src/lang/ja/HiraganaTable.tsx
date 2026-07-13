@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native'
-import { colors, fonts } from '../theme'
+import { colors, fonts } from '../../theme'
 
 type Cell = [kana: string, romaji: string] | null
 

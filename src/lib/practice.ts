@@ -1,10 +1,10 @@
 import { LEVEL_FLOOR } from '../../shared/constants'
 import type { Progress } from '../../shared/types'
 import type { ContentIndex } from './content'
-import { introducedKanji } from './study'
+import { introducedUnits } from './study'
 import { hasAnyTask } from './tasks'
 
-const lvlOf = (progress: Progress, idx: number): number => progress.kanji[idx]?.lvl ?? 0
+const lvlOf = (progress: Progress, idx: number): number => progress.units[idx]?.lvl ?? 0
 
 /** Strength of the pull toward lower-level kanji (higher = more aggressive evening). */
 const WEIGHT_EXPONENT = 2
@@ -23,7 +23,7 @@ export function pickTarget(
   progress: Progress,
   opts: PickOpts = {},
 ): number | null {
-  const pool = introducedKanji(index, progress).filter((k) => hasAnyTask(index, k.idx))
+  const pool = introducedUnits(index, progress).filter((k) => hasAnyTask(index, k.idx))
   if (pool.length === 0) return null
 
   let candidates = pool
@@ -53,7 +53,7 @@ export function awardDelta(progress: Progress, targetIdx: number, delta: number)
   const next = Math.max(LEVEL_FLOOR, lvlOf(progress, targetIdx) + delta)
   return {
     ...progress,
-    kanji: { ...progress.kanji, [targetIdx]: { lvl: next } },
+    units: { ...progress.units, [targetIdx]: { lvl: next } },
   }
 }
 
@@ -62,7 +62,7 @@ export function levelSpread(
   index: ContentIndex,
   progress: Progress,
 ): { min: number; max: number } | null {
-  const introduced = introducedKanji(index, progress)
+  const introduced = introducedUnits(index, progress)
   if (introduced.length === 0) return null
   const levels = introduced.map((k) => lvlOf(progress, k.idx))
   return { min: Math.min(...levels), max: Math.max(...levels) }

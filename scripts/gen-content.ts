@@ -8,12 +8,12 @@ const OUT_DIR = new URL('../public/', import.meta.url)
 const OUT = new URL('content.json', OUT_DIR)
 
 async function main() {
-  const { kanji, sentences, kanjiMeanings, kanjiRadicals, kanjiComponents } = await getContent()
-  const content = { kanji, sentences, kanjiMeanings, kanjiRadicals, kanjiComponents }
+  const { units, sentences, kanjiMeanings, kanjiRadicals, kanjiComponents } = await getContent()
+  const content = { units, sentences, kanjiMeanings, kanjiRadicals, kanjiComponents }
   await mkdir(OUT_DIR, { recursive: true })
   await writeFile(OUT, JSON.stringify(content), 'utf8')
   console.log(
-    `[gen:content] wrote ${kanji.length} kanji, ${sentences.length} sentences → public/content.json`,
+    `[gen:content] wrote ${units.length} units, ${sentences.length} sentences → public/content.json`,
   )
 }
 

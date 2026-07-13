@@ -16,8 +16,9 @@ export function TaskRunner({ task, onResult }: Props) {
       return <TypeWordTaskView task={task} onResult={onResult} />
     case 'which-words':
       return <WhichWordsTaskView task={task} onResult={onResult} />
-    case 'draw-kanji':
-      // The web build has no drawing surface; draw tasks are mobile-only and never generated here.
+    case 'draw':
+    case 'plural':
+      // Draw (needs a canvas) + plural (opt-in, no data here) are never generated in the web build.
       return null
     default:
       return <ChoiceTaskView task={task} onResult={onResult} />

@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { fetchProgress, saveProgress } from '../lib/storage'
 import type { Progress } from '@shared/types'
+import { useLanguage } from './LanguageContext'
 import { Status } from '../components/Status'
 
 // Ported from src/context/ProgressContext.tsx. Only two web touch-points change: window.setTimeout
@@ -28,6 +29,7 @@ const ProgressCtx = createContext<ProgressApi | null>(null)
 const SAVE_DEBOUNCE_MS = 400
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
+  const lang = useLanguage().id
   const [progress, setProgress] = useState<Progress | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -36,7 +38,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    fetchProgress()
+    fetchProgress(lang)
       .then((p) => {
         latest.current = p
         setProgress(p)
@@ -45,18 +47,18 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [])
+  }, [lang])
 
   const flush = useCallback(() => {
     if (!latest.current) return
     setSaving(true)
-    saveProgress(latest.current)
+    saveProgress(lang, latest.current)
       .then((saved) => {
         latest.current = saved
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false))
-  }, [])
+  }, [lang])
 
   const update = useCallback(
     (next: Updater) => {

@@ -4,7 +4,7 @@ import type { Progress } from '../../shared/types'
 import { PRACTICE_ITERATIONS } from '../../shared/constants'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
-import { introducedKanji } from '../lib/study'
+import { introducedUnits } from '../lib/study'
 import { awardDelta, pickTarget } from '../lib/practice'
 import { recordTaskResult } from '../lib/stats'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR } from '../../shared/constants'
@@ -41,7 +41,7 @@ export function PracticeSession({ onExit }: Props) {
   // Working level copy, seeded once from the introduced set.
   const workingRef = useRef<Levels>(
     Object.fromEntries(
-      introducedKanji(index, progress).map((k) => [k.idx, { lvl: progress.kanji[k.idx]?.lvl ?? 1 }]),
+      introducedUnits(index, progress).map((k) => [k.idx, { lvl: progress.units[k.idx]?.lvl ?? 1 }]),
     ),
   )
   const startLevelsRef = useRef<Record<number, number>>(
@@ -54,7 +54,7 @@ export function PracticeSession({ onExit }: Props) {
   const [done, setDone] = useState(false)
 
   const makeTask = useCallback((): Current | null => {
-    const synthetic: Progress = { ...progress, kanji: workingRef.current }
+    const synthetic: Progress = { ...progress, units: workingRef.current }
     const targetIdx = pickTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
     if (targetIdx == null) return null
     const studySet = Object.keys(workingRef.current).map(Number)
@@ -162,7 +162,7 @@ function Summary({ working, startLevels, index, onExit }: SummaryProps) {
       const i = Number(idx)
       return {
         idx: i,
-        char: index.byIdx.get(i)?.char ?? '?',
+        form: index.byIdx.get(i)?.form ?? '?',
         delta: v.lvl - (startLevels[i] ?? v.lvl),
         reteach: v.lvl < INTRODUCED_LEVEL, // fell below intro → goes back into Learn
       }
@@ -188,7 +188,7 @@ function Summary({ working, startLevels, index, onExit }: SummaryProps) {
             const endPct = barFraction(m.delta, maxAbs) * 44 // leave room past the bar for the number
             return (
               <li key={m.idx} className="move-row">
-                <span className="move-char">{m.char}</span>
+                <span className="move-char">{m.form}</span>
                 <div className="move-track">
                   <span className="move-axis" />
                   <span className={`move-bar ${up ? 'up' : 'down'}`} style={{ width: `${endPct}%` }} />

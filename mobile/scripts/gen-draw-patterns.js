@@ -14,7 +14,7 @@ const https = require('https')
 
 const ROOT = path.resolve(__dirname, '..')
 const CACHE = path.join(__dirname, '.kanjicanvas-cache')
-const HW = path.join(ROOT, 'src', 'lib', 'handwriting')
+const HW = path.join(ROOT, 'src', 'lang', 'ja', 'handwriting')
 const BASE = 'https://raw.githubusercontent.com/asdfjkl/kanjicanvas/master/docs/resources/javascript'
 
 function download(url, dest) {

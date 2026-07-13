@@ -13,14 +13,14 @@ async function main() {
   let min = Infinity
   let max = 0
   let total = 0
-  for (const k of store.kanji) {
-    const n = store.sentencesForKanji.get(k.idx)?.length ?? 0
+  for (const k of store.units) {
+    const n = store.sentencesForUnit.get(k.idx)?.length ?? 0
     min = Math.min(min, n)
     max = Math.max(max, n)
     total += n
   }
   console.log(
-    `coverage:  min ${min}, max ${max}, avg ${(total / store.kanji.length).toFixed(1)} sentences/kanji`,
+    `coverage:  min ${min}, max ${max}, avg ${(total / store.units.length).toFixed(1)} sentences/kanji`,
   )
 
   let ok = true

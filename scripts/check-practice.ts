@@ -2,7 +2,7 @@
 import { loadContent } from '../server/content'
 import { buildContentIndex } from '../src/lib/content'
 import { awardDelta, levelSpread, pickTarget } from '../src/lib/practice'
-import { applyLearned, introducedKanji, nextLearnChunk, unlearnedKanji } from '../src/lib/study'
+import { applyLearned, introducedUnits, nextLearnChunk, unlearnedUnits } from '../src/lib/study'
 import { defaultProgress } from '../shared/constants'
 import type { Progress } from '../shared/types'
 
@@ -14,7 +14,7 @@ async function main() {
   for (let s = 0; s < 4; s++) {
     p = applyLearned(p, nextLearnChunk(index, p))
   }
-  const introduced = Object.keys(p.kanji).length
+  const introduced = Object.keys(p.units).length
 
   // Simulate 400 always-correct practice iterations with the real selector.
   const counts: Record<number, number> = {}
@@ -30,17 +30,17 @@ async function main() {
   }
 
   const spread = levelSpread(index, p)!
-  const everyPractised = Object.keys(p.kanji).every((k) => (counts[Number(k)] ?? 0) > 0)
+  const everyPractised = Object.keys(p.units).every((k) => (counts[Number(k)] ?? 0) > 0)
 
   // Level-down / re-teach: a miss can drop a kanji below intro, returning it to the learn pool.
   let q: Progress = defaultProgress()
   q = applyLearned(q, nextLearnChunk(index, q))
-  const victim = Number(Object.keys(q.kanji)[0])
+  const victim = Number(Object.keys(q.units)[0])
   q = awardDelta(q, victim, -1) // lvl 1 → 0
   const droppedToUnlearned =
-    unlearnedKanji(index, q).some((k) => k.idx === victim) &&
-    !introducedKanji(index, q).some((k) => k.idx === victim)
-  const flooredAtZero = awardDelta(q, victim, -5).kanji[victim].lvl === 0
+    unlearnedUnits(index, q).some((k) => k.idx === victim) &&
+    !introducedUnits(index, q).some((k) => k.idx === victim)
+  const flooredAtZero = awardDelta(q, victim, -5).units[victim].lvl === 0
 
   const checks: [string, boolean][] = [
     ['introduced 20 kanji', introduced === 20],

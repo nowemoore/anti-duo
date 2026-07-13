@@ -3,9 +3,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import {
-  enabledKanjiCount,
+  enabledUnitCount,
   isCategoryEnabled,
-  isKanjiEnabled,
+  isUnitEnabled,
   toggleInList,
 } from '../lib/categories'
 import { Toggle } from './Toggle'
@@ -30,15 +30,15 @@ export function CategorySettings() {
       const disabledCategories = toggleInList(p.settings.disabledCategories, name)
       const newSettings = { ...p.settings, disabledCategories }
       // Keep at least one kanji in play.
-      if (enabledKanjiCount(index, newSettings) === 0) return p
+      if (enabledUnitCount(index, newSettings) === 0) return p
       return { ...p, settings: newSettings }
     })
 
   const toggleKanji = (idx: number) =>
     update((p) => {
-      const disabledKanji = toggleInList(p.settings.disabledKanji, idx)
-      const newSettings = { ...p.settings, disabledKanji }
-      if (enabledKanjiCount(index, newSettings) === 0) return p
+      const disabledUnits = toggleInList(p.settings.disabledUnits, idx)
+      const newSettings = { ...p.settings, disabledUnits }
+      if (enabledUnitCount(index, newSettings) === 0) return p
       return { ...p, settings: newSettings }
     })
 
@@ -51,7 +51,7 @@ export function CategorySettings() {
         {index.categories.map((cat) => {
           const catOn = isCategoryEnabled(settings, cat.name)
           const isOpen = catOn && expanded.has(cat.name)
-          const enabledInCat = cat.kanji.filter((k) => isKanjiEnabled(settings, k)).length
+          const enabledInCat = cat.units.filter((k) => isUnitEnabled(settings, k)).length
 
           return (
             <div key={cat.name} className={`cat-block${catOn ? '' : ' off'}`}>
@@ -67,7 +67,7 @@ export function CategorySettings() {
                 </button>
                 <span className="cat-name">{cat.name}</span>
                 <span className="cat-count">
-                  {enabledInCat}/{cat.kanji.length}
+                  {enabledInCat}/{cat.units.length}
                 </span>
                 <Toggle checked={catOn} onChange={() => toggleCategory(cat.name)} label={cat.name} />
               </div>
@@ -75,14 +75,14 @@ export function CategorySettings() {
               {/* Always rendered so it can roll out / collapse smoothly via CSS (grid-rows). */}
               <div className={`cat-content${isOpen ? ' open' : ''}`}>
                 <ul className="cat-kanji">
-                  {cat.kanji.map((k) => (
+                  {cat.units.map((k) => (
                     <li key={k.idx} className="ck-item">
-                      <span className="ck-char">{k.char}</span>
+                      <span className="ck-char">{k.form}</span>
                       <span className="ck-gloss">{k.gloss.join(', ')}</span>
                       <Toggle
-                        checked={!settings.disabledKanji.includes(k.idx)}
+                        checked={!settings.disabledUnits.includes(k.idx)}
                         onChange={() => toggleKanji(k.idx)}
-                        label={k.char}
+                        label={k.form}
                       />
                     </li>
                   ))}

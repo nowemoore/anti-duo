@@ -1,30 +1,25 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native'
-import { type ChoiceTask } from '@lib/tasks'
+import { checkChoice, type ChoiceTask } from '@lib/tasks'
 import { SentenceView, type TokenOverride } from '../SentenceView'
 import { SpeakButton } from '../SpeakButton'
+import type { TaskUI, TaskViewProps } from './types'
 import { colors } from '../../theme'
 
-interface Props {
-  task: ChoiceTask
-  chosen: number | null
-  revealed: boolean
-  onChoose: (i: number) => void
-}
-
 function sentenceSpeech(task: ChoiceTask): string {
-  return task.sentence.tokens.map((t) => (t.kind === 'particle' ? t.kana : t.ja)).join('')
+  return task.sentence.tokens.map((t) => t.surface).join('')
 }
 
-/** T3a/b/c: read the sentence, pick one option. Verdict is shown by the session pager, not here. */
-export function ChoiceTaskView({ task, chosen, revealed, onChoose }: Props) {
-  const isCloze = task.kind === 'cloze' // select kanji
+/** T3a/b/c: read the sentence, pick one option. Covers cloze / pick-reading / pick-meaning. */
+function ChoiceView({ task, answer, setAnswer, phase }: TaskViewProps<ChoiceTask, number | null>) {
+  const revealed = phase === 'revealed'
+  const isCloze = task.kind === 'cloze' // select the target unit form
   const isPickReading = task.kind === 'pick-reading' // select pronunciation
   const isMeaning = !isCloze && !isPickReading // pick-meaning
   const stacked = isMeaning || isPickReading // both stack 1 per row
 
   let override: TokenOverride
   if (isCloze) {
-    override = revealed ? { forceJaFurigana: true, highlight: true } : { blankChar: task.blankChar }
+    override = revealed ? { forceReading: true, highlight: true } : { blankChar: task.blankChar }
   } else if (isPickReading) {
     override = { highlight: true, hideReading: true }
   } else {
@@ -44,19 +39,19 @@ export function ChoiceTaskView({ task, chosen, revealed, onChoose }: Props) {
       <View style={[styles.grid, stacked && styles.gridCol]}>
         {task.options.map((o, i) => {
           const state = !revealed
-            ? chosen === i
+            ? answer === i
               ? 'selected'
               : 'idle'
             : o.correct
               ? 'correct'
-              : chosen === i
+              : answer === i
                 ? 'wrong'
                 : 'idle'
           return (
             <View key={i} style={[styles.cell, stacked && styles.cellFull, isPickReading && styles.readingCell]}>
               <Pressable
                 disabled={revealed}
-                onPress={() => onChoose(i)}
+                onPress={() => setAnswer(i)}
                 style={[styles.opt, isCloze && styles.optBig, stacked && styles.optSlim, isPickReading && styles.optFlex, optStyle(state)]}
               >
                 <Text
@@ -80,6 +75,15 @@ export function ChoiceTaskView({ task, chosen, revealed, onChoose }: Props) {
   )
 }
 
+export const choiceTask: TaskUI<ChoiceTask, number | null> = {
+  emptyAnswer: () => null,
+  hasAnswer: (a) => a != null,
+  View: ChoiceView,
+  revealHint: (phase) => (phase === 'revealed' ? 'Hold a word for its reading & meaning' : 'Hold a word for its reading'),
+  resolve: (task, answer) =>
+    answer == null ? { phase: 'retry' } : { phase: 'revealed', score: checkChoice(task, answer) ? 1 : -1 },
+}
+
 function optStyle(state: string) {
   if (state === 'selected') return { borderColor: colors.accent, backgroundColor: colors.accentSoft }
   if (state === 'correct') return { borderColor: colors.correct, backgroundColor: colors.correctSoft }
@@ -93,11 +97,8 @@ function optTextStyle(state: string) {
 }
 
 const styles = StyleSheet.create({
-  // Natural height; the card's scroll view centers it vertically when it fits.
   root: { width: '100%' },
   sentenceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20 },
-  // Let the sentence shrink below its one-line width (minWidth:0 is required for that on web), which
-  // triggers SentenceView's own flexWrap → the sentence flows onto multiple lines instead of clipping.
   sentenceWrap: { flexShrink: 1, minWidth: 0 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, alignSelf: 'center', width: '100%', maxWidth: 460 },
   gridCol: { flexDirection: 'column', flexWrap: 'nowrap', rowGap: 10, maxWidth: 340 },

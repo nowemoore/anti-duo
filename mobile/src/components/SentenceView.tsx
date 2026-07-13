@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import type { Token } from '@shared/types'
 import { contentTokenDisplay } from '@lib/learned'
 import { useLearned } from '../hooks/useLearned'
-import { Furigana } from './Furigana'
+import { useContent } from '../context/ContentContext'
+import { useLanguage } from '../context/LanguageContext'
 import { useReveal } from './RevealStrip'
 import { colors, fonts } from '../theme'
 
@@ -34,7 +35,7 @@ function Hold({
 
 export interface TokenOverride {
   blankChar?: string
-  forceJaFurigana?: boolean
+  forceReading?: boolean
   highlight?: boolean
   hideReading?: boolean
   hideMeaning?: boolean
@@ -49,6 +50,8 @@ interface Props {
 // Sentences are a wrapping row of word-blocks (RN can't tap words inside flowing <Text>).
 export function SentenceView({ tokens, overrides, revealMeanings = false }: Props) {
   const isLearned = useLearned()
+  const index = useContent()
+  const RubyView = useLanguage().Ruby
 
   return (
     <View style={styles.sentence}>
@@ -58,16 +61,16 @@ export function SentenceView({ tokens, overrides, revealMeanings = false }: Prop
         if (tok.kind === 'particle') {
           return (
             <Text key={i} style={styles.scaffold}>
-              {tok.kana}
+              {tok.surface}
             </Text>
           )
         }
 
-        // Cloze blank: full word in Japanese with furigana, one char hidden.
+        // Cloze blank: full word in native script with its reading, one char hidden.
         if (o?.blankChar) {
-          const at = tok.ja.indexOf(o.blankChar)
-          const before = at >= 0 ? tok.ja.slice(0, at) : tok.ja
-          const after = at >= 0 ? tok.ja.slice(at + o.blankChar.length) : ''
+          const at = tok.surface.indexOf(o.blankChar)
+          const before = at >= 0 ? tok.surface.slice(0, at) : tok.surface
+          const after = at >= 0 ? tok.surface.slice(at + o.blankChar.length) : ''
           return (
             <View key={i} style={[styles.block, styles.highlight]}>
               <Text style={styles.rtAccent}>{tok.reading}</Text>
@@ -80,30 +83,34 @@ export function SentenceView({ tokens, overrides, revealMeanings = false }: Prop
           )
         }
 
-        // Cloze reveal: full word in Japanese with furigana, highlighted, reading+meaning on hold.
-        if (o?.forceJaFurigana) {
+        // Cloze reveal: full word in native script with its reading, highlighted, reading+meaning on hold.
+        if (o?.forceReading) {
           return (
-            <Hold key={i} text={`${tok.reading}  ·  ${tok.en}`} style={[styles.block, o.highlight && styles.highlight]}>
-              <Furigana ja={tok.ja} reading={tok.reading} />
+            <Hold key={i} text={`${tok.reading}  ·  ${tok.gloss}`} style={[styles.block, o.highlight && styles.highlight]}>
+              {RubyView ? (
+                <RubyView surface={tok.surface} reading={tok.reading} />
+              ) : (
+                <Text style={styles.base}>{tok.surface}</Text>
+              )}
             </Hold>
           )
         }
 
-        // The highlighted focus word is the subject of the question — always show it as kanji, even
+        // The highlighted focus word is the subject of the question — always show it in native script, even
         // if answering just dropped its level below "introduced" (which would otherwise flip it to English).
-        const display = contentTokenDisplay(tok, isLearned)
+        const display = contentTokenDisplay(tok, isLearned, index.lang)
         if (display === 'english' && !o?.highlight) {
           return (
             <View key={i} style={[styles.block, o?.highlight && styles.highlight]}>
-              <Text style={styles.english}>{tok.en}</Text>
+              <Text style={styles.english}>{tok.gloss}</Text>
             </View>
           )
         }
 
-        // Learned word: plain kanji; reading/meaning revealed on hold (into the strip).
+        // Learned word: plain native form; reading/meaning revealed on hold (into the strip).
         const parts: string[] = []
         if (!o?.hideReading) parts.push(tok.reading)
-        if (revealMeanings && !o?.hideMeaning) parts.push(tok.en)
+        if (revealMeanings && !o?.hideMeaning) parts.push(tok.gloss)
         return (
           <Hold
             key={i}
@@ -111,7 +118,7 @@ export function SentenceView({ tokens, overrides, revealMeanings = false }: Prop
             enabled={parts.length > 0}
             style={[styles.block, o?.highlight && styles.highlight]}
           >
-            <Text style={styles.base}>{tok.ja}</Text>
+            <Text style={styles.base}>{tok.surface}</Text>
           </Hold>
         )
       })}

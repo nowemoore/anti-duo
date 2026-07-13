@@ -1,4 +1,4 @@
-import type { Kanji, Sentence, WordToken } from '../../shared/types'
+import type { Unit, Sentence, WordToken } from '../../shared/types'
 import type { ContentIndex } from './content'
 import { pick, sample, shuffle } from './random'
 
@@ -12,48 +12,27 @@ export type TaskType =
   | 'cloze'
   | 'pick-reading'
   | 'pick-meaning'
-  | 'draw-kanji'
+  | 'draw'
+  | 'plural'
 
-export const ALL_TASK_TYPES: TaskType[] = [
-  'type-word',
-  'which-words',
-  'cloze',
-  'pick-reading',
-  'pick-meaning',
-  'draw-kanji',
-]
+// The task roster (ALL_TASK_TYPES), tuning (TASK_TUNING), and labels (stats.ts TASK_LABELS) all derive
+// from the TASK_SPECS registry defined below (after the generators). A TaskSpec is the engine half of a
+// task; the mobile half (the TaskUI: view, answer widget, grading) is registered separately by kind.
 
-/**
- * The practice-tuning knobs — edit these to rebalance practice. Each task type has:
- *  - `weight`: how often this task type appears, relative to the others (among the types feasible
- *    for the chosen kanji). 0 disables it. Equal weights ⇒ uniform pick, the original behaviour.
- *  - `pointsUp`: how much a fully-correct answer raises the kanji's level (reward).
- *  - `pointsDown`: how much a fully-wrong answer lowers it (penalty).
- * The task's raw score (−1…+1; partial credit for which-words, half on a redo) is multiplied by
- * `pointsUp` when it's positive and `pointsDown` when negative — so reward and penalty can differ
- * per task (e.g. drawing rewards a lot when right but barely penalizes a miss). These scale
- * **leveling only**; the Stats success rate stays pure accuracy. Set `pointsUp === pointsDown` for
- * symmetric scoring.
- */
-export const TASK_TUNING: Record<TaskType, { weight: number; pointsUp: number; pointsDown: number }> = {
-  'type-word': { weight: 1, pointsUp: 0.8, pointsDown: 0.4 },
-  'which-words': { weight: 1, pointsUp: 0.5, pointsDown: 0.5 },
-  cloze: { weight: 1, pointsUp: 0.7, pointsDown: 0.7 },
-  'pick-reading': { weight: 1, pointsUp: 0.7, pointsDown: 0.7 },
-  'pick-meaning': { weight: 1, pointsUp: 0.5, pointsDown: 0.5 },
-  // Drawing is the hardest task: reward it strongly when right, penalize a miss only lightly.
-  'draw-kanji': { weight: 1, pointsUp: 1, pointsDown: 0.2 },
-}
-
-/** Optional context for task generation (e.g. the kanji currently in review). */
+/** Optional context for task generation (e.g. the unit currently in review). */
 export interface TaskContext {
-  /** idx values of kanji the learner is currently reviewing — preferred cloze distractors. */
+  /** idx values of units the learner is currently reviewing — preferred cloze distractors. */
   studySet?: number[]
   /** Per-task appearance weight override (keyed by TaskType); falls back to {@link TASK_TUNING}. */
   taskWeights?: Record<string, number>
   /**
+   * The task types the active language offers (from its LanguagePack). Defaults to all when unset,
+   * so the web demo and existing callers are unaffected.
+   */
+  tasks?: TaskType[]
+  /**
    * Whether a word can be an auto-graded draw target. Only the mobile client (which has the
-   * handwriting recognizer) passes this; its presence is what enables 'draw-kanji' generation, so
+   * handwriting recognizer) passes this; its presence is what enables 'draw' generation, so
    * the web app never produces a draw task it can't render.
    */
   canDraw?: (word: string) => boolean
@@ -84,7 +63,7 @@ export interface WhichWordsOption {
 export interface WhichWordsTask {
   kind: 'which-words'
   targetIdx: number
-  char: string
+  form: string
   options: WhichWordsOption[]
 }
 
@@ -112,8 +91,8 @@ export interface ChoiceTask {
 export const CLOZE_OPTIONS = 4
 
 /** T4: draw a word (all kanji, ≤3 chars) from its reading. Graded on-device by the recognizer. */
-export interface DrawKanjiTask {
-  kind: 'draw-kanji'
+export interface DrawTask {
+  kind: 'draw'
   targetIdx: number
   /** The word to draw (kanji only). */
   word: string
@@ -125,7 +104,17 @@ export interface DrawKanjiTask {
 /** Max characters in a drawable word (kept short so guided segmentation stays reliable). */
 export const DRAW_MAX_CHARS = 3
 
-export type Task = TypeWordTask | WhichWordsTask | ChoiceTask | DrawKanjiTask
+/** Pick-the-plural: given a word (singular), choose its plural among distractors. Data-driven. */
+export interface PluralTask {
+  kind: 'plural'
+  targetIdx: number
+  word: string
+  reading: string
+  meaning: string
+  options: Option[]
+}
+
+export type Task = TypeWordTask | WhichWordsTask | ChoiceTask | DrawTask | PluralTask
 
 // ---------------------------------------------------------------------------
 // Distractor pools (built once per content index)
@@ -143,7 +132,7 @@ function getPools(index: ContentIndex): Pools {
   if (cached) return cached
   const readings = new Set<string>()
   const meanings = new Set<string>()
-  for (const k of index.content.kanji) {
+  for (const k of index.content.units) {
     for (const ex of k.examples) {
       readings.add(ex.reading)
       meanings.add(ex.meaning)
@@ -169,117 +158,12 @@ function makeOptions(correct: string, pool: string[]): Option[] | null {
   ])
 }
 
-/** Length of the longest common prefix of two strings. */
-function commonPrefixLen(a: string, b: string): number {
-  let i = 0
-  while (i < a.length && i < b.length && a[i] === b[i]) i++
-  return i
-}
-
-/** Length of the longest common suffix of two strings. */
-function commonSuffixLen(a: string, b: string): number {
-  let i = 0
-  while (i < a.length && i < b.length && a[a.length - 1 - i] === b[b.length - 1 - i]) i++
-  return i
-}
-
-/**
- * How confusable a candidate reading is with the correct one: shared suffix (the visible okurigana,
- * weighted highest), shared prefix, and matching length. Higher = harder to tell apart, so knowing
- * just part of the reading (one character's sound, the length, the ending) isn't enough.
- */
-function readingSimilarity(candidate: string, correct: string): number {
-  return (
-    2 * commonSuffixLen(candidate, correct) +
-    commonPrefixLen(candidate, correct) +
-    (candidate.length === correct.length ? 1 : 0)
-  )
-}
-
-/** The visible okurigana: the trailing run of kana in a surface form (上手に → に, 食べる → べる, 一 → ''). */
-function okuriganaOf(ja: string): string {
-  // U+3040–U+30FF spans the hiragana and katakana blocks (okurigana is kana).
-  return ja.match(/[぀-ヿ]+$/)?.[0] ?? ''
-}
-
-/** Wrap a correct reading + its distractors into a shuffled single-choice option set (null if too few). */
-function readingOptions(correct: string, distractors: string[]): Option[] | null {
-  if (distractors.length < MIN_CHOICE_DISTRACTORS) return null
-  return shuffle([
-    { label: correct, correct: true },
-    ...distractors.map((label) => ({ label, correct: false })),
-  ])
-}
-
-/** Pool readings (minus the answer) ranked most-confusable first — used when there's no okurigana to protect. */
-function bySimilarity(correct: string, pool: string[]): string[] {
-  return shuffle(pool.filter((x) => x !== correct)).sort(
-    (a, b) => readingSimilarity(b, correct) - readingSimilarity(a, correct),
-  )
-}
-
-/**
- * Distractors for a "pick the reading" task, honouring (in priority order):
- *  1. okurigana is never a leak — every distractor ends in the full visible okurigana;
- *  2. length is ideally not a leak — ≥2 distractors sit within a mora of the answer's length;
- *  3. similar pronunciation is preferred (ranks candidates) but not required;
- *  4. ≥2 options are real words (the answer + ≥1 real distractor), ideally more.
- * Length gaps are filled with fabricated readings (a real stem swapped in, okurigana kept). Returns
- * null when no real word shares the okurigana — the word is then skipped for this task type.
- */
-function makeReadingOptions(correct: string, pool: string[], oku: string): Option[] | null {
-  // No trailing okurigana to protect (e.g. a single-kanji word): fall back to plain similarity.
-  if (oku === '' || !correct.endsWith(oku)) {
-    return readingOptions(correct, bySimilarity(correct, pool).slice(0, CHOICE_DISTRACTORS))
-  }
-
-  const others = pool.filter((x) => x !== correct)
-  // Rule 1: distractors must reproduce the full okurigana. Rule 4 floor: need a real one to seed with.
-  const realMatches = others.filter((x) => x.endsWith(oku))
-  if (realMatches.length === 0) return null
-
-  const near = (s: string): boolean => Math.abs(s.length - correct.length) <= 1
-  const bySim = (a: string, b: string): number =>
-    readingSimilarity(b, correct) - readingSimilarity(a, correct)
-
-  // Real okurigana-matchers, best first: length-matched (rule 2), then confusable (rule 3).
-  const reals = shuffle(realMatches).sort((a, b) => Number(near(b)) - Number(near(a)) || bySim(a, b))
-  // Fabricated okurigana-matchers: swap the stem, keep the okurigana, length-matched by construction.
-  const synths = shuffle(others)
-    .filter((r) => !r.endsWith(oku) && near(r + oku))
-    .map((r) => r + oku)
-    .filter((c) => c !== correct)
-    .sort(bySim)
-
-  const chosen: string[] = []
-  const used = new Set<string>([correct])
-  const take = (c: string | undefined): void => {
-    if (c === undefined || used.has(c)) return
-    used.add(c)
-    chosen.push(c)
-  }
-
-  take(reals[0]) // rule 4 floor: at least one real distractor (answer is already real → ≥2 real total)
-  // Rule 2: reach ≥2 near-length distractors so the answer isn't the length outlier — reals first.
-  for (const c of [...reals.filter(near), ...synths]) {
-    if (chosen.filter(near).length >= 2 || chosen.length >= CHOICE_DISTRACTORS) break
-    take(c)
-  }
-  // Fill remaining slots, preferring real words (rule 4 ideal) then similarity (rule 3).
-  for (const c of [...reals, ...synths]) {
-    if (chosen.length >= CHOICE_DISTRACTORS) break
-    take(c)
-  }
-
-  return readingOptions(correct, chosen)
-}
-
 /** Find a sentence containing `target` whose word token lists `target.idx` as a blankable target. */
 function findFocusToken(
-  target: Kanji,
+  target: Unit,
   index: ContentIndex,
 ): { sentence: Sentence; tokenIndex: number; token: WordToken } | null {
-  const sentences = index.sentencesForKanji.get(target.idx) ?? []
+  const sentences = index.sentencesForUnit.get(target.idx) ?? []
   for (const sentence of shuffle(sentences)) {
     const tokenIndex = sentence.tokens.findIndex(
       (t): t is WordToken => t.kind === 'word' && t.targets.includes(target.idx),
@@ -295,7 +179,7 @@ function findFocusToken(
 // Generators (return null when the target lacks the data for that task)
 // ---------------------------------------------------------------------------
 
-function buildTypeWord(target: Kanji): TypeWordTask | null {
+function buildTypeWord(target: Unit): TypeWordTask | null {
   if (target.examples.length === 0) return null
   const ex = pick(target.examples)
   return {
@@ -307,7 +191,7 @@ function buildTypeWord(target: Kanji): TypeWordTask | null {
   }
 }
 
-function buildWhichWords(target: Kanji): WhichWordsTask | null {
+function buildWhichWords(target: Unit): WhichWordsTask | null {
   // Exactly WHICH_WORDS_OPTIONS options with ≥1 real and ≥1 fake.
   const maxReal = Math.min(WHICH_WORDS_OPTIONS - 1, target.examples.length)
   const minReal = Math.max(1, WHICH_WORDS_OPTIONS - target.distractors.length)
@@ -331,25 +215,25 @@ function buildWhichWords(target: Kanji): WhichWordsTask | null {
   return {
     kind: 'which-words',
     targetIdx: target.idx,
-    char: target.char,
+    form: target.form,
     options: shuffle([...reals, ...fakes]),
   }
 }
 
 /** Cloze: blank the target kanji char in a word; options are kanji chars. */
-function buildCloze(target: Kanji, index: ContentIndex, studySet: number[]): ChoiceTask | null {
+function buildCloze(target: Unit, index: ContentIndex, studySet: number[]): ChoiceTask | null {
   const focus = findFocusToken(target, index)
   if (!focus) return null
 
-  const correct = target.char
+  const correct = target.form
   const used = new Set<string>([correct])
   const distractors: string[] = []
 
   // Prefer kanji from the current study set, then fall back to random of the 100.
   const fromStudy = shuffle(
-    studySet.map((i) => index.byIdx.get(i)?.char).filter((c): c is string => Boolean(c)),
+    studySet.map((i) => index.byIdx.get(i)?.form).filter((c): c is string => Boolean(c)),
   )
-  const fallback = shuffle(index.content.kanji.map((k) => k.char))
+  const fallback = shuffle(index.content.units.map((k) => k.form))
   for (const c of [...fromStudy, ...fallback]) {
     if (distractors.length >= CLOZE_OPTIONS - 1) break
     if (!used.has(c)) {
@@ -376,7 +260,7 @@ function buildCloze(target: Kanji, index: ContentIndex, studySet: number[]): Cho
 /** pick-reading / pick-meaning: highlight a word, choose its reading / meaning. */
 function buildPick(
   kind: 'pick-reading' | 'pick-meaning',
-  target: Kanji,
+  target: Unit,
   index: ContentIndex,
 ): ChoiceTask | null {
   const focus = findFocusToken(target, index)
@@ -384,8 +268,8 @@ function buildPick(
   const pools = getPools(index)
   const options =
     kind === 'pick-reading'
-      ? makeReadingOptions(focus.token.reading, pools.readings, okuriganaOf(focus.token.ja))
-      : makeOptions(focus.token.en, pools.meanings)
+      ? index.lang.readingOptions(focus.token.reading, focus.token.surface, pools.readings)
+      : makeOptions(focus.token.gloss, pools.meanings)
   if (!options) return null
   return {
     kind,
@@ -399,19 +283,103 @@ function buildPick(
 const KANJI_ONLY = /^[一-鿿]+$/
 
 /** T4: an all-kanji, short word (or the bare kanji) to draw. Prefers words the caller can grade. */
-function buildDrawKanji(target: Kanji, ctx: TaskContext): DrawKanjiTask | null {
+function buildDraw(target: Unit, ctx: TaskContext): DrawTask | null {
   const ok = (w: string) =>
     ctx.canDraw ? ctx.canDraw(w) : KANJI_ONLY.test(w) && [...w].length <= DRAW_MAX_CHARS
   const words = target.examples.filter((e) => ok(e.word))
   if (words.length) {
     const ex = words[Math.floor(Math.random() * words.length)]
-    return { kind: 'draw-kanji', targetIdx: target.idx, word: ex.word, reading: ex.reading, meaning: ex.meaning }
+    return { kind: 'draw', targetIdx: target.idx, word: ex.word, reading: ex.reading, meaning: ex.meaning }
   }
-  if (ok(target.char)) {
-    return { kind: 'draw-kanji', targetIdx: target.idx, word: target.char, reading: '', meaning: target.gloss.join(', ') }
+  if (ok(target.form)) {
+    return { kind: 'draw', targetIdx: target.idx, word: target.form, reading: '', meaning: target.gloss.join(', ') }
   }
   return null
 }
+
+/**
+ * A "pick the plural" task: any language whose content tags example words with a plural
+ * (`word.extra.plural`) gets this — the engine stays language-blind. Japanese tags none, so this
+ * yields null and the task never appears. Broken plurals (Arabic) are the motivating case.
+ */
+function buildPlural(target: Unit, index: ContentIndex): Task | null {
+  const withPlural = target.examples.filter((e) => typeof e.extra?.plural === 'string')
+  if (!withPlural.length) return null
+  const ex = pick(withPlural)
+  const correct = ex.extra!.plural as string
+  const pool = new Set<string>()
+  for (const u of index.content.units) {
+    for (const w of u.examples) {
+      const p = w.extra?.plural
+      if (typeof p === 'string' && p !== correct) pool.add(p)
+    }
+  }
+  const options = makeOptions(correct, [...pool])
+  if (!options) return null
+  return { kind: 'plural', targetIdx: target.idx, word: ex.word, reading: ex.reading, meaning: ex.meaning, options }
+}
+
+// ---------------------------------------------------------------------------
+// Task registry — each task's kind, label, tuning, and generator in one place
+// ---------------------------------------------------------------------------
+
+/**
+ * The engine half of a task type: how often it appears (`weight`), its reward/penalty when right/wrong
+ * (`pointsUp`/`pointsDown`, multiplied into the ±1 raw score — so drawing can reward a lot yet barely
+ * penalize a miss), its Stats/Manual `label`, and how to `generate` an instance. The mobile half (the
+ * view, answer widget, and grading) is a separate TaskUI registered under the same `kind`.
+ */
+export interface TaskSpec {
+  kind: TaskType
+  label: string
+  tuning: { weight: number; pointsUp: number; pointsDown: number }
+  generate: (index: ContentIndex, targetIdx: number, ctx: TaskContext) => Task | null
+  /** Opt-in: kept out of the default roster; a language must list it in its pack's `tasks` to offer it. */
+  optIn?: boolean
+}
+
+/** Wrap a target-based generator into a spec's (index, targetIdx, ctx) → Task shape. */
+function spec(
+  kind: TaskType,
+  label: string,
+  tuning: TaskSpec['tuning'],
+  build: (target: Unit, index: ContentIndex, ctx: TaskContext) => Task | null,
+  optIn = false,
+): TaskSpec {
+  return {
+    kind,
+    label,
+    tuning,
+    optIn,
+    generate: (index, targetIdx, ctx) => {
+      const target = index.byIdx.get(targetIdx)
+      return target ? build(target, index, ctx) : null
+    },
+  }
+}
+
+export const TASK_SPECS: TaskSpec[] = [
+  spec('type-word', 'Type the reading', { weight: 1, pointsUp: 0.8, pointsDown: 0.4 }, (t) => buildTypeWord(t)),
+  spec('which-words', 'Which words are real', { weight: 1, pointsUp: 0.5, pointsDown: 0.5 }, (t) => buildWhichWords(t)),
+  spec('cloze', 'Fill in the blank', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i, c) => buildCloze(t, i, c.studySet ?? [])),
+  spec('pick-reading', 'Pick the reading', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i) => buildPick('pick-reading', t, i)),
+  spec('pick-meaning', 'Pick the meaning', { weight: 1, pointsUp: 0.5, pointsDown: 0.5 }, (t, i) => buildPick('pick-meaning', t, i)),
+  // Drawing is the hardest task: reward it strongly when right, penalize a miss only lightly.
+  spec('draw', 'Draw the word', { weight: 1, pointsUp: 1, pointsDown: 0.2 }, (t, _i, c) => buildDraw(t, c)),
+  // Opt-in + data-driven: only languages whose content tags plurals (word.extra.plural) offer it.
+  spec('plural', 'Pick the plural', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i) => buildPlural(t, i), true),
+]
+
+const SPEC_BY_KIND: Record<string, TaskSpec> = Object.fromEntries(TASK_SPECS.map((s) => [s.kind, s]))
+
+/** The default task roster (opt-in tasks like plural are excluded unless a language lists them). */
+export const ALL_TASK_TYPES: TaskType[] = TASK_SPECS.filter((s) => !s.optIn).map((s) => s.kind)
+
+/** Per-task tuning (appearance weight + reward/penalty), keyed by kind — derived from {@link TASK_SPECS}. */
+export const TASK_TUNING = Object.fromEntries(TASK_SPECS.map((s) => [s.kind, s.tuning])) as Record<
+  TaskType,
+  TaskSpec['tuning']
+>
 
 /** Build a task of `type` for `targetIdx`, or null if the data doesn't support it. */
 export function generateTask(
@@ -420,21 +388,7 @@ export function generateTask(
   type: TaskType,
   ctx: TaskContext = {},
 ): Task | null {
-  const target = index.byIdx.get(targetIdx)
-  if (!target) return null
-  switch (type) {
-    case 'type-word':
-      return buildTypeWord(target)
-    case 'which-words':
-      return buildWhichWords(target)
-    case 'cloze':
-      return buildCloze(target, index, ctx.studySet ?? [])
-    case 'pick-reading':
-    case 'pick-meaning':
-      return buildPick(type, target, index)
-    case 'draw-kanji':
-      return buildDrawKanji(target, ctx)
-  }
+  return SPEC_BY_KIND[type]?.generate(index, targetIdx, ctx) ?? null
 }
 
 /**
@@ -463,8 +417,10 @@ export function generateAnyTask(
   ctx: TaskContext = {},
   avoid?: TaskType,
 ): Task | null {
-  // Only offer draw-kanji when the caller can grade it (mobile); the web app never generates it.
-  const types = ctx.canDraw ? ALL_TASK_TYPES : ALL_TASK_TYPES.filter((t) => t !== 'draw-kanji')
+  // The active language's task list (all by default), minus draw unless the caller can grade it
+  // (the recognizer is mobile-only, and non-JA packs simply omit it from `ctx.tasks`).
+  const offered = ctx.tasks ?? ALL_TASK_TYPES
+  const types = ctx.canDraw ? offered : offered.filter((t) => t !== 'draw')
   const weightOf = (t: TaskType): number => ctx.taskWeights?.[t] ?? TASK_TUNING[t].weight
   const order = weightedTaskOrder(types, weightOf)
   if (avoid) order.sort((a, b) => (a === avoid ? 1 : 0) - (b === avoid ? 1 : 0))
@@ -509,9 +465,9 @@ export function checkChoice(task: ChoiceTask, chosenIndex: number): boolean {
 
 /** Convenience: does this kanji currently support at least one task type? */
 export function hasAnyTask(index: ContentIndex, targetIdx: number): boolean {
-  // draw-kanji needs the mobile recognizer, so a kanji is "practicable" on the strength of the
+  // draw needs the mobile recognizer, so a kanji is "practicable" on the strength of the
   // standard task types alone.
-  return ALL_TASK_TYPES.filter((t) => t !== 'draw-kanji').some(
+  return ALL_TASK_TYPES.filter((t) => t !== 'draw').some(
     (t) => generateTask(index, targetIdx, t) !== null,
   )
 }

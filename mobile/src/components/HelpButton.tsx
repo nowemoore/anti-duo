@@ -1,19 +1,23 @@
 import { useState } from 'react'
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
-import { HiraganaTable } from './HiraganaTable'
+import { useLanguage } from '../context/LanguageContext'
 import { Icon } from './Icon'
 import { colors, fonts, radius } from '../theme'
 
-/** "?" button: hold it to reveal the hiragana reference chart, release to hide it. */
+/** "?" button: hold it to reveal the active language's script reference, release to hide it. */
 export function HelpButton() {
   const [open, setOpen] = useState(false)
+  const { reference } = useLanguage()
+  if (!reference) return null // a language with no script chart hides the help button
+  const { title, Chart } = reference
+
   return (
     <>
       <Pressable
         style={styles.helpBtn}
         onPressIn={() => setOpen(true)}
         onPressOut={() => setOpen(false)}
-        accessibilityLabel="Hold for hiragana chart"
+        accessibilityLabel={`Hold for ${title.en} chart`}
         hitSlop={8}
       >
         <Icon name="circle-question" size={30} color={colors.muted} />
@@ -25,10 +29,10 @@ export function HelpButton() {
           <View style={styles.card}>
             <Text style={styles.hint}>hold to keep viewing</Text>
             <Text style={styles.title}>
-              ひらがな <Text style={styles.sub}>Hiragana</Text>
+              {title.native} <Text style={styles.sub}>{title.en}</Text>
             </Text>
             <ScrollView contentContainerStyle={styles.scroll}>
-              <HiraganaTable />
+              <Chart />
             </ScrollView>
           </View>
         </View>
