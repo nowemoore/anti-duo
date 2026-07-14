@@ -4,10 +4,12 @@ import { MiniSlider } from './MiniSlider'
 import { useProgress } from '../context/ProgressContext'
 import { ALL_TASK_TYPES, TASK_TUNING, type TaskType } from '@lib/tasks'
 import { TASK_LABELS } from '@lib/stats'
-import { colors, fonts, radius, shadow, spacing } from '../theme'
+import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { useStyles } from '../hooks/theme'
 
 /** Settings section: adjust how often each practice task type appears (its selection weight). */
 export function TaskFrequencySettings() {
+  const styles = useStyles(makeStyles)
   return (
     <View style={styles.panel}>
       <Text style={styles.h2}>Practice mix</Text>
@@ -22,6 +24,7 @@ export function TaskFrequencySettings() {
 }
 
 function FreqRow({ type }: { type: TaskType }) {
+  const styles = useStyles(makeStyles)
   const { progress, update } = useProgress()
   const stored = progress.settings.taskWeights?.[type] ?? TASK_TUNING[type].weight
   const [val, setVal] = useState(stored)
@@ -45,7 +48,7 @@ function FreqRow({ type }: { type: TaskType }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: 6 },
   muted: { color: colors.muted, fontFamily: fonts.body, fontSize: 13, marginBottom: spacing.md },

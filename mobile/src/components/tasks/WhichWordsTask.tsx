@@ -1,14 +1,20 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { isWhichWordsPerfect, scoreWhichWords, type WhichWordsTask } from '@lib/tasks'
 import { useReveal } from '../RevealStrip'
+import { useLanguage } from '../../context/LanguageContext'
+import { RootWord } from '../RootWord'
 import { SpeakButton } from '../SpeakButton'
 import type { TaskUI, TaskViewProps } from './types'
-import { colors, fonts } from '../../theme'
+import { fonts, type Palette } from '../../theme'
+import { useColors, useStyles } from '../../hooks/theme'
 
 /** T2: multi-select the real words. Tap toggles; hold reveals reading (→ + meaning once answered). */
 function WhichWordsView({ task, answer, setAnswer, phase }: TaskViewProps<WhichWordsTask, number[]>) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const revealed = phase === 'revealed'
   const reveal = useReveal()
+  const pack = useLanguage()
   const selSet = new Set(answer)
   const toggle = (i: number) => {
     if (revealed) return
@@ -19,7 +25,7 @@ function WhichWordsView({ task, answer, setAnswer, phase }: TaskViewProps<WhichW
 
   return (
     <View style={styles.root}>
-      <Text style={styles.promptForm}>{task.form}</Text>
+      <Text style={styles.promptForm}>{pack.displayForm?.(task.form) ?? task.form}</Text>
 
       <View style={styles.grid}>
         {task.options.map((o, i) => {
@@ -42,9 +48,13 @@ function WhichWordsView({ task, answer, setAnswer, phase }: TaskViewProps<WhichW
                 onLongPress={canReveal ? () => reveal.show(revealText) : undefined}
                 delayLongPress={150}
                 onPressOut={reveal.hide}
-                style={[styles.opt, optStyle(state)]}
+                style={[styles.opt, optStyle(state, colors)]}
               >
-                <Text style={[styles.optWord, optTextStyle(state)]}>{o.word}</Text>
+                <RootWord
+                  surface={o.word}
+                  spans={revealed && o.correct ? pack.rootSpans?.(o.word, task.form) : undefined}
+                  style={[styles.optWord, optTextStyle(state, colors)]}
+                />
               </Pressable>
               {revealed && o.correct && (
                 <SpeakButton text={o.reading} label={`Play ${o.word}`} small style={styles.optSpeak} />
@@ -73,21 +83,22 @@ export const whichWordsTask: TaskUI<WhichWordsTask, number[]> = {
   },
 }
 
-function optStyle(state: string) {
+function optStyle(state: string, colors: Palette) {
   if (state === 'selected') return { borderColor: colors.accent, backgroundColor: colors.accentSoft }
   if (state === 'correct') return { borderColor: colors.correct, backgroundColor: colors.correctSoft }
   if (state === 'wrong') return { borderColor: colors.incorrect, backgroundColor: colors.incorrectSoft }
   return null
 }
-function optTextStyle(state: string) {
+function optTextStyle(state: string, colors: Palette) {
   if (state === 'correct') return { color: colors.correct }
   if (state === 'wrong') return { color: colors.incorrect }
   return null
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   root: { width: '100%' },
-  promptForm: { fontSize: 64, fontWeight: '600', color: colors.ink, textAlign: 'center', marginBottom: 18 },
+  // lineHeight fixed (matches the Learn card's bigForm) so the line size is the same in every language.
+  promptForm: { fontSize: 64, lineHeight: 70, fontWeight: '600', color: colors.ink, textAlign: 'center', marginBottom: 18 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, alignSelf: 'center', width: '100%', maxWidth: 460 },
   cell: { width: '48%', position: 'relative' },
   opt: {

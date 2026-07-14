@@ -7,9 +7,12 @@ import { useContent } from '../context/ContentContext'
 import { useLanguage } from '../context/LanguageContext'
 import { Bilingual } from './Bilingual'
 import { Icon } from './Icon'
+import { RootWord } from './RootWord'
+import { VoweledText } from './VoweledText'
 import { SpeakButton } from './SpeakButton'
 import { useScreenHeader } from '../context/HeaderContext'
-import { colors, fonts, radius, shadow, spacing } from '../theme'
+import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 const SCREEN_W = Dimensions.get('window').width
 
@@ -25,6 +28,8 @@ interface Props {
 
 /** Introduces new unit one card at a time: char, glosses, breakdown, and up to 5 example words. */
 export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: Props) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const [cards, setCards] = useState<Unit[]>(chunk)
   const [pool, setPool] = useState<Unit[]>(reserve)
   const [i, setI] = useState(0)
@@ -153,6 +158,8 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
 }
 
 function LearnCard({ unit }: { unit: Unit }) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const { content } = useContent()
   const pack = useLanguage()
   const charGloss = (ch: string) => pack.charGloss?.(content, ch)
@@ -172,7 +179,7 @@ function LearnCard({ unit }: { unit: Unit }) {
     <View style={styles.card}>
       <View style={styles.formRow}>
         {hasReveal && <View style={styles.formSpacer} />}
-        <Text style={styles.bigForm}>{unit.form}</Text>
+        <Text style={styles.bigForm}>{pack.displayForm?.(unit.form) ?? unit.form}</Text>
         {hasReveal && (
           <Pressable style={[styles.revealBtn, expanded && styles.revealBtnOn]} onPress={toggle}>
             <Icon name="magnifying-glass" size={13} color={expanded ? colors.onAccent : colors.ink} />
@@ -199,16 +206,22 @@ function LearnCard({ unit }: { unit: Unit }) {
           return (
             <View key={idx} style={styles.example}>
               <View style={styles.exWordCell}>
-                <ExampleWord
-                  word={ex.word}
-                  wordIndex={idx}
-                  gloss={charGloss}
-                  activeKey={caption?.key}
-                  onShow={show}
-                  onHide={hide}
-                />
+                {pack.charGloss ? (
+                  // Per-character reveal (JA: hold a kanji for its meaning).
+                  <ExampleWord
+                    word={ex.word}
+                    wordIndex={idx}
+                    gloss={charGloss}
+                    activeKey={caption?.key}
+                    onShow={show}
+                    onHide={hide}
+                  />
+                ) : (
+                  // One joined word (keeps Arabic letters connected), root letters highlighted.
+                  <RootWord surface={ex.word} spans={pack.rootSpans?.(ex.word, unit.form)} style={styles.exWord} />
+                )}
               </View>
-              <Text style={styles.exReading}>{ex.reading}</Text>
+              <VoweledText text={ex.reading} style={styles.exReading} />
               <View style={styles.exActions}>
                 <SpeakButton text={ex.reading} label={`Pronounce ${ex.word}`} />
                 <Pressable
@@ -259,6 +272,7 @@ function ExampleWord({
   onShow: (key: string, label: string, meaning: string) => void
   onHide: () => void
 }) {
+  const styles = useStyles(makeStyles)
   return (
     <View style={styles.exWordRow}>
       {[...word].map((ch, i) => {
@@ -295,6 +309,7 @@ function ExampleWord({
  * content is measured out-of-flow and centered to match the card.
  */
 function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
+  const styles = useStyles(makeStyles)
   const anim = useRef(new Animated.Value(open ? 1 : 0)).current
   const [height, setHeight] = useState(0)
 
@@ -325,7 +340,7 @@ function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   panel: {
     ...shadow,
     flex: 1,
@@ -396,9 +411,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginTop: spacing.md,
   },
-  captionText: { color: colors.ink, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
-  captionLabel: { color: colors.accentInk, fontFamily: fonts.semibold, fontSize: 16 },
-  captionHint: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
+  captionText: { color: colors.onChip, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
+  captionLabel: { color: colors.onChipAccent, fontFamily: fonts.semibold, fontSize: 16 },
+  captionHint: { color: colors.onChipMuted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
   pager: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.lg },
   chevron: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   chevBack: { borderWidth: 1.5, borderColor: colors.border },

@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import type { TaskType } from '@lib/tasks'
 import type { Unit, Content } from '@shared/types'
 import type { TaskUI } from '../components/tasks/types'
+import type { Palette } from '../theme'
 
 /** A finger-drawn stroke: a path of points (structurally the recognizer's + canvas's stroke type). */
 export type DrawStroke = { x: number; y: number }[]
@@ -62,6 +63,8 @@ export interface LanguagePack {
   label: { native: string; en: string }
   /** Text direction for this language's script (Arabic → 'rtl'). */
   direction: 'ltr' | 'rtl'
+  /** This language's colour palette. Absent → the default (Japanese) palette. */
+  palette?: Palette
   /** BCP-47 locale for text-to-speech (expo-speech). */
   ttsLang: string
   /** Canonical (committed) reading of raw type-task input, used for grading (JA: romaji→kana). */
@@ -88,6 +91,14 @@ export interface LanguagePack {
   Ruby?: ComponentType<{ surface: string; reading: string }>
   /** Per-character gloss for hold-to-reveal (JA: a kanji's meaning). Absent → no per-char reveal. */
   charGloss?: (content: Content, char: string) => string | undefined
+  /**
+   * Which characters of a surface word belong to the unit (Arabic: the root letters within a word),
+   * as indices into `[...surface]` — for highlighting them. Returns null when they can't be located
+   * (a weak root that mutates); absent → no root highlighting.
+   */
+  rootSpans?: (surface: string, unitForm: string) => number[] | null
+  /** How to display a unit's written form when shown as "the unit" (Arabic: root letters split by dots). */
+  displayForm?: (form: string) => string
   /**
    * Optional expandable detail panel behind the "zoom" button on a Learn card — the language's extra
    * insight into a unit. JA fills it with the radical + components breakdown; another language could

@@ -3,10 +3,12 @@ import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
 import { taskRates, TASK_LABELS } from '@lib/stats'
 import { Bilingual } from '../components/Bilingual'
-import { colors, fonts, radius, shadow, spacing } from '../theme'
+import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { useStyles } from '../hooks/theme'
 
 /** Success rate per task type — earned points ÷ attempts, cumulative across all practice. */
 export function StatsView() {
+  const styles = useStyles(makeStyles)
   const { progress } = useProgress()
   const { ui, tasks } = useLanguage()
   const rates = taskRates(progress, tasks)
@@ -42,7 +44,7 @@ export function StatsView() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
   titleRow: { alignItems: 'flex-start', marginBottom: spacing.lg },
   empty: { color: colors.muted, fontFamily: fonts.body, fontSize: 14 },

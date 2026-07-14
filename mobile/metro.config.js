@@ -11,7 +11,8 @@ const config = getDefaultConfig(projectRoot)
 const aliases = {
   '@shared': path.resolve(projectRoot, 'vendor', 'shared'),
   '@lib': path.resolve(projectRoot, 'vendor', 'src', 'lib'),
-  '@content': path.resolve(projectRoot, 'assets', 'content.json'),
+  '@content/ja': path.resolve(projectRoot, 'assets', 'content.ja.json'),
+  '@content/ar': path.resolve(projectRoot, 'assets', 'content.ar.json'),
 }
 
 function resolveOnDisk(base) {

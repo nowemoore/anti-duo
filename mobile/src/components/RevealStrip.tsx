@@ -1,6 +1,8 @@
 import { createContext, useContext } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { colors, fonts, radius, spacing } from '../theme'
+import { VoweledText } from './VoweledText'
+import { fonts, radius, spacing, type Palette } from '../theme'
+import { useStyles } from '../hooks/theme'
 
 export interface RevealApi {
   show: (text: string) => void
@@ -19,16 +21,21 @@ export function useReveal(): RevealApi {
 
 /** Fixed-size dark strip pinned to the bottom of a practice card; shows held text or a hint. */
 export function RevealStrip({ text, hint }: { text: string | null; hint: string }) {
+  const styles = useStyles(makeStyles)
   return (
     <View style={styles.strip}>
-      <Text style={text ? styles.text : styles.hint} numberOfLines={2}>
-        {text ?? hint}
-      </Text>
+      {text ? (
+        <VoweledText text={text} style={styles.text} numberOfLines={2} />
+      ) : (
+        <Text style={styles.hint} numberOfLines={2}>
+          {hint}
+        </Text>
+      )}
     </View>
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   strip: {
     alignSelf: 'stretch',
     height: 54,
@@ -38,6 +45,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginTop: spacing.md,
   },
-  text: { color: colors.ink, fontFamily: fonts.body, fontSize: 15, textAlign: 'center' },
-  hint: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
+  text: { color: colors.onChip, fontFamily: fonts.body, fontSize: 15, textAlign: 'center' },
+  hint: { color: colors.onChipMuted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
 })

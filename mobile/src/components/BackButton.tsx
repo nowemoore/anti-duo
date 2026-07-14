@@ -1,9 +1,12 @@
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { Icon } from './Icon'
-import { colors } from '../theme'
+import { type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 /** Unified back control across the app: a circled chevron. */
 export function BackButton({ onPress, style }: { onPress: () => void; style?: StyleProp<ViewStyle> }) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   return (
     <Pressable
       onPress={onPress}
@@ -17,7 +20,7 @@ export function BackButton({ onPress, style }: { onPress: () => void; style?: St
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   btn: {
     width: 40,
     height: 40,

@@ -6,10 +6,13 @@ import { useLanguage } from '../context/LanguageContext'
 import { enabledUnitCount, isCategoryEnabled, isUnitEnabled, toggleInList } from '@lib/categories'
 import { Toggle } from './Toggle'
 import { Icon } from './Icon'
-import { colors, fonts, radius, shadow, spacing } from '../theme'
+import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 /** Settings section: pick which units to study by toggling categories or individual units. */
 export function CategorySettings() {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const index = useContent()
   const { progress, update } = useProgress()
   const { ui } = useLanguage()
@@ -121,6 +124,7 @@ function Chevron({ open, color }: { open: boolean; color: string }) {
  * the measured height is cached and later toggles animate cleanly.
  */
 function Collapsible({ open, children }: { open: boolean; children: ReactNode }) {
+  const styles = useStyles(makeStyles)
   const anim = useRef(new Animated.Value(open ? 1 : 0)).current
   const [height, setHeight] = useState(0)
   const opened = useRef(open)
@@ -151,7 +155,7 @@ function Collapsible({ open, children }: { open: boolean; children: ReactNode })
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
   collapseInner: { position: 'absolute', left: 0, right: 0 },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: 6 },

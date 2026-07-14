@@ -1,8 +1,11 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { Icon } from '../Icon'
-import { colors, fonts } from '../../theme'
+import { fonts, type Palette } from '../../theme'
+import { useColors, useStyles } from '../../hooks/theme'
 
 export function Feedback({ correct, detail }: { correct: boolean; detail?: string }) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   return (
     <View style={[styles.pill, correct ? styles.ok : styles.bad]}>
       <Icon
@@ -18,7 +21,7 @@ export function Feedback({ correct, detail }: { correct: boolean; detail?: strin
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',

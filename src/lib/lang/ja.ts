@@ -1,57 +1,12 @@
 import type { Option } from '../tasks'
 import type { LangEngine } from './types'
 import { shuffle } from '../random'
-
-// Reading-distractor sizing (mirrors the choice-task constants in tasks.ts).
-const CHOICE_DISTRACTORS = 3
-const MIN_CHOICE_DISTRACTORS = 2
-
-/** Length of the longest common prefix of two strings. */
-function commonPrefixLen(a: string, b: string): number {
-  let i = 0
-  while (i < a.length && i < b.length && a[i] === b[i]) i++
-  return i
-}
-
-/** Length of the longest common suffix of two strings. */
-function commonSuffixLen(a: string, b: string): number {
-  let i = 0
-  while (i < a.length && i < b.length && a[a.length - 1 - i] === b[b.length - 1 - i]) i++
-  return i
-}
-
-/**
- * How confusable a candidate reading is with the correct one: shared suffix (the visible okurigana,
- * weighted highest), shared prefix, and matching length. Higher = harder to tell apart.
- */
-function readingSimilarity(candidate: string, correct: string): number {
-  return (
-    2 * commonSuffixLen(candidate, correct) +
-    commonPrefixLen(candidate, correct) +
-    (candidate.length === correct.length ? 1 : 0)
-  )
-}
+import { CHOICE_DISTRACTORS, bySimilarity, readingSimilarity, toOptionSet } from './reading'
 
 /** The visible okurigana: the trailing run of kana in a surface form (上手に → に, 食べる → べる, 一 → ''). */
 function okuriganaOf(surface: string): string {
   // U+3040–U+30FF spans the hiragana and katakana blocks (okurigana is kana).
   return surface.match(/[぀-ヿ]+$/)?.[0] ?? ''
-}
-
-/** Wrap a correct reading + its distractors into a shuffled single-choice option set (null if too few). */
-function toOptionSet(correct: string, distractors: string[]): Option[] | null {
-  if (distractors.length < MIN_CHOICE_DISTRACTORS) return null
-  return shuffle([
-    { label: correct, correct: true },
-    ...distractors.map((label) => ({ label, correct: false })),
-  ])
-}
-
-/** Pool readings (minus the answer) ranked most-confusable first — used when there's no okurigana to protect. */
-function bySimilarity(correct: string, pool: string[]): string[] {
-  return shuffle(pool.filter((x) => x !== correct)).sort(
-    (a, b) => readingSimilarity(b, correct) - readingSimilarity(a, correct),
-  )
 }
 
 /**

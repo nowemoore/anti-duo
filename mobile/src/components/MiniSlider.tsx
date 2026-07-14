@@ -1,7 +1,8 @@
 import { useRef } from 'react'
 import { View, PanResponder, StyleSheet } from 'react-native'
 import { useScrollLock } from '../context/ScrollLockContext'
-import { colors } from '../theme'
+import { type Palette } from '../theme'
+import { useStyles } from '../hooks/theme'
 
 interface Props {
   value: number
@@ -21,6 +22,7 @@ interface Props {
  * (thumb, fill, track) happens to be under the finger rather than the track as a whole.
  */
 export function MiniSlider({ value, min = 0, max = 3, step = 0.1, onChange, onComplete }: Props) {
+  const styles = useStyles(makeStyles)
   const wrapRef = useRef<View>(null)
   const geom = useRef({ left: 0, width: 0 })
   const lock = useScrollLock()
@@ -87,7 +89,7 @@ export function MiniSlider({ value, min = 0, max = 3, step = 0.1, onChange, onCo
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { width: '100%', height: 32, justifyContent: 'center' },
   track: { height: 4, borderRadius: 2, backgroundColor: colors.border, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: colors.accent, borderRadius: 2 },

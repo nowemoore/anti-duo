@@ -2,7 +2,8 @@ import * as Speech from 'expo-speech'
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { Icon } from './Icon'
 import { useLanguage } from '../context/LanguageContext'
-import { colors } from '../theme'
+import { type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 interface Props {
   /** What to pronounce — pass the kana reading so pronunciation is always correct. */
@@ -17,6 +18,8 @@ interface Props {
 /** Speaks the reading via the OS TTS (expo-speech), in the active language — nothing leaves the device. */
 export function SpeakButton({ text, label, disabled, small, style }: Props) {
   const { ttsLang } = useLanguage()
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const speak = () => {
     Speech.stop()
     Speech.speak(text, { language: ttsLang, rate: 0.95 })
@@ -35,7 +38,7 @@ export function SpeakButton({ text, label, disabled, small, style }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   btn: {
     width: 34,
     height: 34,

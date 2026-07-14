@@ -18,7 +18,8 @@ import { TaskRunner } from './tasks/TaskRunner'
 import { getTaskUI } from './tasks/registry'
 import type { QA } from './tasks/types'
 import { useDrawableWord } from '../hooks/useDrawableWord'
-import { colors, fonts, radius, shadow, spacing } from '../theme'
+import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 type Levels = Record<number, { lvl: number }>
 
@@ -37,6 +38,8 @@ function isCorrect(qa: QA): boolean {
 }
 
 export function PracticeSession({ onExit }: { onExit: () => void }) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const index = useContent()
   const { progress, update } = useProgress()
   const canDrawWord = useDrawableWord()
@@ -258,6 +261,8 @@ interface SummaryProps {
 }
 
 function Summary({ working, startLevels, index, onExit }: SummaryProps) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const { ui } = useLanguage()
   const moves = Object.entries(working)
     .map(([idx, v]) => {
@@ -342,7 +347,7 @@ function Summary({ working, startLevels, index, onExit }: SummaryProps) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   panel: {
     ...shadow,
     flex: 1,

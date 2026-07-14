@@ -1,9 +1,12 @@
 import { View, Text, Pressable, Linking, StyleSheet } from 'react-native'
 import { Icon } from '../components/Icon'
 import { useLanguage } from '../context/LanguageContext'
-import { colors, fonts, radius, spacing } from '../theme'
+import { fonts, radius, spacing, type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 export function ManualView() {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const { ui } = useLanguage()
   return (
     <View style={{ gap: spacing.lg }}>
@@ -66,6 +69,7 @@ export function ManualView() {
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const styles = useStyles(makeStyles)
   return (
     <View style={styles.panel}>
       <Text style={styles.h2}>{title}</Text>
@@ -75,6 +79,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Bullet({ children }: { children: React.ReactNode }) {
+  const styles = useStyles(makeStyles)
   return (
     <View style={styles.bulletRow}>
       <Text style={styles.dot}>•</Text>
@@ -83,7 +88,7 @@ function Bullet({ children }: { children: React.ReactNode }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   title: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 24, textAlign: 'center' },
   panel: { backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, gap: 8 },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: 4 },

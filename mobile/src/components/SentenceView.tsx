@@ -1,12 +1,15 @@
 import { View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import type { ReactNode } from 'react'
-import type { Token } from '@shared/types'
+import type { Token, WordToken } from '@shared/types'
 import { contentTokenDisplay } from '@lib/learned'
 import { useLearned } from '../hooks/useLearned'
+import { useDir } from '../hooks/useDir'
 import { useContent } from '../context/ContentContext'
 import { useLanguage } from '../context/LanguageContext'
 import { useReveal } from './RevealStrip'
-import { colors, fonts } from '../theme'
+import { RootWord } from './RootWord'
+import { fonts, type Palette } from '../theme'
+import { useStyles } from '../hooks/theme'
 
 /** A word-block that reveals its reading/meaning in the practice strip while held. */
 function Hold({
@@ -35,6 +38,8 @@ function Hold({
 
 export interface TokenOverride {
   blankChar?: string
+  /** Hide the entire focus word (root-cloze: which unit fills the slot?). */
+  blankWord?: boolean
   forceReading?: boolean
   highlight?: boolean
   hideReading?: boolean
@@ -49,12 +54,17 @@ interface Props {
 
 // Sentences are a wrapping row of word-blocks (RN can't tap words inside flowing <Text>).
 export function SentenceView({ tokens, overrides, revealMeanings = false }: Props) {
+  const styles = useStyles(makeStyles)
   const isLearned = useLearned()
   const index = useContent()
-  const RubyView = useLanguage().Ruby
+  const pack = useLanguage()
+  const RubyView = pack.Ruby
+  const { rtl } = useDir()
+  // Root letters to highlight within a word token (Arabic); null/absent → plain word.
+  const spansFor = (t: WordToken) => pack.rootSpans?.(t.surface, t.units[0] ?? '')
 
   return (
-    <View style={styles.sentence}>
+    <View style={[styles.sentence, rtl && styles.sentenceRtl]}>
       {tokens.map((tok, i) => {
         const o = overrides?.[i]
 
@@ -63,6 +73,15 @@ export function SentenceView({ tokens, overrides, revealMeanings = false }: Prop
             <Text key={i} style={styles.scaffold}>
               {tok.surface}
             </Text>
+          )
+        }
+
+        // Root-cloze blank: the whole focus word is hidden — the question is which unit fills it.
+        if (o?.blankWord) {
+          return (
+            <View key={i} style={[styles.block, styles.highlight]}>
+              <View style={styles.blankWordBox} />
+            </View>
           )
         }
 
@@ -90,7 +109,7 @@ export function SentenceView({ tokens, overrides, revealMeanings = false }: Prop
               {RubyView ? (
                 <RubyView surface={tok.surface} reading={tok.reading} />
               ) : (
-                <Text style={styles.base}>{tok.surface}</Text>
+                <RootWord surface={tok.surface} spans={spansFor(tok)} style={styles.base} />
               )}
             </Hold>
           )
@@ -118,7 +137,7 @@ export function SentenceView({ tokens, overrides, revealMeanings = false }: Prop
             enabled={parts.length > 0}
             style={[styles.block, o?.highlight && styles.highlight]}
           >
-            <Text style={styles.base}>{tok.surface}</Text>
+            <RootWord surface={tok.surface} spans={spansFor(tok)} style={styles.base} />
           </Hold>
         )
       })}
@@ -126,7 +145,7 @@ export function SentenceView({ tokens, overrides, revealMeanings = false }: Prop
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   sentence: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -135,11 +154,14 @@ const styles = StyleSheet.create({
     columnGap: 2,
     rowGap: 6,
   },
+  // RTL (Arabic): word-blocks flow right-to-left so sentence order reads correctly.
+  sentenceRtl: { flexDirection: 'row-reverse' },
   block: { paddingHorizontal: 2, borderRadius: 6 },
   highlight: { backgroundColor: colors.accentSoft },
-  base: { fontSize: 24, color: colors.ink },
-  baseAccent: { fontSize: 24, color: colors.accentInk },
-  scaffold: { fontSize: 24, color: colors.muted },
+  // Fixed lineHeight so a sentence's rows are the same height whatever the script (kanji vs Arabic).
+  base: { fontSize: 24, lineHeight: 32, color: colors.ink },
+  baseAccent: { fontSize: 24, lineHeight: 32, color: colors.accentInk },
+  scaffold: { fontSize: 24, lineHeight: 32, color: colors.muted },
   english: { fontSize: 20, color: colors.ink, fontFamily: fonts.body, fontVariant: ['small-caps'] },
   rtAccent: { fontSize: 11, lineHeight: 13, color: colors.accentInk, textAlign: 'center' },
   clozeBase: { flexDirection: 'row', alignItems: 'center' },
@@ -150,6 +172,15 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     borderStyle: 'dashed',
     borderRadius: 4,
+    backgroundColor: colors.accentSoft,
+  },
+  blankWordBox: {
+    width: 56,
+    height: 30,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    borderStyle: 'dashed',
+    borderRadius: 6,
     backgroundColor: colors.accentSoft,
   },
 })

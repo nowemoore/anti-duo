@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { View, Text, Pressable, ScrollView, StyleSheet, Platform } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { View, Text, Pressable, ScrollView, StyleSheet, Platform, Animated } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { setAudioModeAsync } from 'expo-audio'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -14,7 +14,7 @@ import {
 import { Fraunces_400Regular, Fraunces_700Bold } from '@expo-google-fonts/fraunces'
 import './src/icons' // registers the FontAwesome library (side effect)
 import { setupPwa } from './src/web/pwa'
-import { LanguageProvider } from './src/context/LanguageContext'
+import { LanguageProvider, useLanguage } from './src/context/LanguageContext'
 import { ContentProvider } from './src/context/ContentContext'
 import { ProgressProvider } from './src/context/ProgressContext'
 import { HeaderProvider, useHeaderConfig } from './src/context/HeaderContext'
@@ -30,7 +30,8 @@ import { BackButton } from './src/components/BackButton'
 import { Bilingual } from './src/components/Bilingual'
 import { FadeView } from './src/components/FadeView'
 import { Icon } from './src/components/Icon'
-import { colors, fonts, spacing } from './src/theme'
+import { fonts, spacing, type Palette } from './src/theme'
+import { useColors, useStyles } from './src/hooks/theme'
 
 type Tab = 'study' | 'stats' | 'settings'
 
@@ -81,17 +82,35 @@ export default function App() {
 }
 
 function Shell() {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const insets = useSafeAreaInsets()
   const [tab, setTab] = useState<Tab>('study')
   const [scrollLocked, setScrollLocked] = useState(false)
   const header = useHeaderConfig()
+
+  // Crossfade the UI when the language (theme + content) switches, so it isn't a hard cut. The bg
+  // (a solid colour behind everything) swaps instantly; the content fades back in over it.
+  const lang = useLanguage().id
+  const fade = useRef(new Animated.Value(1)).current
+  const firstRender = useRef(true)
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false
+      return
+    }
+    fade.setValue(0.2)
+    Animated.timing(fade, { toValue: 1, duration: 320, useNativeDriver: true }).start()
+  }, [lang, fade])
+
   return (
     <ScrollLockContext.Provider value={setScrollLocked}>
     <View style={styles.app}>
+      <StatusBar style="light" />
+      <Animated.View style={[styles.fill, { opacity: fade }]}>
       {/* Soft color pools behind the frosted panels so the "glass" has something to reveal. */}
       <View pointerEvents="none" style={styles.glowA} />
       <View pointerEvents="none" style={styles.glowB} />
-      <StatusBar style="light" />
       {/* Shared top bar: back button (top-left) + kana chart button — only during a learn/practice session. */}
       <View style={[styles.topRow, { paddingTop: insets.top + 4 }]}>
         {header.back ? <BackButton onPress={header.back} /> : <View style={styles.topSpacer} />}
@@ -140,15 +159,16 @@ function Shell() {
           )
         })}
       </View>
+      </Animated.View>
     </View>
     </ScrollLockContext.Provider>
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   app: { flex: 1, backgroundColor: colors.bg, overflow: 'hidden' },
-  glowA: { position: 'absolute', top: -130, left: -90, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(227,152,221,0.11)' },
-  glowB: { position: 'absolute', bottom: -70, right: -110, width: 340, height: 340, borderRadius: 170, backgroundColor: 'rgba(138,172,171,0.08)' },
+  glowA: { position: 'absolute', top: -130, left: -90, width: 360, height: 360, borderRadius: 180, backgroundColor: colors.glow1 },
+  glowB: { position: 'absolute', bottom: -70, right: -110, width: 340, height: 340, borderRadius: 170, backgroundColor: colors.glow2 },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

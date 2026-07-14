@@ -10,7 +10,8 @@ import {
   type GestureResponderEvent,
 } from 'react-native'
 import { useOverlay } from './Overlay'
-import { colors, fonts } from '../theme'
+import { fonts, type Palette } from '../theme'
+import { useStyles } from '../hooks/theme'
 
 // RN counterpart of the web HoverGloss: press-and-hold a word to reveal its gloss in a bubble above
 // the finger (hover doesn't exist on touch). Glossable words are pressable BLOCKS, not inline text.
@@ -61,6 +62,7 @@ export function GlossOverlay({
 }
 
 function GlossBubble({ text, x, y }: { text: string; x: number; y: number }) {
+  const styles = useStyles(makeStyles)
   const screen = Dimensions.get('window')
   const maxW = Math.min(240, screen.width - 24)
   const left = Math.max(12, Math.min(x - maxW / 2, screen.width - maxW - 12))
@@ -72,7 +74,7 @@ function GlossBubble({ text, x, y }: { text: string; x: number; y: number }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   bubble: {
     position: 'absolute',
     backgroundColor: colors.ink,

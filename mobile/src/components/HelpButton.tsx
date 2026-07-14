@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
 import { useLanguage } from '../context/LanguageContext'
 import { Icon } from './Icon'
-import { colors, fonts, radius } from '../theme'
+import { fonts, radius, type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 /** "?" button: hold it to reveal the active language's script reference, release to hide it. */
 export function HelpButton() {
   const [open, setOpen] = useState(false)
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const { reference } = useLanguage()
   if (!reference) return null // a language with no script chart hides the help button
   const { title, Chart } = reference
@@ -41,17 +44,17 @@ export function HelpButton() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   helpBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: 'rgba(0,0,0,0.35)' },
   card: {
-    backgroundColor: '#4d4152',
-    borderColor: '#6b5a70',
+    backgroundColor: colors.overlay,
+    borderColor: colors.overlayEdge,
     borderWidth: 1,
     borderRadius: radius.lg,
-    padding: 14,
+    padding: 12,
     maxWidth: 560,
-    maxHeight: '86%',
+    maxHeight: '92%',
     width: '100%',
   },
   hint: { position: 'absolute', top: 8, right: 12, fontSize: 10, color: colors.muted, fontFamily: fonts.body, zIndex: 1 },

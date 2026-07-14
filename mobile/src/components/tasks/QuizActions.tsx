@@ -1,7 +1,8 @@
 import { type ReactNode } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { Icon } from '../Icon'
-import { colors } from '../../theme'
+import { type Palette } from '../../theme'
+import { useColors, useStyles } from '../../hooks/theme'
 
 interface Props {
   answered: boolean
@@ -14,6 +15,8 @@ interface Props {
 
 /** Shared quiz footer: check button + continue chevron (keyboard shortcuts dropped on mobile). */
 export function QuizActions({ answered, canCheck, onCheck, onContinue, leftExtra }: Props) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   return (
     <View style={styles.row}>
       <View style={styles.left}>{leftExtra}</View>
@@ -39,7 +42,7 @@ export function QuizActions({ answered, canCheck, onCheck, onContinue, leftExtra
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
   left: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   right: { flexDirection: 'row', gap: 10 },

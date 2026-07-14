@@ -3,11 +3,14 @@ import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useAuth } from '../context/AuthContext'
 import { useSync } from '../context/SyncContext'
 import { Icon } from './Icon'
-import { colors, fonts, radius, shadow, spacing } from '../theme'
+import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 /** Settings card: optional cloud login (emailed code) that backs up and syncs progress. */
 export function AccountSettings() {
   const { configured, loading, session, email, sendCode, verifyCode, signOut } = useAuth()
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
 
   if (!configured) {
     return (
@@ -40,6 +43,8 @@ export function AccountSettings() {
 }
 
 function SignedIn({ email, onSignOut }: { email: string | null; onSignOut: () => Promise<void> }) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const { state, error } = useSync()
   const status = {
     syncing: { icon: 'spinner' as const, text: 'Syncing…' },
@@ -74,6 +79,8 @@ function SignedOut({
   sendCode: (email: string) => Promise<void>
   verifyCode: (email: string, code: string) => Promise<void>
 }) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const [stage, setStage] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -158,7 +165,7 @@ function SignedOut({
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: spacing.md },
   muted: { color: colors.muted, fontFamily: fonts.body, fontSize: 13, lineHeight: 19 },

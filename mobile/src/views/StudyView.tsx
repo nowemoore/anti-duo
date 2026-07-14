@@ -4,13 +4,15 @@ import type { Unit } from '@shared/types'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { Bilingual } from '../components/Bilingual'
+import { LanguageToggle } from '../components/LanguageToggle'
 import { Icon } from '../components/Icon'
 import { FadeView } from '../components/FadeView'
 import { LearnPhase } from '../components/LearnPhase'
 import { PracticeSession } from '../components/PracticeSession'
 import { useScreenHeader } from '../context/HeaderContext'
 import { useLanguage } from '../context/LanguageContext'
-import { colors, fonts, radius, shadow, spacing } from '../theme'
+import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 import {
   applyLearned,
   introducedUnits,
@@ -23,6 +25,7 @@ import {
 type Phase = 'home' | 'menu' | 'learn' | 'practice' | 'review'
 
 export function StudyView() {
+  const styles = useStyles(makeStyles)
   const index = useContent()
   const { progress, update } = useProgress()
   const { draw } = useLanguage()
@@ -95,6 +98,8 @@ export function StudyView() {
 
 /** Welcome screen: greeting + the "Learn" entry card (with progress) + a stubbed grammar card. */
 function StudyHome({ onOpen }: { onOpen: () => void }) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const index = useContent()
   const { progress } = useProgress()
   const { ui } = useLanguage()
@@ -109,10 +114,13 @@ function StudyHome({ onOpen }: { onOpen: () => void }) {
 
   return (
     <View style={styles.home}>
-      <Bilingual native={greeting.native} en={greeting.en} large />
+      <LanguageToggle />
 
-      <View style={styles.cardsCol}>
-        <Pressable style={styles.entryCard} onPress={onOpen}>
+      <View style={styles.homeCenter}>
+        <Bilingual native={greeting.native} en={greeting.en} large />
+
+        <View style={styles.cardsCol}>
+          <Pressable style={styles.entryCard} onPress={onOpen}>
           <View style={styles.iconCircle}>
             <Icon name="pen-nib" size={22} color={colors.onAccent} />
           </View>
@@ -130,6 +138,7 @@ function StudyHome({ onOpen }: { onOpen: () => void }) {
           <Bilingual native={ui.grammarEntry.native} en={ui.grammarEntry.en} />
           <Text style={styles.entrySub}>coming soon</Text>
         </View>
+        </View>
       </View>
     </View>
   )
@@ -145,6 +154,7 @@ function StudyMenu({
   onLearn: () => void
   onPractice: () => void
 }) {
+  const styles = useStyles(makeStyles)
   const index = useContent()
   const { progress } = useProgress()
   const { ui } = useLanguage()
@@ -204,6 +214,8 @@ function ChoiceCard({
   disabled?: boolean
   onPress: () => void
 }) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   return (
     <Pressable
       style={[styles.choice, disabled && styles.choiceDisabled]}
@@ -219,7 +231,7 @@ function ChoiceCard({
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   fill: { flex: 1 },
   menuWrap: { flex: 1, justifyContent: 'center' },
   // Faint section header over the Learn/Practice cards.
@@ -232,7 +244,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     fontVariant: ['tabular-nums'],
   },
-  home: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, width: '100%' },
+  // Language toggle pinned near the top; greeting + entry cards stay vertically centered below it.
+  home: { flex: 1, alignItems: 'center', width: '100%', paddingTop: spacing.md, gap: spacing.lg },
+  homeCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, width: '100%' },
   cardsCol: { alignSelf: 'stretch', gap: spacing.md },
   entryCard: {
     ...shadow,

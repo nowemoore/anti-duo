@@ -10,6 +10,7 @@ export type TaskType =
   | 'type-word'
   | 'which-words'
   | 'cloze'
+  | 'root-cloze'
   | 'pick-reading'
   | 'pick-meaning'
   | 'draw'
@@ -50,6 +51,8 @@ export interface TypeWordTask {
   word: string
   meaning: string
   reading: string
+  /** Extra answers graded as correct (e.g. Arabic spelling variants from `word.extra.accept`). */
+  accept?: string[]
 }
 
 export interface WhichWordsOption {
@@ -74,15 +77,16 @@ export const WHICH_WORDS_POINT = 0.25
 
 /**
  * T3a/b/c: a sentence with one focused word token + single-choice options.
- * - cloze: hide the target kanji char (`blankChar`) in the word; options are kanji chars.
+ * - cloze: hide the target unit char (`blankChar`) in the word; options are unit forms.
+ * - root-cloze: hide the whole focus word; options are unit forms (which root fills the slot?).
  * - pick-reading / pick-meaning: highlight the word; options are readings / meanings.
  */
 export interface ChoiceTask {
-  kind: 'cloze' | 'pick-reading' | 'pick-meaning'
+  kind: 'cloze' | 'root-cloze' | 'pick-reading' | 'pick-meaning'
   targetIdx: number
   sentence: Sentence
   tokenIndex: number
-  /** Cloze only: the kanji char to blank out in the focus word. */
+  /** Cloze only: the unit char to blank out in the focus word (root-cloze blanks the whole word). */
   blankChar?: string
   options: Option[]
 }
@@ -182,12 +186,16 @@ function findFocusToken(
 function buildTypeWord(target: Unit): TypeWordTask | null {
   if (target.examples.length === 0) return null
   const ex = pick(target.examples)
+  const accept = Array.isArray(ex.extra?.accept)
+    ? (ex.extra.accept as unknown[]).filter((a): a is string => typeof a === 'string')
+    : undefined
   return {
     kind: 'type-word',
     targetIdx: target.idx,
     word: ex.word,
     meaning: ex.meaning,
     reading: ex.reading,
+    ...(accept?.length ? { accept } : {}),
   }
 }
 
@@ -220,16 +228,13 @@ function buildWhichWords(target: Unit): WhichWordsTask | null {
   }
 }
 
-/** Cloze: blank the target kanji char in a word; options are kanji chars. */
-function buildCloze(target: Unit, index: ContentIndex, studySet: number[]): ChoiceTask | null {
-  const focus = findFocusToken(target, index)
-  if (!focus) return null
-
+/** Option set for a cloze/root-cloze: the target's form as answer, other unit forms as distractors. */
+function formOptions(target: Unit, index: ContentIndex, studySet: number[]): Option[] | null {
   const correct = target.form
   const used = new Set<string>([correct])
   const distractors: string[] = []
 
-  // Prefer kanji from the current study set, then fall back to random of the 100.
+  // Prefer forms from the current study set, then fall back to random across the curriculum.
   const fromStudy = shuffle(
     studySet.map((i) => index.byIdx.get(i)?.form).filter((c): c is string => Boolean(c)),
   )
@@ -243,16 +248,43 @@ function buildCloze(target: Unit, index: ContentIndex, studySet: number[]): Choi
   }
   if (distractors.length < CLOZE_OPTIONS - 1) return null
 
-  const options = shuffle([
+  return shuffle([
     { label: correct, correct: true },
     ...distractors.map((label) => ({ label, correct: false })),
   ])
+}
+
+/** Cloze: blank the target unit char in a word; options are unit forms (JA: single kanji). */
+function buildCloze(target: Unit, index: ContentIndex, studySet: number[]): ChoiceTask | null {
+  const focus = findFocusToken(target, index)
+  if (!focus) return null
+  const options = formOptions(target, index, studySet)
+  if (!options) return null
   return {
     kind: 'cloze',
     targetIdx: target.idx,
     sentence: focus.sentence,
     tokenIndex: focus.tokenIndex,
-    blankChar: correct,
+    blankChar: target.form,
+    options,
+  }
+}
+
+/**
+ * Root-cloze: blank the *whole* focus word in a sentence and ask which unit form (root) fills it.
+ * Fits languages whose unit isn't a contiguous glyph in the surface (Arabic's non-adjacent root
+ * consonants), where the single-char blank of {@link buildCloze} doesn't apply.
+ */
+function buildRootCloze(target: Unit, index: ContentIndex, studySet: number[]): ChoiceTask | null {
+  const focus = findFocusToken(target, index)
+  if (!focus) return null
+  const options = formOptions(target, index, studySet)
+  if (!options) return null
+  return {
+    kind: 'root-cloze',
+    targetIdx: target.idx,
+    sentence: focus.sentence,
+    tokenIndex: focus.tokenIndex,
     options,
   }
 }
@@ -362,6 +394,8 @@ export const TASK_SPECS: TaskSpec[] = [
   spec('type-word', 'Type the reading', { weight: 1, pointsUp: 0.8, pointsDown: 0.4 }, (t) => buildTypeWord(t)),
   spec('which-words', 'Which words are real', { weight: 1, pointsUp: 0.5, pointsDown: 0.5 }, (t) => buildWhichWords(t)),
   spec('cloze', 'Fill in the blank', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i, c) => buildCloze(t, i, c.studySet ?? [])),
+  // Opt-in: languages whose unit isn't a contiguous glyph (Arabic roots) offer this instead of cloze.
+  spec('root-cloze', 'Fill in the root', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i, c) => buildRootCloze(t, i, c.studySet ?? []), true),
   spec('pick-reading', 'Pick the reading', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i) => buildPick('pick-reading', t, i)),
   spec('pick-meaning', 'Pick the meaning', { weight: 1, pointsUp: 0.5, pointsDown: 0.5 }, (t, i) => buildPick('pick-meaning', t, i)),
   // Drawing is the hardest task: reward it strongly when right, penalize a miss only lightly.
@@ -439,8 +473,19 @@ export function normalizeKana(s: string): string {
   return s.trim().replace(/\s+/g, '')
 }
 
-export function checkTypeWord(task: TypeWordTask, input: string): boolean {
-  return normalizeKana(input) === normalizeKana(task.reading)
+/**
+ * Grade a typed answer against the reading and any accepted alternates. `normalize` is the language's
+ * canonicaliser (JA: identity — input is already kana; AR: strip harakat so voweled ≡ bare), applied
+ * to both sides before comparison.
+ */
+export function checkTypeWord(
+  task: TypeWordTask,
+  input: string,
+  normalize: (s: string) => string = (s) => s,
+): boolean {
+  const norm = (s: string) => normalizeKana(normalize(s))
+  const target = norm(input)
+  return [task.reading, ...(task.accept ?? [])].some((a) => norm(a) === target)
 }
 
 /** All options matched (real selected, fake unselected). */

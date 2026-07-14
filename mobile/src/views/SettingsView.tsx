@@ -8,9 +8,12 @@ import { CategorySettings } from '../components/CategorySettings'
 import { TaskFrequencySettings } from '../components/TaskFrequencySettings'
 import { ManualView } from './ManualView'
 import { Icon } from '../components/Icon'
-import { colors, fonts, radius, shadow, spacing } from '../theme'
+import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 export function SettingsView() {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
   const { progress, update, saving } = useProgress()
   const { ui } = useLanguage()
   const [manualOpen, setManualOpen] = useState(false)
@@ -87,7 +90,7 @@ export function SettingsView() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: spacing.md },
   fieldLabel: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 14, marginBottom: 6 },

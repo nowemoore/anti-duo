@@ -19,9 +19,13 @@ for (const [from, to] of dirs) {
 }
 
 fs.mkdirSync(path.join(mobileRoot, 'assets'), { recursive: true })
-fs.copyFileSync(
-  path.join(repoRoot, 'public', 'content.json'),
-  path.join(mobileRoot, 'assets', 'content.json'),
-)
+// Per-language payloads: the web app reads public/content.json (JA); mobile bundles one per language.
+const contentFiles = [
+  ['content.json', 'content.ja.json'],
+  ['content.ar.json', 'content.ar.json'],
+]
+for (const [from, to] of contentFiles) {
+  fs.copyFileSync(path.join(repoRoot, 'public', from), path.join(mobileRoot, 'assets', to))
+}
 
-console.log('[sync-shared] vendored shared/ + src/lib + content.json into mobile/')
+console.log('[sync-shared] vendored shared/ + src/lib + content.{ja,ar}.json into mobile/')

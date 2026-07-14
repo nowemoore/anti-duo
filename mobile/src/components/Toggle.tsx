@@ -1,5 +1,6 @@
 import { Pressable, View, StyleSheet } from 'react-native'
-import { colors } from '../theme'
+import { type Palette } from '../theme'
+import { useStyles } from '../hooks/theme'
 
 /** A small slider switch (align the knob to start/end instead of translate math). */
 export function Toggle({
@@ -15,6 +16,7 @@ export function Toggle({
   small?: boolean
   label?: string
 }) {
+  const styles = useStyles(makeStyles)
   return (
     <Pressable
       accessibilityRole="switch"
@@ -35,7 +37,7 @@ export function Toggle({
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   track: { width: 44, height: 26, borderRadius: 13, backgroundColor: colors.border, padding: 3, justifyContent: 'center' },
   trackSmall: { width: 40, height: 23, borderRadius: 12 },
   on: { backgroundColor: colors.accent },

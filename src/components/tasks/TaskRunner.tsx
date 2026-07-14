@@ -18,7 +18,8 @@ export function TaskRunner({ task, onResult }: Props) {
       return <WhichWordsTaskView task={task} onResult={onResult} />
     case 'draw':
     case 'plural':
-      // Draw (needs a canvas) + plural (opt-in, no data here) are never generated in the web build.
+    case 'root-cloze':
+      // Draw (needs a canvas) + plural/root-cloze (opt-in, no data here) never occur in the web build.
       return null
     default:
       return <ChoiceTaskView task={task} onResult={onResult} />
