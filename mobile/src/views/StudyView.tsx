@@ -114,13 +114,15 @@ function StudyHome({ onOpen }: { onOpen: () => void }) {
 
   return (
     <View style={styles.home}>
+      {/* Language switch pinned to the very top; the greeting floats in the space below it. */}
       <LanguageToggle />
 
-      <View style={styles.homeCenter}>
+      <View style={styles.greetingWrap}>
         <Bilingual native={greeting.native} en={greeting.en} large />
+      </View>
 
-        <View style={styles.cardsCol}>
-          <Pressable style={styles.entryCard} onPress={onOpen}>
+      <View style={styles.cardsCol}>
+        <Pressable style={styles.entryCard} onPress={onOpen}>
           <View style={styles.iconCircle}>
             <Icon name="pen-nib" size={22} color={colors.onAccent} />
           </View>
@@ -137,7 +139,6 @@ function StudyHome({ onOpen }: { onOpen: () => void }) {
           </View>
           <Bilingual native={ui.grammarEntry.native} en={ui.grammarEntry.en} />
           <Text style={styles.entrySub}>coming soon</Text>
-        </View>
         </View>
       </View>
     </View>
@@ -244,10 +245,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginBottom: spacing.lg,
     fontVariant: ['tabular-nums'],
   },
-  // Language toggle pinned near the top; greeting + entry cards stay vertically centered below it.
-  home: { flex: 1, alignItems: 'center', width: '100%', paddingTop: spacing.md, gap: spacing.lg },
-  homeCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, width: '100%' },
-  cardsCol: { alignSelf: 'stretch', gap: spacing.md },
+  // Language toggle sits flush at the very top; the greeting centres in the gap between it and the cards.
+  home: { flex: 1, alignItems: 'center', width: '100%' },
+  greetingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' },
+  cardsCol: { alignSelf: 'stretch', gap: spacing.md, paddingBottom: spacing.md },
   entryCard: {
     ...shadow,
     alignSelf: 'stretch',

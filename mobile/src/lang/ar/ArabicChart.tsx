@@ -47,13 +47,20 @@ const LONG: [string, string, string][] = [
   [CARRIER + KASRA + 'ي', 'ī', 'yāʾ'],
 ]
 
-// Positional forms via the zero-width joiner: a following joiner → initial (beginning), joiners on both
-// sides → medial (middle), a preceding joiner → final (end). Non-joining letters (ا د ذ ر ز و) can't
-// connect on their left, so their beginning/middle render isolated — which is the correct behaviour.
-const ZWJ = '‍'
-const beginning = (x: string) => x + ZWJ
-const middle = (x: string) => ZWJ + x + ZWJ
-const end = (x: string) => ZWJ + x
+// Positional forms drawn with a tatweel (kashida) — a VISIBLE connecting stroke — so beginning/middle/
+// end are actually distinguishable. (A zero-width joiner also yields the right shapes, but the join is
+// invisible, which makes the initial and medial forms look identical.)
+//
+// Six letters never connect to the FOLLOWING letter: ا د ذ ر ز و. They only join backwards, so a
+// trailing tatweel would draw a bogus floating dash. For them the beginning form is just the isolated
+// letter, and the middle form is the same as the end — which is exactly how they behave in a word.
+const TATWEEL = 'ـ'
+const NON_JOINERS = new Set(['ا', 'د', 'ذ', 'ر', 'ز', 'و'])
+const joinsForward = (x: string) => !NON_JOINERS.has(x)
+
+const beginning = (x: string) => (joinsForward(x) ? x + TATWEEL : x)
+const middle = (x: string) => (joinsForward(x) ? TATWEEL + x + TATWEEL : TATWEEL + x)
+const end = (x: string) => TATWEEL + x
 
 /** One consonant as a table-like card: fixed columns (glyph · translit | beginning · middle · end). */
 function ConsonantCard({ glyph, tr }: { glyph: string; tr: string }) {
@@ -150,11 +157,11 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   cDiv: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: colors.border, marginHorizontal: 2 },
   cForm: { width: 23, textAlign: 'center', fontSize: 14, color: colors.ink, lineHeight: 22 },
 
-  // Vowels/marks: compact cards; long + short vowel groups share a row.
-  vowelRow: { flexDirection: 'row', gap: 14 },
+  // Vowels/marks: compact cards; long + short vowel groups share a row, so keep them tight enough to fit.
+  vowelRow: { flexDirection: 'row', gap: 10 },
   vowelGroup: { gap: 3 },
-  vrow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
-  vCard: { ...card(colors), alignItems: 'center', paddingVertical: 2, paddingHorizontal: 8, minWidth: 50 },
-  vGlyph: { fontSize: 18, color: colors.ink, lineHeight: 26 },
-  vSub: { fontSize: 8, color: colors.muted, fontFamily: fonts.body },
+  vrow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  vCard: { ...card(colors), alignItems: 'center', paddingVertical: 2, paddingHorizontal: 4, minWidth: 42 },
+  vGlyph: { fontSize: 16, color: colors.ink, lineHeight: 22 },
+  vSub: { fontSize: 7, color: colors.muted, fontFamily: fonts.body },
 })

@@ -12,6 +12,12 @@ const ROOT = new URL('../', import.meta.url)
 
 /** How many synthesized distractor words to attach to each root (for the which-words task). */
 const DISTRACTORS_PER_UNIT = 6
+/**
+ * Words released together. The source CSV's batch1/2/3 columns are uneven (batch1 usually holds 5), so
+ * we re-chunk each root's words — in their authored order — into consecutive groups of this size. The
+ * app then releases one group at a time as the learner levels the root up (see tasks.ts batchesUnlocked).
+ */
+const WORDS_PER_BATCH = 4
 /** Roots per difficulty batch — derived from teaching order (idx) since the CSV has no batch column. */
 const ROOTS_PER_BATCH = 20
 /** Every root lands in one topical group (the AR data carries no category column). */
@@ -95,15 +101,17 @@ function parseRootRow(row: Record<string, string>): Unit {
   const where = `root idx=${idx}`
   const form = row.root_ar?.trim()
   if (!form) throw new ContentError(`Empty root_ar at ${where}`)
-  const examples: Word[] = []
+  // Read the authored words in order, then re-chunk them into batches of WORDS_PER_BATCH (the CSV's own
+  // batch columns are uneven — batch1 usually holds 5). No words are dropped; only the grouping changes.
+  const raw: RawArWord[] = []
   for (const [tier, col] of [
     [1, row.batch1],
     [2, row.batch2],
     [3, row.batch3],
   ] as const) {
-    const words = parseJsonField<RawArWord[]>(col || '[]', `${where}.batch${tier}`)
-    for (const w of words) examples.push(toWord(w, tier))
+    raw.push(...parseJsonField<RawArWord[]>(col || '[]', `${where}.batch${tier}`))
   }
+  const examples: Word[] = raw.map((w, i) => toWord(w, Math.floor(i / WORDS_PER_BATCH) + 1))
   if (examples.length === 0) throw new ContentError(`No examples at ${where}`)
   const extra: Record<string, unknown> = {}
   if (row.root_translit?.trim()) extra.translit = row.root_translit.trim()

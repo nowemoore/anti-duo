@@ -65,6 +65,8 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
       taskWeights: progress.settings.taskWeights,
       tasks: pack.tasks, // the active language's task inventory
       canDraw: canDrawWord, // enables 'draw' (mobile-only) for all-learned words
+      // Staged word release: a unit's later word-batches unlock as its level climbs (Arabic).
+      levelOf: (idx) => workingRef.current[idx]?.lvl ?? 0,
     })
     if (!task) return null
     const ui = getTaskUI(task.kind, pack)

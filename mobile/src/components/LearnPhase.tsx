@@ -3,7 +3,9 @@ import { View, Text, Pressable, ScrollView, StyleSheet, PanResponder, Animated, 
 import type { Unit } from '@shared/types'
 import { SKIP_REQUEUE_GAP } from '@shared/constants'
 import { skipCard } from '@lib/study'
+import { releasedExamples } from '@lib/tasks'
 import { useContent } from '../context/ContentContext'
+import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
 import { Bilingual } from './Bilingual'
 import { Icon } from './Icon'
@@ -161,11 +163,17 @@ function LearnCard({ unit }: { unit: Unit }) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const { content } = useContent()
+  const { progress } = useProgress()
   const pack = useLanguage()
   const charGloss = (ch: string) => pack.charGloss?.(content, ch)
   const DetailView = pack.detail?.View
   const hasReveal = pack.detail ? pack.detail.has(content, unit) : false
   const [expanded, setExpanded] = useState(false)
+
+  // Staged word release: show only the batch this unit has unlocked (Arabic ≤4). Languages that don't
+  // stage their words (Japanese) get every example, exactly as before.
+  const lvl = progress.units[unit.idx]?.lvl ?? 0
+  const examples = releasedExamples(unit, { levelOf: () => lvl })
 
   const toggle = () => setExpanded((v) => !v)
 
@@ -200,7 +208,7 @@ function LearnCard({ unit }: { unit: Unit }) {
 
       {/* minHeight reserves 5 rows so the card is the same height regardless of example count. */}
       <View style={styles.examples}>
-        {unit.examples.slice(0, 5).map((ex, idx) => {
+        {examples.slice(0, 5).map((ex, idx) => {
           const wordKey = `w:${idx}`
           const wordOn = caption?.key === wordKey
           return (

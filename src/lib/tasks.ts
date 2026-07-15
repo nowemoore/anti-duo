@@ -1,4 +1,4 @@
-import type { Unit, Sentence, WordToken } from '../../shared/types'
+import type { Unit, Word, Sentence, WordToken } from '../../shared/types'
 import type { ContentIndex } from './content'
 import { pick, sample, shuffle } from './random'
 
@@ -37,6 +37,37 @@ export interface TaskContext {
    * the web app never produces a draw task it can't render.
    */
   canDraw?: (word: string) => boolean
+  /**
+   * The learner's current level for a unit. Languages that stage their example words (Arabic tags each
+   * with `extra.batch`) use it to release one batch at a time. Omit it and every example is available.
+   */
+  levelOf?: (targetIdx: number) => number
+}
+
+// ---------------------------------------------------------------------------
+// Staged word release (languages whose content tags words with `extra.batch`)
+// ---------------------------------------------------------------------------
+
+/** Levels of practice between each further batch of a unit's words being released. */
+export const BATCH_UNLOCK_EVERY = 3
+
+/** How many of a unit's word-batches are released at `lvl` (1 = only the first batch). */
+export function batchesUnlocked(lvl: number): number {
+  return 1 + Math.max(0, Math.floor((lvl - 1) / BATCH_UNLOCK_EVERY))
+}
+
+/**
+ * The example words currently released for a unit. Arabic stages its words (`extra.batch`), so a root
+ * starts with its first batch and reveals the next as it's levelled up. Japanese doesn't stage words,
+ * and callers with no level info (tests, the web demo) get every example — so this is a no-op there.
+ */
+export function releasedExamples(target: Unit, ctx: TaskContext = {}): Word[] {
+  const staged = target.examples.some((e) => typeof e.extra?.batch === 'number')
+  if (!staged || !ctx.levelOf) return target.examples
+  const unlocked = batchesUnlocked(ctx.levelOf(target.idx))
+  const out = target.examples.filter((e) => ((e.extra?.batch as number) ?? 1) <= unlocked)
+  // Never strand a unit with nothing to practise.
+  return out.length ? out : target.examples.slice(0, 1)
 }
 
 export interface Option {
@@ -183,9 +214,10 @@ function findFocusToken(
 // Generators (return null when the target lacks the data for that task)
 // ---------------------------------------------------------------------------
 
-function buildTypeWord(target: Unit): TypeWordTask | null {
-  if (target.examples.length === 0) return null
-  const ex = pick(target.examples)
+function buildTypeWord(target: Unit, ctx: TaskContext): TypeWordTask | null {
+  const examples = releasedExamples(target, ctx)
+  if (examples.length === 0) return null
+  const ex = pick(examples)
   const accept = Array.isArray(ex.extra?.accept)
     ? (ex.extra.accept as unknown[]).filter((a): a is string => typeof a === 'string')
     : undefined
@@ -199,15 +231,16 @@ function buildTypeWord(target: Unit): TypeWordTask | null {
   }
 }
 
-function buildWhichWords(target: Unit): WhichWordsTask | null {
+function buildWhichWords(target: Unit, ctx: TaskContext): WhichWordsTask | null {
+  const examples = releasedExamples(target, ctx)
   // Exactly WHICH_WORDS_OPTIONS options with ≥1 real and ≥1 fake.
-  const maxReal = Math.min(WHICH_WORDS_OPTIONS - 1, target.examples.length)
+  const maxReal = Math.min(WHICH_WORDS_OPTIONS - 1, examples.length)
   const minReal = Math.max(1, WHICH_WORDS_OPTIONS - target.distractors.length)
   if (minReal > maxReal) return null
   const realN = minReal + Math.floor(Math.random() * (maxReal - minReal + 1))
   const fakeN = WHICH_WORDS_OPTIONS - realN
 
-  const reals = sample(target.examples, realN).map((e) => ({
+  const reals = sample(examples, realN).map((e) => ({
     word: e.word,
     reading: e.reading,
     meaning: e.meaning,
@@ -334,8 +367,8 @@ function buildDraw(target: Unit, ctx: TaskContext): DrawTask | null {
  * (`word.extra.plural`) gets this — the engine stays language-blind. Japanese tags none, so this
  * yields null and the task never appears. Broken plurals (Arabic) are the motivating case.
  */
-function buildPlural(target: Unit, index: ContentIndex): Task | null {
-  const withPlural = target.examples.filter((e) => typeof e.extra?.plural === 'string')
+function buildPlural(target: Unit, index: ContentIndex, ctx: TaskContext): Task | null {
+  const withPlural = releasedExamples(target, ctx).filter((e) => typeof e.extra?.plural === 'string')
   if (!withPlural.length) return null
   const ex = pick(withPlural)
   const correct = ex.extra!.plural as string
@@ -391,8 +424,8 @@ function spec(
 }
 
 export const TASK_SPECS: TaskSpec[] = [
-  spec('type-word', 'Type the reading', { weight: 1, pointsUp: 0.8, pointsDown: 0.4 }, (t) => buildTypeWord(t)),
-  spec('which-words', 'Which words are real', { weight: 1, pointsUp: 0.5, pointsDown: 0.5 }, (t) => buildWhichWords(t)),
+  spec('type-word', 'Type the reading', { weight: 1, pointsUp: 0.8, pointsDown: 0.4 }, (t, _i, c) => buildTypeWord(t, c)),
+  spec('which-words', 'Which words are real', { weight: 1, pointsUp: 0.5, pointsDown: 0.5 }, (t, _i, c) => buildWhichWords(t, c)),
   spec('cloze', 'Fill in the blank', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i, c) => buildCloze(t, i, c.studySet ?? [])),
   // Opt-in: languages whose unit isn't a contiguous glyph (Arabic roots) offer this instead of cloze.
   spec('root-cloze', 'Fill in the root', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i, c) => buildRootCloze(t, i, c.studySet ?? []), true),
@@ -401,7 +434,7 @@ export const TASK_SPECS: TaskSpec[] = [
   // Drawing is the hardest task: reward it strongly when right, penalize a miss only lightly.
   spec('draw', 'Draw the word', { weight: 1, pointsUp: 1, pointsDown: 0.2 }, (t, _i, c) => buildDraw(t, c)),
   // Opt-in + data-driven: only languages whose content tags plurals (word.extra.plural) offer it.
-  spec('plural', 'Pick the plural', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i) => buildPlural(t, i), true),
+  spec('plural', 'Pick the plural', { weight: 1, pointsUp: 0.7, pointsDown: 0.7 }, (t, i, c) => buildPlural(t, i, c), true),
 ]
 
 const SPEC_BY_KIND: Record<string, TaskSpec> = Object.fromEntries(TASK_SPECS.map((s) => [s.kind, s]))
