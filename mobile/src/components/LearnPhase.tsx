@@ -254,10 +254,17 @@ function LearnCard({ unit }: { unit: Unit }) {
             <Text style={styles.captionLabel}>{caption.label}</Text>
             {`  ·  ${caption.meaning}`}
           </Text>
-        ) : (
+        ) : pack.charGloss ? (
           <Text style={styles.captionHint} numberOfLines={2}>
             Hold a {pack.ui.noun} or the eye button to reveal its meaning here
           </Text>
+        ) : (
+          // Languages with no per-character gloss (Arabic): the eye button is the only way to reveal.
+          <View style={styles.captionHintRow}>
+            <Text style={styles.captionHint}>hold </Text>
+            <Icon name="eye" size={12} color={colors.onChipMuted} />
+            <Text style={styles.captionHint}> to reveal the meaning</Text>
+          </View>
         )}
       </View>
     </View>
@@ -422,6 +429,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   captionText: { color: colors.onChip, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
   captionLabel: { color: colors.onChipAccent, fontFamily: fonts.semibold, fontSize: 16 },
   captionHint: { color: colors.onChipMuted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
+  captionHintRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   pager: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.lg },
   chevron: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   chevBack: { borderWidth: 1.5, borderColor: colors.border },

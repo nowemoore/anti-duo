@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { MiniSlider } from './MiniSlider'
 import { useProgress } from '../context/ProgressContext'
-import { ALL_TASK_TYPES, TASK_TUNING, type TaskType } from '@lib/tasks'
+import { useLanguage } from '../context/LanguageContext'
+import { TASK_TUNING, type TaskType } from '@lib/tasks'
 import { TASK_LABELS } from '@lib/stats'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useStyles } from '../hooks/theme'
@@ -10,12 +11,14 @@ import { useStyles } from '../hooks/theme'
 /** Settings section: adjust how often each practice task type appears (its selection weight). */
 export function TaskFrequencySettings() {
   const styles = useStyles(makeStyles)
+  // The active language's own task inventory (so opt-in tasks like plural / root-cloze appear too).
+  const { tasks } = useLanguage()
   return (
     <View style={styles.panel}>
       <Text style={styles.h2}>Practice mix</Text>
       <Text style={styles.muted}>How often each question type shows up in practice. Slide one to 0 to turn it off.</Text>
       <View style={styles.list}>
-        {ALL_TASK_TYPES.map((t) => (
+        {tasks.map((t) => (
           <FreqRow key={t} type={t} />
         ))}
       </View>

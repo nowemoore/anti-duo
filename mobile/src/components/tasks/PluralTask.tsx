@@ -7,21 +7,34 @@ import { fonts, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 /**
- * Pick-the-plural: shows the singular word (+ its reading as a transliteration aid), choose the plural.
- * Language-agnostic — every language whose content carries plural data reuses this exact view.
+ * Singular ↔ plural: two lines — "1 [singular]" and "multiple [plural]" — with one form blanked out.
+ * Choose the missing one. Language-agnostic; every language whose content tags plurals reuses this view.
  */
 function PluralView({ task, answer, setAnswer, phase }: TaskViewProps<PluralTask, number | null>) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const revealed = phase === 'revealed'
+
+  // A count-label + the word (or a blank, if this is the line being asked about; filled once revealed).
+  const line = (count: string, form: string, blanked: boolean) => (
+    <View style={styles.line}>
+      <Text style={styles.count}>{count}</Text>
+      {blanked && !revealed ? (
+        <View style={styles.blank} />
+      ) : (
+        <VoweledText text={form} style={[styles.form, blanked && styles.formAnswer]} />
+      )}
+    </View>
+  )
+
   return (
     <View style={styles.root}>
       <View style={styles.prompt}>
-        <Text style={styles.word}>{task.word}</Text>
-        {task.reading ? <VoweledText text={task.reading} style={styles.reading} /> : null}
+        {line('1', task.singular, task.ask === 'singular')}
+        {line('multiple', task.plural, task.ask === 'plural')}
         <View style={styles.metaRow}>
           <Text style={styles.meaning}>{task.meaning}</Text>
-          <SpeakButton text={task.reading || task.word} label={`Play ${task.word}`} small />
+          <SpeakButton text={task.ask === 'plural' ? task.plural : task.singular} label="Play the word" small />
         </View>
       </View>
       <View style={styles.grid}>
@@ -37,7 +50,7 @@ function PluralView({ task, answer, setAnswer, phase }: TaskViewProps<PluralTask
                 : 'idle'
           return (
             <Pressable key={i} disabled={revealed} onPress={() => setAnswer(i)} style={[styles.opt, optStyle(state, colors)]}>
-              <Text style={[styles.optText, optTextStyle(state, colors)]}>{o.label}</Text>
+              <VoweledText text={o.label} style={[styles.optText, optTextStyle(state, colors)]} />
             </Pressable>
           )
         })}
@@ -50,7 +63,7 @@ export const pluralTask: TaskUI<PluralTask, number | null> = {
   emptyAnswer: () => null,
   hasAnswer: (a) => a != null,
   View: PluralView,
-  revealHint: (phase) => (phase === 'revealed' ? 'The plural is highlighted' : 'Pick the plural form'),
+  revealHint: (phase) => (phase === 'revealed' ? 'The missing form is filled in' : 'Pick the missing form'),
   resolve: (task, answer) =>
     answer == null ? { phase: 'retry' } : { phase: 'revealed', score: task.options[answer]?.correct ? 1 : -1 },
 }
@@ -69,10 +82,20 @@ function optTextStyle(state: string, colors: Palette) {
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   root: { width: '100%', alignItems: 'center' },
-  prompt: { alignItems: 'center', gap: 4, marginBottom: 22 },
-  word: { fontSize: 44, color: colors.ink },
-  reading: { fontSize: 16, color: colors.muted, fontFamily: fonts.body }, // transliteration / reading aid
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  prompt: { alignItems: 'center', gap: 10, marginBottom: 24 },
+  // Each line: a small count label on the left, the (large) word or a blank on the right.
+  line: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 46 },
+  count: { width: 76, textAlign: 'right', fontSize: 14, color: colors.muted, fontFamily: fonts.body },
+  form: { fontSize: 34, color: colors.ink },
+  formAnswer: { color: colors.accentInk }, // the revealed answer stands out
+  blank: {
+    width: 96,
+    height: 34,
+    borderBottomWidth: 2,
+    borderColor: colors.accent,
+    borderStyle: 'dashed',
+  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   meaning: { fontSize: 14, color: colors.muted, fontFamily: fonts.body },
   grid: { flexDirection: 'column', gap: 10, alignSelf: 'center', width: '100%', maxWidth: 340 },
   opt: {

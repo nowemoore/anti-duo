@@ -139,13 +139,17 @@ export interface DrawTask {
 /** Max characters in a drawable word (kept short so guided segmentation stays reliable). */
 export const DRAW_MAX_CHARS = 3
 
-/** Pick-the-plural: given a word (singular), choose its plural among distractors. Data-driven. */
+/**
+ * Singular ↔ plural: shows a word's singular and plural (voweled), with one of the two blanked out;
+ * choose the missing form. `ask` says which line is blank (= the answer). Data-driven.
+ */
 export interface PluralTask {
   kind: 'plural'
   targetIdx: number
-  word: string
-  reading: string
+  singular: string
+  plural: string
   meaning: string
+  ask: 'singular' | 'plural'
   options: Option[]
 }
 
@@ -371,17 +375,28 @@ function buildPlural(target: Unit, index: ContentIndex, ctx: TaskContext): Task 
   const withPlural = releasedExamples(target, ctx).filter((e) => typeof e.extra?.plural === 'string')
   if (!withPlural.length) return null
   const ex = pick(withPlural)
-  const correct = ex.extra!.plural as string
+  const voweled = (bare: string, v: unknown) => (typeof v === 'string' ? v : bare)
+  const singular = ex.reading || ex.word
+  const plural = voweled(ex.extra!.plural as string, ex.extra!.pluralVoweled)
+  // Blank either the singular or the plural, and ask for the missing one.
+  const ask: 'singular' | 'plural' = Math.random() < 0.5 ? 'plural' : 'singular'
+  const correct = ask === 'plural' ? plural : singular
+
+  // Distractors are the same kind of form (voweled) drawn from other words.
   const pool = new Set<string>()
   for (const u of index.content.units) {
     for (const w of u.examples) {
-      const p = w.extra?.plural
-      if (typeof p === 'string' && p !== correct) pool.add(p)
+      if (ask === 'plural') {
+        if (typeof w.extra?.plural === 'string') pool.add(voweled(w.extra.plural, w.extra.pluralVoweled))
+      } else {
+        pool.add(w.reading || w.word)
+      }
     }
   }
+  pool.delete(correct)
   const options = makeOptions(correct, [...pool])
   if (!options) return null
-  return { kind: 'plural', targetIdx: target.idx, word: ex.word, reading: ex.reading, meaning: ex.meaning, options }
+  return { kind: 'plural', targetIdx: target.idx, singular, plural, meaning: ex.meaning, ask, options }
 }
 
 // ---------------------------------------------------------------------------
