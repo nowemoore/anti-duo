@@ -3,6 +3,7 @@ import { ALL_TASK_TYPES } from '@lib/tasks'
 import { HiraganaTable } from './HiraganaTable'
 import { drawable } from './handwriting'
 import { DrawReview } from './DrawReview'
+import { DrawPractice } from './DrawPractice'
 import { drawTask } from './DrawTask'
 import type { TaskUI } from '../../components/tasks/types'
 import { Furigana } from './Furigana'
@@ -24,6 +25,7 @@ export const ja: LanguagePack = {
   draw: {
     isDrawable: drawable,
     Review: DrawReview,
+    Practice: DrawPractice,
   },
   taskUIs: { draw: drawTask as unknown as TaskUI },
   Ruby: Furigana, // JA: reading stacked over the word (furigana)

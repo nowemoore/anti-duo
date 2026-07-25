@@ -159,7 +159,9 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
   )
 }
 
-function LearnCard({ unit }: { unit: Unit }) {
+/** A single unit's Learn card — form, glosses, breakdown, example words, hold-to-reveal. Reused by the
+ *  browse-detail screen, so it's exported. Renders standalone from just a `unit`. */
+export function LearnCard({ unit }: { unit: Unit }) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const { content } = useContent()

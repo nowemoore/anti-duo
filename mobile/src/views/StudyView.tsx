@@ -9,6 +9,8 @@ import { Icon } from '../components/Icon'
 import { FadeView } from '../components/FadeView'
 import { LearnPhase } from '../components/LearnPhase'
 import { PracticeSession } from '../components/PracticeSession'
+import { BrowseList } from '../components/BrowseList'
+import { BrowseDetail } from '../components/BrowseDetail'
 import { useScreenHeader } from '../context/HeaderContext'
 import { useLanguage } from '../context/LanguageContext'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
@@ -21,8 +23,8 @@ import {
   unlearnedUnits,
 } from '@lib/study'
 
-// 'home' = welcome; 'menu' = the unit page; then the session phases.
-type Phase = 'home' | 'menu' | 'learn' | 'practice' | 'review'
+// 'home' = welcome; 'menu' = the unit page; 'browse'/'browseDetail' = review studied units; then the sessions.
+type Phase = 'home' | 'menu' | 'learn' | 'practice' | 'review' | 'browse' | 'browseDetail'
 
 export function StudyView() {
   const styles = useStyles(makeStyles)
@@ -33,6 +35,7 @@ export function StudyView() {
   const [chunk, setChunk] = useState<Unit[]>([])
   const [reserve, setReserve] = useState<Unit[]>([])
   const [reviewUnits, setReviewUnits] = useState<Unit[]>([])
+  const [selected, setSelected] = useState<Unit | null>(null)
 
   function startLearn() {
     const { chunk: next, reserve: rest } = nextLearnSession(index, progress)
@@ -79,12 +82,25 @@ export function StudyView() {
         onDone={() => setPhase('menu')}
       />
     ) : null
+  else if (phase === 'browse')
+    content = (
+      <BrowseList
+        onBack={() => setPhase('menu')}
+        onSelect={(u) => {
+          setSelected(u)
+          setPhase('browseDetail')
+        }}
+      />
+    )
+  else if (phase === 'browseDetail' && selected)
+    content = <BrowseDetail unit={selected} onBack={() => setPhase('browse')} />
   else if (phase === 'menu')
     content = (
       <StudyMenu
         onBack={() => setPhase('home')}
         onLearn={startLearn}
         onPractice={() => setPhase('practice')}
+        onBrowse={() => setPhase('browse')}
       />
     )
   else content = <StudyHome onOpen={() => setPhase('menu')} />
@@ -145,15 +161,17 @@ function StudyHome({ onOpen }: { onOpen: () => void }) {
   )
 }
 
-/** The unit page: Back + the Learn / Practice cards. */
+/** The unit page: Back + the Learn / Practice / Browse cards. */
 function StudyMenu({
   onBack,
   onLearn,
   onPractice,
+  onBrowse,
 }: {
   onBack: () => void
   onLearn: () => void
   onPractice: () => void
+  onBrowse: () => void
 }) {
   const styles = useStyles(makeStyles)
   const index = useContent()
@@ -195,6 +213,14 @@ function StudyMenu({
           disabled={!canPractice}
           onPress={onPractice}
         />
+        <ChoiceCard
+          icon="book"
+          native={ui.browseEntry.native}
+          en={ui.browseEntry.en}
+          sub={canPractice ? `review the ${introduced} ${ui.noun} you've studied` : 'learn some first'}
+          disabled={!canPractice}
+          onPress={onBrowse}
+        />
       </View>
     </View>
   )
@@ -208,7 +234,7 @@ function ChoiceCard({
   disabled,
   onPress,
 }: {
-  icon: 'graduation-cap' | 'dumbbell'
+  icon: 'graduation-cap' | 'dumbbell' | 'book'
   native: string
   en: string
   sub: string

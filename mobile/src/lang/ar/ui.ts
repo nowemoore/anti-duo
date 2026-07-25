@@ -11,6 +11,7 @@ export const ui: UiStrings = {
         : { native: 'أهلاً وسهلاً', en: 'Welcome' },
   learnEntry: { native: 'تعلّم الجذور', en: 'Learn roots' },
   grammarEntry: { native: 'تعلّم القواعد', en: 'Learn grammar' },
+  browseEntry: { native: 'تصفّح الجذور', en: 'Browse roots' },
   learn: { native: 'تعلّم', en: 'Learn' },
   practice: { native: 'تدرّب', en: 'Practice' },
   notNow: { native: 'لاحقاً', en: 'Not now' },

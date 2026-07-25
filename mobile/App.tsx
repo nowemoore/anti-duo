@@ -88,6 +88,7 @@ function Shell() {
   const [tab, setTab] = useState<Tab>('study')
   const [scrollLocked, setScrollLocked] = useState(false)
   const header = useHeaderConfig()
+  const onStudy = tab === 'study'
 
   // Crossfade the UI when the language (theme + content) switches, so it isn't a hard cut. The bg
   // (a solid colour behind everything) swaps instantly; the content fades back in over it.
@@ -111,31 +112,33 @@ function Shell() {
       {/* Soft color pools behind the frosted panels so the "glass" has something to reveal. */}
       <View pointerEvents="none" style={styles.glowA} />
       <View pointerEvents="none" style={styles.glowB} />
-      {/* Shared top bar: back button (top-left) + kana chart button — only during a learn/practice session. */}
+      {/* Shared top bar: back button + kana chart button, plus the step title/dots — only during a
+          Study-tab learn/practice session. StudyView stays mounted across tabs (see below), so without
+          gating on `onStudy` its session header would bleed onto Stats/Settings. */}
       <View style={[styles.topRow, { paddingTop: insets.top + 4 }]}>
-        {header.back ? <BackButton onPress={header.back} /> : <View style={styles.topSpacer} />}
-        {header.progress != null ? <HelpButton /> : <View style={styles.topSpacer} />}
+        {onStudy && header.back ? <BackButton onPress={header.back} /> : <View style={styles.topSpacer} />}
+        {onStudy && header.progress != null ? <HelpButton /> : <View style={styles.topSpacer} />}
       </View>
-      {header.title && (
+      {onStudy && header.title && (
         <View style={styles.titleRow}>
           <Bilingual native={header.title.ja} en={header.title.en} />
         </View>
       )}
-      {header.progress != null && (
+      {onStudy && header.progress != null && (
         <View style={styles.dotsRow}>
           {Array.from({ length: header.progress.total }, (_, k) => (
             <View key={k} style={[styles.dot, k < header.progress!.current && styles.dotOn]} />
           ))}
         </View>
       )}
-      {tab === 'study' ? (
-        // Study cards fill the fixed area between the dots and the tab bar (they scroll inside).
-        <View style={styles.studyBody}>
-          <FadeView key="study" style={styles.fill}>
-            <StudyView />
-          </FadeView>
-        </View>
-      ) : (
+      {/* Study stays mounted (just hidden) while you're on another tab, so an in-progress practice/learn
+          session keeps its exact place — hop to Stats/Settings and come back to the same question. */}
+      <View style={[styles.studyBody, !onStudy && styles.hidden]}>
+        <FadeView key="study" style={styles.fill}>
+          <StudyView />
+        </FadeView>
+      </View>
+      {!onStudy && (
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
@@ -191,6 +194,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, flexGrow: 1 },
   studyBody: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  hidden: { display: 'none' },
   fill: { flex: 1 },
   tabbar: {
     flexDirection: 'row',

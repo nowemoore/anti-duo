@@ -23,6 +23,8 @@ export interface DrawCapability {
   isDrawable: (word: string) => boolean
   /** Post-learn write-review screen. */
   Review: ComponentType<DrawReviewProps>
+  /** Single-unit, freely-repeatable write practice — the "write" page of the browse-detail view. */
+  Practice?: ComponentType<{ unit: Unit }>
 }
 
 /** A stacked native-over-English label's two strings. */
@@ -39,6 +41,8 @@ export interface UiStrings {
   greeting: (name: string, hasRecord: boolean) => NativeText
   learnEntry: NativeText
   grammarEntry: NativeText
+  /** "Browse" entry — opens the list of already-studied units. */
+  browseEntry: NativeText
   learn: NativeText
   practice: NativeText
   notNow: NativeText
