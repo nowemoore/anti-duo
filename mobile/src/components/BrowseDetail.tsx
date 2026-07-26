@@ -18,7 +18,9 @@ export function BrowseDetail({ unit, onBack }: { unit: Unit; onBack: () => void 
   const pack = useLanguage()
   const Practice = pack.draw?.Practice
   const scrollRef = useRef<ScrollView>(null)
-  const [w, setW] = useState(0)
+  // Pages inside a horizontal ScrollView need an explicit size — otherwise flex:1 children (the canvas)
+  // collapse to zero height. We measure the pager's viewport and stamp each page with it.
+  const [size, setSize] = useState({ w: 0, h: 0 })
   const [page, setPage] = useState(0)
 
   useScreenHeader(onBack)
@@ -36,11 +38,12 @@ export function BrowseDetail({ unit, onBack }: { unit: Unit; onBack: () => void 
 
   const goTo = (p: number) => {
     setPage(p)
-    scrollRef.current?.scrollTo({ x: p * w, animated: true })
+    scrollRef.current?.scrollTo({ x: p * size.w, animated: true })
   }
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (w) setPage(Math.round(e.nativeEvent.contentOffset.x / w))
+    if (size.w) setPage(Math.round(e.nativeEvent.contentOffset.x / size.w))
   }
+  const pageStyle = { width: size.w, height: size.h }
 
   return (
     <View style={styles.panel}>
@@ -52,24 +55,29 @@ export function BrowseDetail({ unit, onBack }: { unit: Unit; onBack: () => void 
         ))}
       </View>
 
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onLayout={(e) => setW(e.nativeEvent.layout.width)}
-        onMomentumScrollEnd={onScrollEnd}
+      <View
         style={styles.pager}
+        onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
       >
-        <View style={{ width: w }}>
-          <ScrollView contentContainerStyle={styles.cardScroll}>
-            <LearnCard unit={unit} />
+        {size.w > 0 && (
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onScrollEnd}
+          >
+            <View style={pageStyle}>
+              <ScrollView contentContainerStyle={styles.cardScroll}>
+                <LearnCard unit={unit} />
+              </ScrollView>
+            </View>
+            <View style={pageStyle}>
+              <Practice unit={unit} />
+            </View>
           </ScrollView>
-        </View>
-        <View style={{ width: w }}>
-          <Practice unit={unit} />
-        </View>
-      </ScrollView>
+        )}
+      </View>
     </View>
   )
 }
