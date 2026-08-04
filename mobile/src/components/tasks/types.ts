@@ -54,4 +54,6 @@ export interface TaskUI<T extends Task = Task, A = unknown> {
   scrollable?: boolean
   /** If set, a revealed-wrong answer shows this override link (draw's "I got it right"); undo is generic. */
   overrideLabel?: string
+  /** If set, a revealed-correct answer shows this override link (draw's "I got it wrong") — the mirror. */
+  overrideWrongLabel?: string
 }

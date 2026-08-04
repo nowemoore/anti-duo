@@ -37,7 +37,8 @@ export const drawTask: TaskUI<DrawTask, DrawStroke[]> = {
   hasAnswer: (a) => a.length > 0,
   View: DrawView,
   scrollable: false, // the canvas owns vertical drags
-  overrideLabel: 'I think I got this one right', // recognizer can misread a correct drawing
+  overrideLabel: 'I think I got this one right', // recognizer can misread a correct drawing…
+  overrideWrongLabel: 'I think I got this wrong', // …or misread a wrong one as correct
   // no revealHint → the session renders no bottom reveal strip for drawing (the canvas owns the space)
   resolve: (task, answer) => ({ phase: 'revealed', score: scoreWord(task.word, answer).correct ? 1 : -1 }),
 }

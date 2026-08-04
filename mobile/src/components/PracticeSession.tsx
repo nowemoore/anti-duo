@@ -18,6 +18,9 @@ import { TaskRunner } from './tasks/TaskRunner'
 import { getTaskUI } from './tasks/registry'
 import type { QA } from './tasks/types'
 import { useDrawableWord } from '../hooks/useDrawableWord'
+import { useAuth } from '../context/AuthContext'
+import { saveDrawing, overrideDrawing } from '../lib/drawings'
+import type { DrawStroke } from '../lang/types'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
@@ -44,6 +47,10 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
   const { progress, update } = useProgress()
   const canDrawWord = useDrawableWord()
   const pack = useLanguage()
+  const { session } = useAuth()
+  const userId = session?.user?.id
+  // Supabase row id of each saved draw answer, keyed by question position — so an override can update it.
+  const drawingIdRef = useRef<Record<number, string>>({})
 
   const workingRef = useRef<Levels>(
     Object.fromEntries(
@@ -106,6 +113,21 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
       recordTaskResult(levelDelta !== 0 ? awardDelta(p, item.targetIdx, levelDelta) : p, item.task.kind, item.score),
     )
     prevTargetRef.current = item.targetIdx
+
+    // Persist the drawing (with the recognizer's verdict) to Supabase — a history. Fire-and-forget:
+    // a save failure must never disrupt practice. A later override updates the row (via its id).
+    if (item.task.kind === 'draw' && userId) {
+      const strokes = item.answer as DrawStroke[]
+      if (Array.isArray(strokes) && strokes.length) {
+        const at = pos
+        const word = item.task.word
+        saveDrawing({ userId, lang: pack.id, unitIdx: item.targetIdx, word, strokes, correct: item.score > 0 })
+          .then((id) => {
+            if (id) drawingIdRef.current[at] = id
+          })
+          .catch(() => {})
+      }
+    }
   }
 
   const patch = (updated: QA) => setHistory((h) => h.map((x, k) => (k === pos ? updated : x)))
@@ -160,17 +182,22 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
   }
 
   /**
-   * A task's verdict override (offered when the task sets `overrideLabel` — e.g. draw, where the
-   * recognizer can misread a correct drawing). Undo the penalty lock-in applied (so the unit isn't
-   * discounted), mark it kept, and move on. It doesn't award points — it just declines to punish.
+   * A task's verdict override (draw: "I think I got this one right" on a miss, or "…wrong" on a hit —
+   * the recognizer can misread either way). Undoes whatever the verdict did to the level in *either*
+   * direction (cancels a penalty, or removes an undeserved reward), marks it overridden, moves on, and
+   * flags the saved drawing row. Neutral by design — it declines to punish/reward, it doesn't re-score.
    */
   const override = () => {
-    if (!qa || qa.phase !== 'revealed' || isCorrect(qa) || qa.overridden) return
-    const correction = -qa.score * TASK_TUNING[qa.task.kind].pointsDown // score was < 0 → positive undo
+    if (!qa || qa.phase !== 'revealed' || qa.overridden) return
+    const recognizerCorrect = isCorrect(qa) // the verdict being disputed (before we zero the score)
+    const tuning = TASK_TUNING[qa.task.kind]
+    const correction = -(qa.score * (qa.score >= 0 ? tuning.pointsUp : tuning.pointsDown)) // undo the applied delta
     const cur = workingRef.current[qa.targetIdx]?.lvl ?? 1
     workingRef.current = { ...workingRef.current, [qa.targetIdx]: { lvl: Math.max(LEVEL_FLOOR, cur + correction) } }
     patch({ ...qa, score: 0, overridden: true })
-    update((p) => awardDelta(p, qa.targetIdx, correction))
+    if (correction !== 0) update((p) => awardDelta(p, qa.targetIdx, correction))
+    const id = drawingIdRef.current[pos]
+    if (id) void overrideDrawing(id, recognizerCorrect).catch(() => {})
     next()
   }
 
@@ -200,10 +227,15 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
           <FadeView key={pos}>
             <TaskRunner qa={qa} setAnswer={setAnswer} onLock={lockIn} onGiveUp={giveUp} />
           </FadeView>
-          {/* A task's verdict override (draw) sits right under the answer. */}
+          {/* A task's verdict override (draw) sits right under the answer — either direction. */}
           {ui?.overrideLabel && revealed && !correct && !overridden && (
             <Pressable style={styles.keepLink} onPress={override} hitSlop={8}>
               <Text style={styles.keepText}>{ui.overrideLabel}</Text>
+            </Pressable>
+          )}
+          {ui?.overrideWrongLabel && revealed && correct && !overridden && (
+            <Pressable style={styles.keepLink} onPress={override} hitSlop={8}>
+              <Text style={styles.keepText}>{ui.overrideWrongLabel}</Text>
             </Pressable>
           )}
         </ScrollView>
