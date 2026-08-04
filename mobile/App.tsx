@@ -114,10 +114,12 @@ function Shell() {
       <View pointerEvents="none" style={styles.glowB} />
       {/* Shared top bar: back button + kana chart button, plus the step title/dots — only during a
           Study-tab learn/practice session. StudyView stays mounted across tabs (see below), so without
-          gating on `onStudy` its session header would bleed onto Stats/Settings. */}
+          gating on `onStudy` its session header would bleed onto Stats/Settings.
+          The chart follows step progress, or an explicit `help` opt-in for screens (grammar) that
+          render their own progress instead of the shared dots. */}
       <View style={[styles.topRow, { paddingTop: insets.top + 4 }]}>
         {onStudy && header.back ? <BackButton onPress={header.back} /> : <View style={styles.topSpacer} />}
-        {onStudy && header.progress != null ? <HelpButton /> : <View style={styles.topSpacer} />}
+        {onStudy && (header.progress != null || header.help) ? <HelpButton /> : <View style={styles.topSpacer} />}
       </View>
       {onStudy && header.title && (
         <View style={styles.titleRow}>

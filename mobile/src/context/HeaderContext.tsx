@@ -17,6 +17,11 @@ interface HeaderConfig {
   title?: HeaderTitle
   /** Step count rendered as dots under the label; absent → no dots. */
   progress?: HeaderProgress
+  /**
+   * Force the script-reference ("?") button on for a screen that has no step progress. Screens with
+   * `progress` get it automatically — this is for the ones that draw their own progress instead.
+   */
+  help?: boolean
 }
 
 interface HeaderCtx {
@@ -42,7 +47,12 @@ export function useHeaderConfig(): HeaderConfig {
  * closure each render doesn't re-fire the effect — only a change in title text (or in
  * whether a back handler exists) re-registers.
  */
-export function useScreenHeader(back?: () => void, title?: HeaderTitle, progress?: HeaderProgress) {
+export function useScreenHeader(
+  back?: () => void,
+  title?: HeaderTitle,
+  progress?: HeaderProgress,
+  help?: boolean,
+) {
   const setConfig = useContext(Ctx)?.setConfig
   const backRef = useRef(back)
   backRef.current = back
@@ -59,7 +69,8 @@ export function useScreenHeader(back?: () => void, title?: HeaderTitle, progress
       back: hasBack ? () => backRef.current?.() : undefined,
       title: ja != null && en != null ? { ja, en } : undefined,
       progress: current != null && totalSteps != null ? { current, total: totalSteps } : undefined,
+      help,
     })
     return () => setConfig({})
-  }, [setConfig, hasBack, ja, en, current, totalSteps])
+  }, [setConfig, hasBack, ja, en, current, totalSteps, help])
 }

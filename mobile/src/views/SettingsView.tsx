@@ -5,6 +5,7 @@ import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
 import { AccountSettings } from '../components/AccountSettings'
 import { CategorySettings } from '../components/CategorySettings'
+import { DevTools } from '../components/DevTools'
 import { TaskFrequencySettings } from '../components/TaskFrequencySettings'
 import { ManualView } from './ManualView'
 import { Icon } from '../components/Icon'
@@ -66,6 +67,9 @@ export function SettingsView() {
       <AccountSettings />
       <CategorySettings />
       <TaskFrequencySettings />
+
+      {/* Renders nothing outside a development build. */}
+      <DevTools />
 
       <Pressable style={styles.resetBtn} onPress={resetProgress}>
         <Icon name="trash-can" size={13} color={colors.accentInk} />

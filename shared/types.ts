@@ -14,6 +14,11 @@ export interface Word {
   word: string
   reading: string
   meaning: string
+  /**
+   * Content tags authored in the db — currently part of speech, e.g. `['u-verb']`, `['ru-verb']`,
+   * `['irregular-verb']`. An empty array means "no tags apply", not "unclassified".
+   */
+  tags?: string[]
   /** Language-specific fields (e.g. Arabic `voweled`, `plural`) — read only by the language pack. */
   extra?: Record<string, unknown>
 }
@@ -125,4 +130,49 @@ export interface Progress {
   stats?: Record<string, TaskStats>
   /** ISO timestamp of the last Study run, if any. */
   lastRunAt?: string
+  /** Grammar subsection state, keyed by topic id. Absent until a grammar topic is opened. */
+  grammar?: Record<string, GrammarTopicProgress>
+}
+
+// ---------------------------------------------------------------------------
+// Grammar subsections (read/write, persisted alongside the rest of Progress)
+// ---------------------------------------------------------------------------
+
+/** One item's outcome within a single minigame attempt. Kept per-item for error analytics. */
+export interface GrammarItemResult {
+  /** Item id from the topic's bank (stable across attempts). */
+  itemId: string
+  correct: boolean
+  /** The form the learner actually tapped — lets us show missed items back to them. */
+  picked: string
+}
+
+/** One completed run through a topic's minigame. */
+export interface GrammarAttempt {
+  /** ISO timestamp of when the attempt finished. */
+  at: string
+  /** Per-item correctness, in the order the items were presented. */
+  items: GrammarItemResult[]
+}
+
+/** One free-writing reflection answer. `feedback` is reserved for later LLM review. */
+export interface GrammarReflection {
+  answer: string
+  /** Null until feedback is generated; no feedback is produced today. */
+  feedback: string | null
+  /** ISO timestamp of the last edit. */
+  updatedAt?: string
+}
+
+export interface GrammarTopicProgress {
+  /** Set once the learner has paged through the whole vocab intro (part 1). */
+  vocabDoneAt?: string
+  /** Completed minigame attempts, oldest first, capped at GRAMMAR_ATTEMPT_HISTORY. */
+  attempts: GrammarAttempt[]
+  /** Free-writing answers, keyed by reflection question id. */
+  reflections: Record<string, GrammarReflection>
+  /** ISO timestamp of the first attempt to reach the pass threshold (unlocks the explanation). */
+  passedAt?: string
+  /** Set once the topic's vocabulary kanji were credited as learned, so it only happens once. */
+  unitsCreditedAt?: string
 }

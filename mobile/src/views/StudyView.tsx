@@ -11,8 +11,11 @@ import { LearnPhase } from '../components/LearnPhase'
 import { PracticeSession } from '../components/PracticeSession'
 import { BrowseList } from '../components/BrowseList'
 import { BrowseDetail } from '../components/BrowseDetail'
+import { GrammarMenu } from '../components/grammar/GrammarMenu'
+import { GrammarSection } from '../components/grammar/GrammarSection'
 import { useScreenHeader } from '../context/HeaderContext'
 import { useLanguage } from '../context/LanguageContext'
+import { topicsForLang, type GrammarTopic } from '@lib/grammar'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 import {
@@ -23,19 +26,31 @@ import {
   unlearnedUnits,
 } from '@lib/study'
 
-// 'home' = welcome; 'menu' = the unit page; 'browse'/'browseDetail' = review studied units; then the sessions.
-type Phase = 'home' | 'menu' | 'learn' | 'practice' | 'review' | 'browse' | 'browseDetail'
+// 'home' = welcome; 'menu' = the unit page; 'browse'/'browseDetail' = review studied units;
+// 'grammar'/'grammarTopic' = the grammar subsections; then the sessions.
+type Phase =
+  | 'home'
+  | 'menu'
+  | 'learn'
+  | 'practice'
+  | 'review'
+  | 'browse'
+  | 'browseDetail'
+  | 'grammar'
+  | 'grammarTopic'
 
 export function StudyView() {
   const styles = useStyles(makeStyles)
   const index = useContent()
   const { progress, update } = useProgress()
-  const { draw } = useLanguage()
+  const { draw, id: langId } = useLanguage()
   const [phase, setPhase] = useState<Phase>('home')
   const [chunk, setChunk] = useState<Unit[]>([])
   const [reserve, setReserve] = useState<Unit[]>([])
   const [reviewUnits, setReviewUnits] = useState<Unit[]>([])
   const [selected, setSelected] = useState<Unit | null>(null)
+  const [topic, setTopic] = useState<GrammarTopic | null>(null)
+  const grammarTopics = topicsForLang(langId)
 
   function startLearn() {
     const { chunk: next, reserve: rest } = nextLearnSession(index, progress)
@@ -94,6 +109,19 @@ export function StudyView() {
     )
   else if (phase === 'browseDetail' && selected)
     content = <BrowseDetail unit={selected} onBack={() => setPhase('browse')} />
+  else if (phase === 'grammar')
+    content = (
+      <GrammarMenu
+        topics={grammarTopics}
+        onBack={() => setPhase('home')}
+        onSelect={(t) => {
+          setTopic(t)
+          setPhase('grammarTopic')
+        }}
+      />
+    )
+  else if (phase === 'grammarTopic' && topic)
+    content = <GrammarSection topic={topic} onBack={() => setPhase('grammar')} />
   else if (phase === 'menu')
     content = (
       <StudyMenu
@@ -103,7 +131,13 @@ export function StudyView() {
         onBrowse={() => setPhase('browse')}
       />
     )
-  else content = <StudyHome onOpen={() => setPhase('menu')} />
+  else
+    content = (
+      <StudyHome
+        onOpen={() => setPhase('menu')}
+        onGrammar={grammarTopics.length ? () => setPhase('grammar') : undefined}
+      />
+    )
 
   return (
     <FadeView key={phase} style={styles.fill}>
@@ -112,8 +146,8 @@ export function StudyView() {
   )
 }
 
-/** Welcome screen: greeting + the "Learn" entry card (with progress) + a stubbed grammar card. */
-function StudyHome({ onOpen }: { onOpen: () => void }) {
+/** Welcome screen: greeting + the "Learn" entry card (with progress) + the grammar entry. */
+function StudyHome({ onOpen, onGrammar }: { onOpen: () => void; onGrammar?: () => void }) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const index = useContent()
@@ -148,14 +182,18 @@ function StudyHome({ onOpen }: { onOpen: () => void }) {
           </Text>
         </Pressable>
 
-        {/* Not wired yet — a placeholder for an upcoming grammar mode. */}
-        <View style={[styles.entryCard, styles.entryDisabled]}>
-          <View style={[styles.iconCircle, styles.iconMuted]}>
-            <Icon name="circle-check" size={22} color={colors.muted} />
+        {/* Languages with no grammar subsections yet keep the original disabled placeholder. */}
+        <Pressable
+          style={[styles.entryCard, !onGrammar && styles.entryDisabled]}
+          onPress={onGrammar}
+          disabled={!onGrammar}
+        >
+          <View style={[styles.iconCircle, !onGrammar && styles.iconMuted]}>
+            <Icon name="book" size={22} color={onGrammar ? colors.onAccent : colors.muted} />
           </View>
           <Bilingual native={ui.grammarEntry.native} en={ui.grammarEntry.en} />
-          <Text style={styles.entrySub}>coming soon</Text>
-        </View>
+          <Text style={styles.entrySub}>{onGrammar ? 'grammar subsections' : 'coming soon'}</Text>
+        </Pressable>
       </View>
     </View>
   )
