@@ -16,6 +16,15 @@ export interface ContentIndex {
   sentencesForUnit: Map<number, Sentence[]>
   /** Categories ordered by their first (lowest) unit idx. */
   categories: Category[]
+  /**
+   * Every distinct example word — the curated vocabulary, and the only thing a "known word" run is
+   * kept for.
+   *
+   * Sentence tokens are deliberately excluded: they include inflections (食べた, 待って), names
+   * (田中) and kana scaffolding (ある, いる), so crediting them would count 食べた as a second word
+   * alongside 食べる and inflate the total with things nobody would call vocabulary.
+   */
+  words: Set<string>
   /** Engine-tier language logic (okurigana distractors, native-script test) for this content. */
   lang: LangEngine
 }
@@ -23,9 +32,11 @@ export interface ContentIndex {
 export function buildContentIndex(content: Content): ContentIndex {
   const byIdx = new Map<number, Unit>()
   const byForm = new Map<string, Unit>()
+  const words = new Set<string>()
   for (const k of content.units) {
     byIdx.set(k.idx, k)
     byForm.set(k.form, k)
+    for (const ex of k.examples) words.add(ex.word)
   }
   const sentencesForUnit = new Map<number, Sentence[]>()
   for (const s of content.sentences) {
@@ -48,5 +59,5 @@ export function buildContentIndex(content: Content): ContentIndex {
     .map(([name, units]) => ({ name, units }))
     .sort((a, b) => a.units[0].idx - b.units[0].idx)
 
-  return { content, byIdx, byForm, sentencesForUnit, categories, lang: getLangEngine(content.lang) }
+  return { content, byIdx, byForm, sentencesForUnit, categories, words, lang: getLangEngine(content.lang) }
 }

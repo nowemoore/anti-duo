@@ -1,12 +1,16 @@
+import { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
+import { WORD_KNOWN_STREAK } from '@shared/constants'
+import { enabledWords } from '@lib/study'
+import { knownWordCount, taskRates, TASK_LABELS } from '@lib/stats'
+import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
-import { taskRates, TASK_LABELS } from '@lib/stats'
 import { Bilingual } from '../components/Bilingual'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useStyles } from '../hooks/theme'
 
-/** Success rate per task type — earned points ÷ attempts, cumulative across all practice. */
+/** Vocabulary mastered + success rate per task type. */
 export function StatsView() {
   const styles = useStyles(makeStyles)
   const { progress } = useProgress()
@@ -15,7 +19,9 @@ export function StatsView() {
   const totalAttempts = rates.reduce((n, r) => n + r.attempts, 0)
 
   return (
-    <View style={styles.panel}>
+    <View style={styles.stack}>
+      <KnownWordsCard />
+      <View style={styles.panel}>
       <View style={styles.titleRow}>
         <Bilingual native={ui.statsTitle.native} en={ui.statsTitle.en} />
       </View>
@@ -40,12 +46,60 @@ export function StatsView() {
           ))}
         </View>
       )}
+      </View>
+    </View>
+  )
+}
+
+/**
+ * Vocabulary you've shown you know, as opposed to kanji you've been introduced to. A word counts
+ * once you've answered it right WORD_KNOWN_STREAK times running; a miss walks it back.
+ *
+ * Both sides are scoped to the enabled learning set, so switching a category off moves the total as
+ * well as the count — the caption says so, since otherwise the number looks like lost progress.
+ */
+function KnownWordsCard() {
+  const styles = useStyles(makeStyles)
+  const index = useContent()
+  const { progress } = useProgress()
+
+  // 900+ words across every unit — worth memoising rather than rebuilding the set each render.
+  const words = useMemo(() => enabledWords(index, progress), [index, progress])
+  const known = knownWordCount(progress, words)
+  const total = words.size
+  const pct = total === 0 ? 0 : Math.round((known / total) * 100)
+
+  return (
+    <View style={styles.panel}>
+      <View style={styles.titleRow}>
+        <Bilingual native="覚えた言葉" en="Words you know" />
+      </View>
+
+      <View style={styles.bigRow}>
+        <Text style={styles.big}>{known}</Text>
+        <Text style={styles.bigOf}>/ {total}</Text>
+      </View>
+
+      <View style={styles.bar}>
+        <View style={[styles.fill, { width: `${pct}%` }]} />
+      </View>
+
+      <Text style={styles.caption}>
+        {known === 0
+          ? `A word counts here once you've answered it correctly ${WORD_KNOWN_STREAK} times in a row.`
+          : `${WORD_KNOWN_STREAK} correct in a row to count; a miss walks it back. Out of the words in your enabled set.`}
+      </Text>
     </View>
   )
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  stack: { gap: spacing.lg },
   panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
+  bigRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: spacing.md },
+  big: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 40, fontVariant: ['tabular-nums'] },
+  bigOf: { color: colors.muted, fontFamily: fonts.body, fontSize: 15, fontVariant: ['tabular-nums'] },
+  caption: { color: colors.muted, fontFamily: fonts.body, fontSize: 11, lineHeight: 16, marginTop: spacing.sm },
   titleRow: { alignItems: 'flex-start', marginBottom: spacing.lg },
   empty: { color: colors.muted, fontFamily: fonts.body, fontSize: 14 },
   list: { gap: spacing.lg },

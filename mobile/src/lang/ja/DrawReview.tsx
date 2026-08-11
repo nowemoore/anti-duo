@@ -1,21 +1,16 @@
 import { useCallback, useMemo, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
-import type { Unit } from '@shared/types'
 import { useScreenHeader } from '../../context/HeaderContext'
 import { Bilingual } from '../../components/Bilingual'
 import { Icon } from '../../components/Icon'
 import { FadeView } from '../../components/FadeView'
 import { DrawCanvas } from '../../components/DrawCanvas'
-import { scoreWord, drawable, type RawStroke } from './handwriting'
+import { scoreWord, drawable, traceable, type RawStroke } from './handwriting'
+import { logTracedAttempt, toTarget, type Target } from './drawTarget'
 import { useLearned } from '../../hooks/useLearned'
+import { useAuth } from '../../context/AuthContext'
 import type { DrawReviewProps } from '../types'
 import { colors, fonts, radius, shadow, spacing } from '../../theme'
-
-interface Target {
-  word: string
-  reading: string
-  meaning: string
-}
 
 /** Per-item state, kept so you can flip back to a passed word and see your answer without redoing it. */
 interface Slot {
@@ -23,16 +18,6 @@ interface Slot {
   revealed: boolean
   correct: boolean
   attempt: number
-}
-
-function toTarget(k: Unit, canDraw: (w: string) => boolean): Target | null {
-  const words = k.examples.filter((e) => canDraw(e.word))
-  if (words.length) {
-    const ex = words[Math.floor(Math.random() * words.length)]
-    return { word: ex.word, reading: ex.reading, meaning: ex.meaning }
-  }
-  if (canDraw(k.form)) return { word: k.form, reading: '', meaning: k.gloss.join(', ') }
-  return null
 }
 
 /**
@@ -43,11 +28,14 @@ function toTarget(k: Unit, canDraw: (w: string) => boolean): Target | null {
 export function DrawReview({ units, onDone, baseStep = 0, totalSteps }: DrawReviewProps) {
   // Same rule as the global useDrawableWord hook, sourced directly (this lives inside the pack) so the
   // pack doesn't import LanguageContext → registry → pack (a cycle).
+  const userId = useAuth().session?.user?.id
   const isLearned = useLearned()
   const canDraw = useCallback((w: string) => drawable(w) && [...w].every((c) => isLearned(c)), [isLearned])
+  const canTrace = useCallback((w: string) => traceable(w) && [...w].every((c) => isLearned(c)), [isLearned])
+  // Units with no recognizer coverage fall back to tracing rather than being dropped from the review.
   const targets = useMemo(
-    () => units.map((k) => toTarget(k, canDraw)).filter((t): t is Target => t !== null),
-    [units, canDraw],
+    () => units.map((k) => toTarget(k, canDraw, canTrace)).filter((t): t is Target => t !== null),
+    [units, canDraw, canTrace],
   )
   const [slots, setSlots] = useState<Slot[]>(() =>
     targets.map(() => ({ strokes: [], revealed: false, correct: false, attempt: 0 })),
@@ -83,7 +71,9 @@ export function DrawReview({ units, onDone, baseStep = 0, totalSteps }: DrawRevi
   }
   const lockIn = () => {
     if (slot.revealed || slot.strokes.length === 0) return
-    patch({ revealed: true, correct: scoreWord(cur.word, slot.strokes).correct })
+    // A traced word has no reference pattern to score against — reveal it without a verdict.
+    patch({ revealed: true, correct: cur.traced ? false : scoreWord(cur.word, slot.strokes).correct })
+    logTracedAttempt(userId, cur, slot.strokes)
   }
   const giveUp = () => {
     if (!slot.revealed) patch({ revealed: true, correct: false })
@@ -102,7 +92,8 @@ export function DrawReview({ units, onDone, baseStep = 0, totalSteps }: DrawRevi
 
   return (
     <View style={styles.panel}>
-      {slot.revealed && (
+      {/* No verdict for a traced word — there's nothing to check it against. */}
+      {slot.revealed && !cur.traced && (
         <View style={styles.corner}>
           <Icon
             name={slot.correct ? 'circle-check' : 'circle-xmark'}
@@ -114,6 +105,7 @@ export function DrawReview({ units, onDone, baseStep = 0, totalSteps }: DrawRevi
 
       <View style={styles.prompt}>
         <Text style={styles.reading}>{cur.reading || cur.meaning}</Text>
+        {cur.traced && <Text style={styles.traceHint}>Trace over the outline — not graded yet.</Text>}
       </View>
 
       <FadeView key={`${pos}-${slot.attempt}`} style={styles.canvasFade}>
@@ -123,6 +115,7 @@ export function DrawReview({ units, onDone, baseStep = 0, totalSteps }: DrawRevi
           initialStrokes={slot.strokes}
           onNoClue={giveUp}
           onStrokes={setStrokes}
+          guide={cur.traced ? cur.word : undefined}
         />
       </FadeView>
 
@@ -188,6 +181,7 @@ const styles = StyleSheet.create({
   corner: { position: 'absolute', top: 10, right: 10, zIndex: 2 },
   prompt: { alignItems: 'center', marginBottom: spacing.md },
   reading: { color: colors.ink, fontFamily: fonts.body, fontSize: 30 },
+  traceHint: { color: colors.muted, fontFamily: fonts.body, fontSize: 11, fontStyle: 'italic', marginTop: 2 },
   canvasFade: { flex: 1 },
   answerSlot: { height: 70, justifyContent: 'center', marginTop: spacing.md },
   answer: { alignItems: 'center', gap: 2 },

@@ -130,6 +130,14 @@ export interface Progress {
   stats?: Record<string, TaskStats>
   /** ISO timestamp of the last Study run, if any. */
   lastRunAt?: string
+  /**
+   * Per-word run of correct answers, keyed by the word's written form (e.g. 食べる). A word counts as
+   * known once it reaches WORD_KNOWN_STREAK; a wrong answer decrements it. Keyed by word rather than
+   * by unit, so 一人 is one entry whether it comes up under 一 or 人.
+   *
+   * Absent until the first answer.
+   */
+  words?: Record<string, number>
   /** Grammar subsection state, keyed by topic id. Absent until a grammar topic is opened. */
   grammar?: Record<string, GrammarTopicProgress>
 }

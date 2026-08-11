@@ -1,7 +1,7 @@
 import { toKana } from 'wanakana'
 import { ALL_TASK_TYPES } from '@lib/tasks'
 import { HiraganaTable } from './HiraganaTable'
-import { drawable } from './handwriting'
+import { drawable, traceable } from './handwriting'
 import { DrawReview } from './DrawReview'
 import { DrawPractice } from './DrawPractice'
 import { drawTask } from './DrawTask'
@@ -24,6 +24,7 @@ export const ja: LanguagePack = {
   reference: { title: { native: 'ひらがな', en: 'Hiragana' }, Chart: HiraganaTable },
   draw: {
     isDrawable: drawable,
+    isTraceable: traceable,
     Review: DrawReview,
     Practice: DrawPractice,
   },

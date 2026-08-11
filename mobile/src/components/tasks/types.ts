@@ -16,6 +16,12 @@ export interface QA {
   score: number // final delta once revealed
   recorded: boolean // whether it has been applied to progress
   overridden?: boolean // a wrong verdict was overridden (e.g. draw "I got it right") — penalty cancelled
+  /**
+   * The level change actually applied when this was recorded. Stored rather than recomputed because
+   * the warm-up damping depends on the level *at the time* — recomputing it after the fact would
+   * undo the wrong amount and leave a residue on the kanji.
+   */
+  appliedDelta?: number
 }
 
 /** Result of locking in an answer: revealed with a score, or bounced back to retry. */

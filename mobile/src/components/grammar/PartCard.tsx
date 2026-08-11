@@ -74,13 +74,65 @@ export function PartCard({
         )}
       </Pressable>
 
-      {/* Hidden rather than unmounted while collapsed. An unlocked part keeps its React state for
-          the whole visit, so collapsing the card mid-run doesn't throw away answers you've already
-          given — reopening it puts you back exactly where you were. */}
-      {!locked && <View style={[styles.body, !open && styles.hidden]}>{children}</View>}
+      {/* Animated open/close rather than an instant swap. Children stay mounted throughout, so
+          collapsing a part mid-run never throws away answers already given — reopening puts you back
+          exactly where you were. */}
+      {!locked && (
+        <Collapse open={open}>
+          <View style={styles.body}>{children}</View>
+        </Collapse>
+      )}
     </View>
   )
 }
+
+/**
+ * Height + fade reveal, matching the kanji Learn card's breakdown. LayoutAnimation is a no-op on
+ * react-native-web, so the height is animated explicitly and the content measured out of flow —
+ * otherwise the section would pop open on the PWA instead of sliding.
+ *
+ * The inner is always rendered, so a part that has never been opened still has a measured height to
+ * animate to, and a part whose content grows (a reflection answer wrapping onto another line)
+ * re-measures and follows.
+ */
+function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
+  const anim = useRef(new Animated.Value(open ? 1 : 0)).current
+  const [height, setHeight] = useState(0)
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: open ? 1 : 0,
+      duration: 260,
+      easing: Easing.inOut(Easing.cubic),
+      // Height can't be driven natively; the fade rides along on the same value for one timing call.
+      useNativeDriver: false,
+    }).start()
+  }, [open, anim])
+
+  return (
+    <Animated.View
+      style={{
+        height: anim.interpolate({ inputRange: [0, 1], outputRange: [0, height] }),
+        opacity: anim,
+        overflow: 'hidden',
+      }}
+      // Collapsed content stays mounted but must not be reachable by touch or a screen reader.
+      pointerEvents={open ? 'auto' : 'none'}
+      accessibilityElementsHidden={!open}
+      importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
+    >
+      <View
+        style={styles_collapseInner}
+        onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
+      >
+        {children}
+      </View>
+    </Animated.View>
+  )
+}
+
+/** Out of flow so the animated wrapper's height is the only thing driving layout. */
+const styles_collapseInner = { position: 'absolute' as const, left: 0, right: 0 }
 
 /** Rotates the disclosure chevron between collapsed and expanded. */
 function Chevron({ open, color }: { open: boolean; color: string }) {
@@ -156,8 +208,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderTopWidth: 1,
     paddingTop: spacing.lg,
   },
-  // Takes the body out of layout entirely while preserving its mounted state.
-  hidden: { display: 'none' },
   disclosure: { marginTop: spacing.sm },
   disclosureHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
   disclosureLabel: { color: colors.accentInk, fontFamily: fonts.medium, fontSize: 12 },

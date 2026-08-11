@@ -21,6 +21,12 @@ export interface DrawReviewProps {
 export interface DrawCapability {
   /** Recognizer coverage: can this word be auto-graded at all (patterns exist, right length)? */
   isDrawable: (word: string) => boolean
+  /**
+   * Can this word at least be *traced* over a faint guide, without grading? A superset of
+   * `isDrawable` — words whose characters have no reference pattern still get writing practice, and
+   * their strokes are collected to train the recognizer later. Absent → no tracing fallback.
+   */
+  isTraceable?: (word: string) => boolean
   /** Post-learn write-review screen. */
   Review: ComponentType<DrawReviewProps>
   /** Single-unit, freely-repeatable write practice — the "write" page of the browse-detail view. */

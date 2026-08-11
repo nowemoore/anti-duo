@@ -1,37 +1,73 @@
-import { INTRODUCED_LEVEL, LEARN_CHUNK } from '../../shared/constants'
+import { INTRODUCED_LEVEL, LEARN_CHUNK, LEVEL_FLOOR } from '../../shared/constants'
 import type { Unit, Progress } from '../../shared/types'
 import type { ContentIndex } from './content'
 import { isUnitEnabled } from './categories'
 import { shuffle } from './random'
 
 /**
- * Unit not introduced yet OR forgotten (lvl < INTRODUCED_LEVEL) — eligible to be (re)taught.
+ * Whether a kanji currently counts as known — taught at some point and not fully lapsed.
+ *
+ * The boundary is {@link LEVEL_FLOOR}, not INTRODUCED_LEVEL. A kanji is introduced *at*
+ * INTRODUCED_LEVEL, so classifying at the same value left no margin: one wrong answer un-learned it.
+ * Anchoring here means every taught kanji is either practisable or being re-taught, with no band in
+ * between where it is neither.
+ *
+ * This is the single definition of "known"; {@link isForgotten} is its exact complement for kanji
+ * that carry a progress entry. Use these rather than comparing levels inline.
+ */
+export function isKnownLevel(lvl: number): boolean {
+  return lvl > LEVEL_FLOOR
+}
+
+/** A taught kanji that has lapsed all the way back to the floor, so it should be re-taught. */
+export function isForgottenLevel(lvl: number): boolean {
+  return !isKnownLevel(lvl)
+}
+
+/**
+ * Never introduced OR lapsed back to the floor — eligible to be (re)taught.
  * Scoped to the enabled learning set (selected categories / kanji).
  */
 export function unlearnedUnits(index: ContentIndex, progress: Progress): Unit[] {
   return index.content.units.filter(
-    (k) => isUnitEnabled(progress.settings, k) && (progress.units[k.idx]?.lvl ?? 0) < INTRODUCED_LEVEL,
+    (k) => isUnitEnabled(progress.settings, k) && !isKnownLevel(progress.units[k.idx]?.lvl ?? 0),
   )
 }
 
-/** Introduced/known kanji (lvl ≥ INTRODUCED_LEVEL), scoped to the enabled learning set. */
+/** Known kanji — practisable, scoped to the enabled learning set. */
 export function introducedUnits(index: ContentIndex, progress: Progress): Unit[] {
   return index.content.units.filter(
-    (k) => isUnitEnabled(progress.settings, k) && (progress.units[k.idx]?.lvl ?? 0) >= INTRODUCED_LEVEL,
+    (k) => isUnitEnabled(progress.settings, k) && isKnownLevel(progress.units[k.idx]?.lvl ?? 0),
   )
 }
 
 /**
  * Introduced-then-forgotten kanji: they carry a progress entry (so were taught at least once) but
- * have since dropped below INTRODUCED_LEVEL. This is what distinguishes them from never-seen kanji,
- * which have no entry at all — so only entries written by {@link applyLearned}/awardDelta count.
- * These are prioritized to the front of the next Learn set so a downgraded kanji is re-taught next.
+ * have since lapsed to the floor. The entry is what distinguishes them from never-seen kanji, which
+ * have none — so only entries written by {@link applyLearned}/awardDelta count. These are prioritized
+ * to the front of the next Learn set so a lapsed kanji is re-taught next.
  */
 export function forgottenUnits(index: ContentIndex, progress: Progress): Unit[] {
   return index.content.units.filter((k) => {
     const rec = progress.units[k.idx]
-    return isUnitEnabled(progress.settings, k) && rec !== undefined && rec.lvl < INTRODUCED_LEVEL
+    return isUnitEnabled(progress.settings, k) && rec !== undefined && isForgottenLevel(rec.lvl)
   })
+}
+
+/**
+ * Every distinct example word across the enabled learning set — the denominator for "words known".
+ *
+ * Distinct by written form, so a word that is an example of two kanji (一人 under both 一 and 人)
+ * counts once. Scoped to the enabled set like every other selector here, which does mean the total
+ * moves when categories are toggled.
+ */
+export function enabledWords(index: ContentIndex, progress: Progress): Set<string> {
+  const out = new Set<string>()
+  for (const k of index.content.units) {
+    if (!isUnitEnabled(progress.settings, k)) continue
+    for (const ex of k.examples) out.add(ex.word)
+  }
+  return out
 }
 
 /** How many new kanji one Learn click will introduce (≤ LEARN_CHUNK, capped by what's left). */

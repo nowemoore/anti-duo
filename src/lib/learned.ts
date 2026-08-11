@@ -1,14 +1,18 @@
-import { INTRODUCED_LEVEL } from '../../shared/constants'
 import type { Progress, WordToken } from '../../shared/types'
 import type { ContentIndex } from './content'
 import type { LangEngine } from './lang/types'
-import { introducedUnits } from './study'
+import { introducedUnits, isKnownLevel } from './study'
 
-/** True once the unit (identified by its written form) has been introduced (lvl ≥ INTRODUCED_LEVEL). */
+/**
+ * True once the unit (identified by its written form) counts as known — see {@link isKnownLevel}.
+ * Shares that predicate deliberately: this drives whether a word renders in native script, so if it
+ * disagreed with the practice/re-teach classification a lapsing kanji would flip language on screen
+ * at a different moment than it flips state.
+ */
 export function isFormLearned(form: string, index: ContentIndex, progress: Progress): boolean {
   const k = index.byForm.get(form)
   if (!k) return false
-  return (progress.units[k.idx]?.lvl ?? 0) >= INTRODUCED_LEVEL
+  return isKnownLevel(progress.units[k.idx]?.lvl ?? 0)
 }
 
 /** Any CJK ideograph — the characters that map to curriculum units. Mirrors the loader's regex. */

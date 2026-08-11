@@ -556,6 +556,34 @@ export function checkChoice(task: ChoiceTask, chosenIndex: number): boolean {
   return task.options[chosenIndex]?.correct === true
 }
 
+/**
+ * The single vocabulary item a task tests, or null when it doesn't test exactly one.
+ *
+ * Each kind stores this differently — there is no common `word` field on the union — so this is the
+ * one place that knows where to look. Used to credit per-word "known" streaks.
+ *
+ * `which-words` returns null on purpose: it shows four words at once and scores partial credit, so a
+ * good result isn't evidence about any particular one. `plural` returns null because `buildPlural`
+ * keeps only the reading and drops the surface form entirely.
+ */
+export function testedWord(task: Task): string | null {
+  switch (task.kind) {
+    case 'type-word':
+    case 'draw':
+      // May be the bare unit form when no example word was usable — still a real word to track.
+      return task.word
+    case 'cloze':
+    case 'root-cloze':
+    case 'pick-reading':
+    case 'pick-meaning': {
+      const token = task.sentence.tokens[task.tokenIndex]
+      return token?.kind === 'word' ? token.surface : null
+    }
+    default:
+      return null
+  }
+}
+
 /** Convenience: does this kanji currently support at least one task type? */
 export function hasAnyTask(index: ContentIndex, targetIdx: number): boolean {
   // draw needs the mobile recognizer, so a kanji is "practicable" on the strength of the

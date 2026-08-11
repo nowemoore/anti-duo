@@ -1,8 +1,8 @@
-import { LEVEL_FLOOR } from '../../shared/constants'
+import { LEVEL_FLOOR, WARMUP_LEVEL, WARMUP_MAX_LOSS } from '../../shared/constants'
 import type { Progress } from '../../shared/types'
 import type { ContentIndex } from './content'
 import { introducedUnits } from './study'
-import { hasAnyTask } from './tasks'
+import { TASK_TUNING, hasAnyTask, type TaskType } from './tasks'
 
 const lvlOf = (progress: Progress, idx: number): number => progress.units[idx]?.lvl ?? 0
 
@@ -46,8 +46,28 @@ export function pickTarget(
 }
 
 /**
+ * The level change one answer earns: the raw ±1-ish score scaled by the task type's weight, then
+ * damped if the kanji is still warming up.
+ *
+ * The damping exists because a kanji is introduced at exactly INTRODUCED_LEVEL and `pickTarget`
+ * weights new kanji up quadratically — so a freshly learned one is very likely to be asked first,
+ * and before this a single missed cloze (-0.7) took it most of the way back to the floor. Capping
+ * the loss at {@link WARMUP_MAX_LOSS} while below {@link WARMUP_LEVEL} makes that take three misses
+ * of any task type instead of one. Gains are never damped.
+ *
+ * Shared by both clients so the two can't drift; previously this arithmetic was duplicated in each
+ * PracticeSession.
+ */
+export function levelDeltaFor(kind: TaskType, score: number, currentLvl: number): number {
+  const tuning = TASK_TUNING[kind]
+  const delta = score * (score >= 0 ? tuning.pointsUp : tuning.pointsDown)
+  if (delta >= 0 || currentLvl >= WARMUP_LEVEL) return delta
+  return Math.max(delta, -WARMUP_MAX_LOSS)
+}
+
+/**
  * Apply a score delta to the target kanji's level (fractional or negative). Levels are clamped at
- * {@link LEVEL_FLOOR}; dropping below INTRODUCED_LEVEL means the kanji is forgotten and re-taught.
+ * {@link LEVEL_FLOOR}; reaching the floor means the kanji is forgotten and re-taught.
  */
 export function awardDelta(progress: Progress, targetIdx: number, delta: number): Progress {
   const next = Math.max(LEVEL_FLOOR, lvlOf(progress, targetIdx) + delta)

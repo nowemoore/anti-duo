@@ -686,6 +686,48 @@ button {
   cursor: default;
 }
 
+/* Known-words card — sits above the per-task rates and reuses their bar. */
+.known-words {
+  margin-bottom: 1.5rem;
+}
+
+.known-words h2 {
+  margin-bottom: 1.25rem;
+}
+
+.known-words-count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.known-words-count strong {
+  font-family: var(--font-heading);
+  font-size: 2.5rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.known-words-of {
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.known-words-note {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  margin-top: 0.6rem;
+}
+
+/* .stats-bar is a span; in the rates list it fills its grid column, but standalone it needs to be
+   told to take the full width. */
+.known-words .stats-bar {
+  display: block;
+}
+
 /* Stats view */
 .stats-view h2 {
   margin-bottom: 1.75rem;

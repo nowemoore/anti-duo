@@ -14,10 +14,26 @@ export type RawStroke = RawPoint[]
 
 const toXY = (s: RawStroke): [number, number][] => s.map((p) => [p.x, p.y])
 
+/** Matches a single CJK ideograph, so a word made only of kanji can be identified. */
+const KANJI_ONLY = /^[㐀-䶿一-鿿豈-﫿]+$/
+
 /** Whether a word can be an auto-graded draw target: 1–maxKanji characters, all with patterns. */
 export function drawable(word: string, maxKanji = 3): boolean {
   const chars = [...word]
   return chars.length >= 1 && chars.length <= maxKanji && chars.every((c) => covered.has(c))
+}
+
+/**
+ * Whether a word can be *traced* — written over a faint guide, with no grading.
+ *
+ * Same shape as {@link drawable} minus the pattern requirement, which is the point: 71 of the 251
+ * curriculum kanji have no reference pattern, and a word is only auto-gradable if *every* character
+ * has one, so multi-kanji words drop out faster still. Those words previously had no writing
+ * practice at all; tracing gives them some, and the strokes become training data for the recognizer.
+ */
+export function traceable(word: string, maxKanji = 3): boolean {
+  const chars = [...word]
+  return chars.length >= 1 && chars.length <= maxKanji && KANJI_ONLY.test(word)
 }
 
 /** Top-K candidate characters for a single character's strokes (best first). */

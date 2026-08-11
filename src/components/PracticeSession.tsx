@@ -4,11 +4,11 @@ import type { Progress } from '../../shared/types'
 import { PRACTICE_ITERATIONS } from '../../shared/constants'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
-import { introducedUnits } from '../lib/study'
-import { awardDelta, pickTarget } from '../lib/practice'
-import { recordTaskResult } from '../lib/stats'
+import { introducedUnits, isForgottenLevel } from '../lib/study'
+import { awardDelta, levelDeltaFor, pickTarget } from '../lib/practice'
+import { recordTaskResult, recordWordResult } from '../lib/stats'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR } from '../../shared/constants'
-import { generateAnyTask, TASK_TUNING, type Task } from '../lib/tasks'
+import { generateAnyTask, testedWord, type Task } from '../lib/tasks'
 import { TaskRunner } from './tasks/TaskRunner'
 import { Bilingual } from './Bilingual'
 
@@ -78,20 +78,26 @@ export function PracticeSession({ onExit }: Props) {
     if (!current) return
     const { task, targetIdx } = current
 
-    // Scale the level change by this task type's reward/penalty knob (pointsUp when the answer helped,
-    // pointsDown when it hurt); Stats accuracy still uses raw `delta`.
-    const tuning = TASK_TUNING[task.kind]
-    const levelDelta = delta * (delta >= 0 ? tuning.pointsUp : tuning.pointsDown)
+    // Scale the level change by this task type's reward/penalty knob, damped while the kanji is still
+    // warming up so a new one can't be un-learned by a single miss; Stats accuracy uses raw `delta`.
+    const cur = workingRef.current[targetIdx]?.lvl ?? INTRODUCED_LEVEL
+    const levelDelta = levelDeltaFor(task.kind, delta, cur)
     if (levelDelta !== 0) {
-      const cur = workingRef.current[targetIdx]?.lvl ?? 1
       const next = Math.max(LEVEL_FLOOR, cur + levelDelta)
       workingRef.current = { ...workingRef.current, [targetIdx]: { lvl: next } }
     }
     // Record the attempt for every answer (even a net-zero which-words); the level delta only moves
-    // when nonzero, but the success tally always counts the attempt.
-    update((p) =>
-      recordTaskResult(levelDelta !== 0 ? awardDelta(p, targetIdx, levelDelta) : p, task.kind, delta),
-    )
+    // when nonzero, but the success tally always counts the attempt. Tasks that test one specific
+    // word also move that word's "known" run (which-words tests four at once, so it doesn't count).
+    // Checked against the curated vocabulary: a cloze can focus an inflection (食べた), which
+    // shouldn't be tracked separately from its dictionary form.
+    const tested = testedWord(task)
+    const word = tested && index.words.has(tested) ? tested : null
+    update((p) => {
+      let next = levelDelta !== 0 ? awardDelta(p, targetIdx, levelDelta) : p
+      next = recordTaskResult(next, task.kind, delta)
+      return word ? recordWordResult(next, word, delta > 0) : next
+    })
     prevTargetRef.current = targetIdx
 
     const nextIteration = iteration + 1
@@ -164,7 +170,7 @@ function Summary({ working, startLevels, index, onExit }: SummaryProps) {
         idx: i,
         form: index.byIdx.get(i)?.form ?? '?',
         delta: v.lvl - (startLevels[i] ?? v.lvl),
-        reteach: v.lvl < INTRODUCED_LEVEL, // fell below intro → goes back into Learn
+        reteach: isForgottenLevel(v.lvl), // lapsed to the floor → goes back into Learn
       }
     })
     .filter((m) => m.delta !== 0)

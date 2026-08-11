@@ -2,10 +2,10 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
 import type { Progress } from '@shared/types'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR, PRACTICE_ITERATIONS } from '@shared/constants'
-import { introducedUnits } from '@lib/study'
-import { awardDelta, pickTarget } from '@lib/practice'
-import { recordTaskResult } from '@lib/stats'
-import { generateAnyTask, TASK_TUNING, WHICH_WORDS_OPTIONS, WHICH_WORDS_POINT } from '@lib/tasks'
+import { introducedUnits, isForgottenLevel } from '@lib/study'
+import { awardDelta, levelDeltaFor, pickTarget } from '@lib/practice'
+import { recordTaskResult, recordWordResult, unrecordWordResult } from '@lib/stats'
+import { generateAnyTask, testedWord, WHICH_WORDS_OPTIONS, WHICH_WORDS_POINT } from '@lib/tasks'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
@@ -100,18 +100,29 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
     done || !qa ? undefined : { current: pos + 1, total },
   )
 
-  /** Apply a revealed question's score to the working levels + persisted progress (once). */
-  const record = (item: QA) => {
-    const tuning = TASK_TUNING[item.task.kind]
-    const levelDelta = item.score * (item.score >= 0 ? tuning.pointsUp : tuning.pointsDown)
+  /**
+   * Apply a revealed question's score to the working levels + persisted progress (once).
+   * Returns the level change actually applied, so the caller can store it on the QA for `override`.
+   */
+  const record = (item: QA): number => {
+    // Damped while the kanji is still warming up, so a new one can't be un-learned by one miss.
+    const cur = workingRef.current[item.targetIdx]?.lvl ?? INTRODUCED_LEVEL
+    const levelDelta = levelDeltaFor(item.task.kind, item.score, cur)
     if (levelDelta !== 0) {
-      const cur = workingRef.current[item.targetIdx]?.lvl ?? 1
       const nextLvl = Math.max(LEVEL_FLOOR, cur + levelDelta)
       workingRef.current = { ...workingRef.current, [item.targetIdx]: { lvl: nextLvl } }
     }
-    update((p) =>
-      recordTaskResult(levelDelta !== 0 ? awardDelta(p, item.targetIdx, levelDelta) : p, item.task.kind, item.score),
-    )
+    // Per-word "known" run, for the Stats card. Only tasks that test one specific word count —
+    // which-words shows four at once, so a good score there isn't evidence about any one of them.
+    // Sentence-derived words are checked against the curated vocabulary: a cloze can focus an
+    // inflection (食べた) which shouldn't be tracked separately from its dictionary form.
+    const tested = testedWord(item.task)
+    const word = tested && index.words.has(tested) ? tested : null
+    update((p) => {
+      let next = levelDelta !== 0 ? awardDelta(p, item.targetIdx, levelDelta) : p
+      next = recordTaskResult(next, item.task.kind, item.score)
+      return word ? recordWordResult(next, word, isCorrect(item)) : next
+    })
     prevTargetRef.current = item.targetIdx
 
     // Persist the drawing (with the recognizer's verdict) to Supabase — a history. Fire-and-forget:
@@ -121,16 +132,21 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
       if (Array.isArray(strokes) && strokes.length) {
         const at = pos
         const word = item.task.word
-        saveDrawing({ userId, lang: pack.id, unitIdx: item.targetIdx, word, strokes, correct: item.score > 0 })
+        // Practice only ever offers recognizer-graded words; tracing lives in the write review.
+        saveDrawing({ userId, lang: pack.id, unitIdx: item.targetIdx, word, strokes, correct: item.score > 0, mode: 'recognized' })
           .then((id) => {
             if (id) drawingIdRef.current[at] = id
           })
           .catch(() => {})
       }
     }
+    return levelDelta
   }
 
   const patch = (updated: QA) => setHistory((h) => h.map((x, k) => (k === pos ? updated : x)))
+
+  /** Record, then patch once with the applied delta attached. */
+  const commitAnswer = (updated: QA) => patch({ ...updated, appliedDelta: record(updated) })
 
   const lockIn = () => {
     if (!qa || qa.phase === 'revealed') return
@@ -142,16 +158,12 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
       patch({ ...qa, answer, phase: 'retry' })
       return
     }
-    const updated: QA = { ...qa, answer, phase: 'revealed', score: res.score, recorded: true }
-    patch(updated)
-    record(updated)
+    commitAnswer({ ...qa, answer, phase: 'revealed', score: res.score, recorded: true })
   }
 
   const giveUp = () => {
     if (!qa || qa.phase === 'revealed') return
-    const updated: QA = { ...qa, phase: 'revealed', score: -1, recorded: true }
-    patch(updated)
-    record(updated)
+    commitAnswer({ ...qa, phase: 'revealed', score: -1, recorded: true })
   }
 
   const setAnswer = (a: unknown) =>
@@ -190,12 +202,21 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
   const override = () => {
     if (!qa || qa.phase !== 'revealed' || qa.overridden) return
     const recognizerCorrect = isCorrect(qa) // the verdict being disputed (before we zero the score)
-    const tuning = TASK_TUNING[qa.task.kind]
-    const correction = -(qa.score * (qa.score >= 0 ? tuning.pointsUp : tuning.pointsDown)) // undo the applied delta
-    const cur = workingRef.current[qa.targetIdx]?.lvl ?? 1
+    // Undo exactly what was applied, rather than recomputing it — warm-up damping is level-dependent,
+    // and the level has already moved.
+    const correction = -(qa.appliedDelta ?? 0)
+    const cur = workingRef.current[qa.targetIdx]?.lvl ?? INTRODUCED_LEVEL
     workingRef.current = { ...workingRef.current, [qa.targetIdx]: { lvl: Math.max(LEVEL_FLOOR, cur + correction) } }
-    patch({ ...qa, score: 0, overridden: true })
-    if (correction !== 0) update((p) => awardDelta(p, qa.targetIdx, correction))
+    patch({ ...qa, score: 0, overridden: true, appliedDelta: 0 })
+    // Reverse the word streak too, or a disputed verdict silently leaves the known-count wrong.
+    const tested = testedWord(qa.task)
+    const word = tested && index.words.has(tested) ? tested : null
+    if (correction !== 0 || word) {
+      update((p) => {
+        const next = correction !== 0 ? awardDelta(p, qa.targetIdx, correction) : p
+        return word ? unrecordWordResult(next, word, recognizerCorrect) : next
+      })
+    }
     const id = drawingIdRef.current[pos]
     if (id) void overrideDrawing(id, recognizerCorrect).catch(() => {})
     next()
@@ -305,7 +326,7 @@ function Summary({ working, startLevels, index, onExit }: SummaryProps) {
         idx: i,
         form: index.byIdx.get(i)?.form ?? '?',
         delta: v.lvl - (startLevels[i] ?? v.lvl),
-        reteach: v.lvl < INTRODUCED_LEVEL,
+        reteach: isForgottenLevel(v.lvl),
       }
     })
     .filter((m) => m.delta !== 0)

@@ -4,26 +4,11 @@ import type { Unit } from '@shared/types'
 import { DrawCanvas } from '../../components/DrawCanvas'
 import { Icon } from '../../components/Icon'
 import { FadeView } from '../../components/FadeView'
-import { scoreWord, drawable, type RawStroke } from './handwriting'
+import { scoreWord, drawable, traceable, type RawStroke } from './handwriting'
 import { useLearned } from '../../hooks/useLearned'
-import { colors, fonts, radius, spacing } from '../../theme'
-
-interface Target {
-  word: string
-  reading: string
-  meaning: string
-}
-
-/** Pick a drawable word for the unit (an example if any, else the bare kanji). Mirrors DrawReview. */
-function toTarget(k: Unit, canDraw: (w: string) => boolean): Target | null {
-  const words = k.examples.filter((e) => canDraw(e.word))
-  if (words.length) {
-    const ex = words[Math.floor(Math.random() * words.length)]
-    return { word: ex.word, reading: ex.reading, meaning: ex.meaning }
-  }
-  if (canDraw(k.form)) return { word: k.form, reading: '', meaning: k.gloss.join(', ') }
-  return null
-}
+import { useAuth } from '../../context/AuthContext'
+import { logTracedAttempt, toTarget } from './drawTarget'
+import { colors, fonts, spacing } from '../../theme'
 
 /**
  * Single-unit write practice — the "write" page of the browse-detail view. Freely repeatable:
@@ -31,9 +16,11 @@ function toTarget(k: Unit, canDraw: (w: string) => boolean): Target | null {
  * which does the same loop across a whole just-learned set). JA-only, so the static (JA) palette is fine.
  */
 export function DrawPractice({ unit }: { unit: Unit }) {
+  const userId = useAuth().session?.user?.id
   const isLearned = useLearned()
   const canDraw = useCallback((w: string) => drawable(w) && [...w].every((c) => isLearned(c)), [isLearned])
-  const target = useMemo(() => toTarget(unit, canDraw), [unit, canDraw])
+  const canTrace = useCallback((w: string) => traceable(w) && [...w].every((c) => isLearned(c)), [isLearned])
+  const target = useMemo(() => toTarget(unit, canDraw, canTrace), [unit, canDraw, canTrace])
 
   const [strokes, setStrokes] = useState<RawStroke[]>([])
   const [revealed, setRevealed] = useState(false)
@@ -52,8 +39,10 @@ export function DrawPractice({ unit }: { unit: Unit }) {
 
   const lockIn = () => {
     if (revealed || strokes.length === 0) return
-    setCorrect(scoreWord(target.word, strokes).correct)
+    // A traced word has no reference pattern to score against — reveal it without a verdict.
+    setCorrect(target.traced ? false : scoreWord(target.word, strokes).correct)
     setRevealed(true)
+    logTracedAttempt(userId, target, strokes)
   }
   const giveUp = () => {
     if (!revealed) {
@@ -72,7 +61,8 @@ export function DrawPractice({ unit }: { unit: Unit }) {
 
   return (
     <View style={styles.root}>
-      {revealed && (
+      {/* No verdict for a traced word — there's nothing to check it against. */}
+      {revealed && !target.traced && (
         <View style={styles.corner}>
           <Icon
             name={correct ? 'circle-check' : 'circle-xmark'}
@@ -84,6 +74,7 @@ export function DrawPractice({ unit }: { unit: Unit }) {
 
       <View style={styles.prompt}>
         <Text style={styles.reading}>{target.reading || target.meaning}</Text>
+        {target.traced && <Text style={styles.traceHint}>Trace over the outline — not graded yet.</Text>}
       </View>
 
       <FadeView key={attempt} style={styles.canvasFade}>
@@ -93,6 +84,7 @@ export function DrawPractice({ unit }: { unit: Unit }) {
           initialStrokes={strokes}
           onStrokes={(s) => !revealed && setStrokes(s)}
           onNoClue={giveUp}
+          guide={target.traced ? target.word : undefined}
         />
       </FadeView>
 
@@ -125,6 +117,7 @@ const styles = StyleSheet.create({
   corner: { position: 'absolute', top: 0, right: 0, zIndex: 2 },
   prompt: { alignItems: 'center', marginBottom: spacing.md },
   reading: { color: colors.ink, fontFamily: fonts.body, fontSize: 30 },
+  traceHint: { color: colors.muted, fontFamily: fonts.body, fontSize: 11, fontStyle: 'italic', marginTop: 2 },
   canvasFade: { flex: 1 },
   answerSlot: { height: 64, justifyContent: 'center', marginTop: spacing.sm },
   answer: { alignItems: 'center', gap: 2 },

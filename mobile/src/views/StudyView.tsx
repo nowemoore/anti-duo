@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import type { Unit } from '@shared/types'
 import { useContent } from '../context/ContentContext'
@@ -60,10 +60,24 @@ export function StudyView() {
     setPhase('learn')
   }
 
+  /**
+   * Whether a unit has anything to write: an auto-gradable word, or failing that one that can be
+   * traced over a guide. The same predicate decides both the review contents and the dot count —
+   * they used to differ (examples-or-form vs form-only), so the dots could disagree with the review.
+   */
+  const writeable = useCallback(
+    (k: Unit) => {
+      const has = (test?: (w: string) => boolean) =>
+        test != null && (k.examples.some((e) => test(e.word)) || test(k.form))
+      return has(draw?.isDrawable) || has(draw?.isTraceable)
+    },
+    [draw],
+  )
+
   function finishLearning(learned: Unit[]) {
     update((p) => applyLearned(p, learned))
-    // Reinforce the just-learned units by writing them (low-stakes; skips any without a drawable word).
-    const reviewable = learned.filter((k) => k.examples.some((e) => draw?.isDrawable(e.word)) || draw?.isDrawable(k.form))
+    // Reinforce the just-learned units by writing them (low-stakes; traced when not auto-gradable).
+    const reviewable = learned.filter(writeable)
     if (reviewable.length) {
       setReviewUnits(reviewable)
       setPhase('review')
@@ -73,7 +87,7 @@ export function StudyView() {
   }
 
   // Learn dots continue into the write review: N units to learn + the writeable ones to review.
-  const writeSteps = chunk.filter((k) => draw?.isDrawable(k.form)).length
+  const writeSteps = chunk.filter(writeable).length
   const stepTotal = chunk.length + writeSteps
 
   let content

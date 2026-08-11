@@ -13,6 +13,20 @@ function toPath(s: Stroke): string {
 }
 
 /**
+ * Font size that makes the tracing guide fill the canvas: bounded by the height, and by the width
+ * shared between however many characters the word has.
+ *
+ * Computed rather than left to `adjustsFontSizeToFit`, which only ever shrinks from a fixed starting
+ * size (so a single kanji stayed small on a tall canvas) and is a no-op on react-native-web.
+ * CJK glyphs are roughly square, so one character's width ≈ its font size.
+ */
+function guideFontSize(word: string, width: number, height: number): number {
+  const chars = Math.max(1, [...word].length)
+  if (width <= 0 || height <= 0) return 0
+  return Math.floor(Math.min(height * 0.94, (width * 0.96) / chars))
+}
+
+/**
  * Finger-drawing surface: captures strokes as point arrays and renders them with react-native-svg.
  * Self-contained (Undo/Clear). Reset by changing its `key`. Reports stroke count via onChange, and
  * the full stroke list via onStrokes (for a future recognizer).
@@ -23,6 +37,7 @@ export function DrawCanvas({
   onStrokes,
   onNoClue,
   initialStrokes,
+  guide,
 }: {
   disabled?: boolean
   onChange?: (count: number) => void
@@ -31,10 +46,19 @@ export function DrawCanvas({
   onNoClue?: () => void
   /** Seeds the canvas on mount (to replay a previously-drawn answer). Change `key` to re-seed. */
   initialStrokes?: Stroke[]
+  /**
+   * Word rendered faintly behind the ink, to trace over. Used for characters the on-device
+   * recognizer has no reference pattern for, where the answer can't be graded but the strokes are
+   * still worth collecting.
+   */
+  guide?: string
 }) {
   const [strokes, setStrokes] = useState<Stroke[]>(() => initialStrokes ?? [])
   const [current, setCurrent] = useState<Stroke>([])
   const currentRef = useRef<Stroke>([])
+  // Measured so the tracing guide can be scaled to fill whatever space the canvas ended up with.
+  const [surface, setSurface] = useState({ width: 0, height: 0 })
+  const guideSize = guide ? guideFontSize(guide, surface.width, surface.height) : 0
 
   const commit = (next: Stroke[]) => {
     setStrokes(next)
@@ -119,7 +143,29 @@ export function DrawCanvas({
         </View>
       </View>
 
-      <View style={styles.surface} {...pan.current.panHandlers}>
+      <View
+        style={styles.surface}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout
+          setSurface({ width, height })
+        }}
+        {...pan.current.panHandlers}
+      >
+        {/* Tracing guide, behind the ink. Rendered before the Svg and non-interactive, and the pan
+            handlers live on this parent, so it can't intercept a stroke. Hidden until the canvas has
+            been measured, so it can't flash at the wrong size. */}
+        {guide && guideSize > 0 ? (
+          <View pointerEvents="none" style={styles.guideWrap}>
+            <Text
+              numberOfLines={1}
+              // lineHeight === fontSize keeps the text box the height of the glyphs, so the flex
+              // centering above actually centres what you see rather than a taller padded box.
+              style={[styles.guideText, { fontSize: guideSize, lineHeight: guideSize }]}
+            >
+              {guide}
+            </Text>
+          </View>
+        ) : null}
         {/* width/height 100% are required on web — without them react-native-svg falls back to the
             SVG default 150px height, so strokes below ~the top half never render. */}
         <Svg width="100%" height="100%" pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -167,5 +213,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.md,
     overflow: 'hidden',
+  },
+  // Faint enough to trace over without competing with the learner's own strokes. No padding here —
+  // the fill margin is baked into guideFontSize so the glyph can be centred on the whole surface.
+  guideWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  guideText: {
+    color: colors.ink,
+    opacity: 0.14,
+    textAlign: 'center',
+    // Android adds vertical font padding that pushes the glyph off-centre; the other platforms ignore this.
+    includeFontPadding: false,
   },
 })
