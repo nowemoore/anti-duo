@@ -8,6 +8,7 @@ import {
   knownWordCount,
   recordTaskResult,
   recordWordResult,
+  amendTaskResult,
   taskRates,
   restoreWordStreak,
 } from '../src/lib/stats'
@@ -102,6 +103,29 @@ async function main() {
   const ceilingOverrideNeutral =
     restoreWordStreak(atCeiling, '食べる', WORD_STREAK_MAX).words?.['食べる'] === WORD_STREAK_MAX
 
+  // Overriding a draw verdict re-scores the answer as the learner's verdict, so it must land exactly
+  // where cleanly answering that way would have — same run, same success rate, still one attempt.
+  const overrideMatchesCleanAnswer = ([0, 3] as const).every((start) => {
+    const base = (): Progress => ({ ...defaultProgress(), words: start ? { 走る: start } : {} })
+    // Recognizer says wrong and is recorded, then the learner overrides to "actually right".
+    let disputed = recordWordResult(recordTaskResult(base(), 'draw', -1), '走る', false)
+    disputed = amendTaskResult(disputed, 'draw', -1, 1)
+    disputed = recordWordResult(restoreWordStreak(disputed, '走る', start), '走る', true)
+    // The same question answered correctly first time.
+    const clean = recordWordResult(recordTaskResult(base(), 'draw', 1), '走る', true)
+    const row = (x: Progress) => taskRates(x).find((r) => r.type === 'draw')!
+    return (
+      (disputed.words?.['走る'] ?? 0) === (clean.words?.['走る'] ?? 0) &&
+      row(disputed).rate === row(clean).rate &&
+      row(disputed).attempts === row(clean).attempts
+    )
+  })
+  // Amending never invents an extra attempt — the question was asked once.
+  const amendKeepsAttempts =
+    taskRates(amendTaskResult(recordTaskResult(defaultProgress(), 'draw', -1), 'draw', -1, 1)).find(
+      (r) => r.type === 'draw',
+    )!.attempts === 1
+
   // The count is scoped to a word set, so it can't exceed the card's own denominator.
   const scoped = knownWordCount(w, new Set(['見る'])) === 0 && knownWordCount(w, new Set(['食べる'])) === 1
 
@@ -171,6 +195,8 @@ async function main() {
     ['an override at the run ceiling takes nothing away', ceilingOverrideNeutral],
     ['the run floors at 0 and the entry is pruned', flooredAndPruned],
     ['an override reverses exactly one answer', overrideReverses],
+    ['an override re-scores as the verdict the learner gave', overrideMatchesCleanAnswer],
+    ['amending a verdict does not add a second attempt', amendKeepsAttempts],
     ['knownWordCount can be scoped to a word set', scoped],
     [`testedWord names curated vocabulary for most tasks (${named} credited)`, named > 0],
     [`non-vocabulary focus words exist and are filtered out (${filteredOut} skipped)`, filteredOut > 0],

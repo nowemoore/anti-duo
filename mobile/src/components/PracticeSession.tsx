@@ -4,7 +4,7 @@ import type { Progress } from '@shared/types'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR, PRACTICE_ITERATIONS } from '@shared/constants'
 import { introducedUnits, isForgottenLevel } from '@lib/study'
 import { awardDelta, levelDeltaFor, pickTarget } from '@lib/practice'
-import { recordTaskResult, recordWordResult, restoreWordStreak } from '@lib/stats'
+import { amendTaskResult, recordTaskResult, recordWordResult, restoreWordStreak } from '@lib/stats'
 import { generateAnyTask, testedWord, WHICH_WORDS_OPTIONS, WHICH_WORDS_POINT } from '@lib/tasks'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
@@ -198,28 +198,39 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
 
   /**
    * A task's verdict override (draw: "I think I got this one right" on a miss, or "…wrong" on a hit —
-   * the recognizer can misread either way). Undoes whatever the verdict did to the level in *either*
-   * direction (cancels a penalty, or removes an undeserved reward), marks it overridden, moves on, and
-   * flags the saved drawing row. Neutral by design — it declines to punish/reward, it doesn't re-score.
+   * the recognizer can misread either way). The button always asserts the opposite of what the
+   * recognizer said, so the learner's verdict is unambiguous.
+   *
+   * The answer is **re-scored** as that verdict rather than cancelled: level, word run and the
+   * task's success rate all end up where they would have been had the recognizer got it right the
+   * first time. The recognizer has no patterns at all for a chunk of the curriculum and misreads
+   * plenty of the rest, so treating a dispute as "no result" would let its failures cap real progress.
    */
   const override = () => {
     if (!qa || qa.phase !== 'revealed' || qa.overridden) return
-    const recognizerCorrect = isCorrect(qa) // the verdict being disputed (before we zero the score)
-    // Undo exactly what was applied, rather than recomputing it — warm-up damping is level-dependent,
-    // and the level has already moved.
-    const correction = -(qa.appliedDelta ?? 0)
+    const recognizerCorrect = isCorrect(qa) // the verdict being disputed (before we re-score)
+    const learnerCorrect = !recognizerCorrect
+    const newScore = learnerCorrect ? 1 : -1
+
+    // Re-derive the delta from the level *before* this answer touched it, so warm-up damping is
+    // applied against the same level the original verdict saw.
+    const applied = qa.appliedDelta ?? 0
     const cur = workingRef.current[qa.targetIdx]?.lvl ?? INTRODUCED_LEVEL
+    const newDelta = levelDeltaFor(qa.task.kind, newScore, cur - applied)
+    const correction = newDelta - applied
     workingRef.current = { ...workingRef.current, [qa.targetIdx]: { lvl: Math.max(LEVEL_FLOOR, cur + correction) } }
-    patch({ ...qa, score: 0, overridden: true, appliedDelta: 0 })
-    // Put the word's run back where it was, or a disputed verdict leaves the known-count wrong.
+    patch({ ...qa, score: newScore, overridden: true, appliedDelta: newDelta })
+
     const tested = testedWord(qa.task)
     const word = tested && index.words.has(tested) ? tested : null
-    if (correction !== 0 || word) {
-      update((p) => {
-        const next = correction !== 0 ? awardDelta(p, qa.targetIdx, correction) : p
-        return word ? restoreWordStreak(next, word, qa.prevWordStreak ?? 0) : next
-      })
-    }
+    update((p) => {
+      let next = correction !== 0 ? awardDelta(p, qa.targetIdx, correction) : p
+      // Swap the points the original verdict earned for the learner's, without a second attempt.
+      next = amendTaskResult(next, qa.task.kind, qa.score, newScore)
+      // Rewind the run to before the disputed answer, then apply the verdict the learner gave.
+      if (word) next = recordWordResult(restoreWordStreak(next, word, qa.prevWordStreak ?? 0), word, learnerCorrect)
+      return next
+    })
     const id = drawingIdRef.current[pos]
     if (id) void overrideDrawing(id, recognizerCorrect).catch(() => {})
     next()

@@ -47,6 +47,26 @@ export function recordWordResult(progress: Progress, word: string, correct: bool
   return setWordStreak(progress, word, next)
 }
 
+/**
+ * Re-score an answer that has already been recorded, without counting it twice. Swaps the points a
+ * delta earned for the points a different one earns; the attempt itself still happened, so the
+ * attempt count is untouched.
+ *
+ * Used when a draw verdict is overridden: the question was asked and answered once, but by the
+ * learner's account it went the other way.
+ */
+export function amendTaskResult(
+  progress: Progress,
+  type: TaskType,
+  oldDelta: number,
+  newDelta: number,
+): Progress {
+  const cur = progress.stats?.[type]
+  if (!cur || oldDelta === newDelta) return progress
+  const points = Math.max(0, cur.points - earnedPoints(oldDelta) + earnedPoints(newDelta))
+  return { ...progress, stats: { ...progress.stats, [type]: { attempts: cur.attempts, points } } }
+}
+
 /** Set a word's run outright. Zeroed runs are dropped so the map doesn't grow forever. */
 export function setWordStreak(progress: Progress, word: string, streak: number): Progress {
   if (!word) return progress
