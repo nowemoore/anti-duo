@@ -9,12 +9,12 @@ import {
   recordTaskResult,
   recordWordResult,
   taskRates,
-  unrecordWordResult,
+  restoreWordStreak,
 } from '../src/lib/stats'
-import { enabledWords } from '../src/lib/study'
+import { enabledWords, introducedWords } from '../src/lib/study'
 import { ALL_TASK_TYPES, generateTask, testedWord } from '../src/lib/tasks'
 import { normalizeProgress } from '../shared/progress'
-import { WORD_KNOWN_STREAK, defaultProgress } from '../shared/constants'
+import { WORD_KNOWN_STREAK, WORD_STREAK_MAX, defaultProgress } from '../shared/constants'
 import type { Progress } from '../shared/types'
 
 function rateOf(p: Progress, type: string): number | null {
@@ -78,18 +78,29 @@ async function main() {
   const missUnknows = !isWordKnown(afterMiss, '食べる') && knownWordCount(afterMiss) === 0
   const winsItBack = isWordKnown(recordWordResult(afterMiss, '食べる', true), '食べる')
 
-  // Capped at the threshold, so a known word lapses on one miss rather than several.
+  // Runs climb past the known threshold, up to WORD_STREAK_MAX. The extra counts are buffer: a word
+  // answered well beyond the threshold survives a miss without dropping out of the count.
   let capped = w
-  for (let i = 0; i < 5; i++) capped = recordWordResult(capped, '食べる', true)
-  const cappedAtThreshold = capped.words?.['食べる'] === WORD_KNOWN_STREAK
+  for (let i = 0; i < WORD_STREAK_MAX * 2; i++) capped = recordWordResult(capped, '食べる', true)
+  const cappedAtMax = capped.words?.['食べる'] === WORD_STREAK_MAX
+  const bufferHoldsKnown = isWordKnown(recordWordResult(capped, '食べる', false), '食べる')
 
   // Floored at zero, and a zeroed word is dropped rather than kept as a 0 entry forever.
   const floored = recordWordResult(recordWordResult(defaultProgress(), '見る', false), '見る', false)
   const flooredAndPruned = !('見る' in (floored.words ?? {}))
 
-  // An override reverses exactly one recorded answer.
-  const overridden = unrecordWordResult(recordWordResult(defaultProgress(), '書く', true), '書く', true)
+  // An override restores the run to what it was.
+  const overridden = restoreWordStreak(recordWordResult(defaultProgress(), '書く', true), '書く', 0)
   const overrideReverses = !('書く' in (overridden.words ?? {}))
+
+  // The boundaries are where "apply the opposite operation" would go wrong: a miss against a run
+  // already at 0 changes nothing, so undoing it must not hand out a point that was never taken.
+  const atFloor = recordWordResult(defaultProgress(), '書く', false) // no-op, already 0
+  const floorOverrideNeutral = !('書く' in (restoreWordStreak(atFloor, '書く', 0).words ?? {}))
+  // Same at the ceiling: a correct answer at WORD_STREAK_MAX doesn't move, so nor should its undo.
+  const atCeiling = recordWordResult(capped, '食べる', true)
+  const ceilingOverrideNeutral =
+    restoreWordStreak(atCeiling, '食べる', WORD_STREAK_MAX).words?.['食べる'] === WORD_STREAK_MAX
 
   // The count is scoped to a word set, so it can't exceed the card's own denominator.
   const scoped = knownWordCount(w, new Set(['見る'])) === 0 && knownWordCount(w, new Set(['食べる'])) === 1
@@ -111,6 +122,21 @@ async function main() {
     }
   }
   const vocabIsSubset = [...index.words].every((x) => words.has(x))
+
+  // The Stats card counts against the words of the kanji you've been introduced to, not the whole
+  // curriculum — otherwise early progress reads as 12 of 929 and the word list is mostly vocabulary
+  // for kanji never taught. Must start empty, grow with progress, and stay inside enabledWords.
+  const fresh = defaultProgress()
+  const someLearned = { ...fresh, units: Object.fromEntries(index.content.units.slice(0, 60).map((u) => [u.idx, { lvl: 1 }])) }
+  const allLearned = { ...fresh, units: Object.fromEntries(index.content.units.map((u) => [u.idx, { lvl: 1 }])) }
+  const introNone = introducedWords(index, fresh)
+  const introSome = introducedWords(index, someLearned)
+  const introAll = introducedWords(index, allLearned)
+  const scopeGrows =
+    introNone.size === 0 &&
+    introSome.size > introNone.size &&
+    introAll.size === words.size &&
+    [...introSome].every((x) => words.has(x))
   const whichWordsAbstains = index.content.units
     .slice(0, 60)
     .map((u) => generateTask(index, u.idx, 'which-words'))
@@ -128,7 +154,7 @@ async function main() {
   const cleanedWords = normalizeProgress(dirtyWords).words ?? {}
   const wordsNormalized =
     cleanedWords.good === 3 &&
-    cleanedWords.tooBig === WORD_KNOWN_STREAK && // clamped, not trusted
+    cleanedWords.tooBig === WORD_STREAK_MAX && // clamped, not trusted
     !('negative' in cleanedWords) &&
     !('notANumber' in cleanedWords) &&
     !('empty' in cleanedWords) &&
@@ -139,13 +165,17 @@ async function main() {
     [`a word is known only at ${WORD_KNOWN_STREAK} correct in a row`, knownOnlyAtThreshold],
     ['a miss un-knows a word', missUnknows],
     ['one correct wins it back', winsItBack],
-    ['the run is capped at the threshold', cappedAtThreshold],
+    [`the run climbs past the threshold and caps at ${WORD_STREAK_MAX}`, cappedAtMax],
+    ['a buffered word survives a miss and stays known', bufferHoldsKnown],
+    ['an override at the run floor awards nothing', floorOverrideNeutral],
+    ['an override at the run ceiling takes nothing away', ceilingOverrideNeutral],
     ['the run floors at 0 and the entry is pruned', flooredAndPruned],
     ['an override reverses exactly one answer', overrideReverses],
     ['knownWordCount can be scoped to a word set', scoped],
     [`testedWord names curated vocabulary for most tasks (${named} credited)`, named > 0],
     [`non-vocabulary focus words exist and are filtered out (${filteredOut} skipped)`, filteredOut > 0],
     ['the credited vocabulary is a subset of the Stats denominator', vocabIsSubset],
+    ['the Stats scope is the words of introduced kanji, and grows', scopeGrows],
     ['which-words credits no single word', whichWordsAbstains],
     ['word runs survive the normalizeProgress round-trip', wordsSurvive],
     ['malformed word entries are dropped or clamped', wordsNormalized],

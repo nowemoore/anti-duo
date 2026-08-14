@@ -25,6 +25,11 @@ export interface ContentIndex {
    * alongside 食べる and inflate the total with things nobody would call vocabulary.
    */
   words: Set<string>
+  /**
+   * Reading for each word in {@link words}. A word that appears under two units (一人 under both 一
+   * and 人) keeps the first reading found — they agree, since it's the same vocabulary entry.
+   */
+  wordReadings: Map<string, string>
   /** Engine-tier language logic (okurigana distractors, native-script test) for this content. */
   lang: LangEngine
 }
@@ -33,10 +38,14 @@ export function buildContentIndex(content: Content): ContentIndex {
   const byIdx = new Map<number, Unit>()
   const byForm = new Map<string, Unit>()
   const words = new Set<string>()
+  const wordReadings = new Map<string, string>()
   for (const k of content.units) {
     byIdx.set(k.idx, k)
     byForm.set(k.form, k)
-    for (const ex of k.examples) words.add(ex.word)
+    for (const ex of k.examples) {
+      words.add(ex.word)
+      if (!wordReadings.has(ex.word)) wordReadings.set(ex.word, ex.reading)
+    }
   }
   const sentencesForUnit = new Map<number, Sentence[]>()
   for (const s of content.sentences) {
@@ -59,5 +68,14 @@ export function buildContentIndex(content: Content): ContentIndex {
     .map(([name, units]) => ({ name, units }))
     .sort((a, b) => a.units[0].idx - b.units[0].idx)
 
-  return { content, byIdx, byForm, sentencesForUnit, categories, words, lang: getLangEngine(content.lang) }
+  return {
+    content,
+    byIdx,
+    byForm,
+    sentencesForUnit,
+    categories,
+    words,
+    wordReadings,
+    lang: getLangEngine(content.lang),
+  }
 }

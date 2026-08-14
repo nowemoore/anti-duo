@@ -1,6 +1,6 @@
 // Shared progress normalization — used by the server (file storage) and the static demo
 // (localStorage) so both coerce saved progress into the same valid shape.
-import { GRAMMAR_ATTEMPT_HISTORY, WORD_KNOWN_STREAK, defaultProgress } from './constants'
+import { GRAMMAR_ATTEMPT_HISTORY, WORD_STREAK_MAX, defaultProgress } from './constants'
 import type {
   GrammarAttempt,
   GrammarItemResult,
@@ -100,7 +100,7 @@ function normalizeGrammar(raw: unknown): Record<string, GrammarTopicProgress> | 
 }
 
 /**
- * Per-word correct-run counters. Values are clamped to [0, WORD_KNOWN_STREAK] and rounded, so a
+ * Per-word correct-run counters. Values are clamped to [0, WORD_STREAK_MAX] and rounded, so a
  * corrupted or out-of-range entry can't make a word permanently "known". Empty keys are dropped.
  */
 function normalizeWords(raw: unknown): Record<string, number> | undefined {
@@ -108,7 +108,7 @@ function normalizeWords(raw: unknown): Record<string, number> | undefined {
   const out: Record<string, number> = {}
   for (const [word, value] of Object.entries(raw as Record<string, unknown>)) {
     if (!word || typeof value !== 'number' || !Number.isFinite(value)) continue
-    const streak = Math.min(WORD_KNOWN_STREAK, Math.max(0, Math.round(value)))
+    const streak = Math.min(WORD_STREAK_MAX, Math.max(0, Math.round(value)))
     // A zeroed streak carries no information — drop it rather than grow the blob forever.
     if (streak > 0) out[word] = streak
   }

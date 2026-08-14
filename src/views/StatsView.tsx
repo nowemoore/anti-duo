@@ -3,7 +3,7 @@ import { WORD_KNOWN_STREAK } from '../../shared/constants'
 import { Bilingual } from '../components/Bilingual'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
-import { enabledWords } from '../lib/study'
+import { introducedWords } from '../lib/study'
 import { knownWordCount, taskRates, TASK_LABELS } from '../lib/stats'
 
 /** Vocabulary mastered + success rate per task type. */
@@ -57,8 +57,8 @@ function KnownWordsCard() {
   const index = useContent()
   const { progress } = useProgress()
 
-  // 900+ words across every unit — worth memoising rather than rebuilding the set each render.
-  const words = useMemo(() => enabledWords(index, progress), [index, progress])
+  // Hundreds of words even part-way in — worth memoising rather than rebuilding each render.
+  const words = useMemo(() => introducedWords(index, progress), [index, progress])
   const known = knownWordCount(progress, words)
   const total = words.size
   const pct = total === 0 ? 0 : Math.round((known / total) * 100)
@@ -77,8 +77,8 @@ function KnownWordsCard() {
       </span>
       <p className="known-words-note">
         {known === 0
-          ? `A word counts here once you've answered it correctly ${WORD_KNOWN_STREAK} times in a row.`
-          : `${WORD_KNOWN_STREAK} correct in a row to count; a miss walks it back. Out of the words in your enabled set.`}
+          ? `Out of the words in the kanji you've learned. One counts once you've answered it correctly ${WORD_KNOWN_STREAK} times in a row.`
+          : `Out of the words in the kanji you've learned. ${WORD_KNOWN_STREAK} correct in a row to count; a miss walks it back.`}
       </p>
     </section>
   )

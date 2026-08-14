@@ -22,6 +22,12 @@ export interface QA {
    * undo the wrong amount and leave a residue on the kanji.
    */
   appliedDelta?: number
+  /**
+   * The word's correct-run before this answer moved it. Like {@link appliedDelta}, stored rather
+   * than re-derived: at the run's floor a miss changes nothing, so "add one back" on override would
+   * award a point that was never taken away.
+   */
+  prevWordStreak?: number
 }
 
 /** Result of locking in an answer: revealed with a score, or bounced back to retry. */

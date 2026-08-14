@@ -70,6 +70,26 @@ export function enabledWords(index: ContentIndex, progress: Progress): Set<strin
   return out
 }
 
+/**
+ * The example words of every kanji the learner has been introduced to — vocabulary they have
+ * actually met, and the scope the Stats card counts against.
+ *
+ * A subset of {@link enabledWords}, which spans the whole curriculum: measuring against that made
+ * early progress invisible (12 of 929) and filled the word list with vocabulary for kanji not yet
+ * taught. This grows as they learn — roughly 4.3 words per kanji.
+ *
+ * A multi-kanji word appears as soon as *any* of its kanji is introduced, since it's an example of
+ * each of them. That's deliberately looser than {@link isWordLearned}, which requires every kanji
+ * and gates what can be *tested*; this is "vocabulary I've met", not "vocabulary I can be quizzed on".
+ */
+export function introducedWords(index: ContentIndex, progress: Progress): Set<string> {
+  const out = new Set<string>()
+  for (const k of introducedUnits(index, progress)) {
+    for (const ex of k.examples) out.add(ex.word)
+  }
+  return out
+}
+
 /** How many new kanji one Learn click will introduce (≤ LEARN_CHUNK, capped by what's left). */
 export function learnChunkSize(index: ContentIndex, progress: Progress): number {
   return Math.min(LEARN_CHUNK, unlearnedUnits(index, progress).length)

@@ -1,14 +1,16 @@
-import { useMemo } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { useMemo, useState } from 'react'
+import { View, Text, Pressable, Modal, FlatList, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WORD_KNOWN_STREAK } from '@shared/constants'
-import { enabledWords } from '@lib/study'
+import { introducedWords } from '@lib/study'
 import { knownWordCount, taskRates, TASK_LABELS } from '@lib/stats'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
 import { Bilingual } from '../components/Bilingual'
+import { Icon } from '../components/Icon'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
-import { useStyles } from '../hooks/theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 /** Vocabulary mastered + success rate per task type. */
 export function StatsView() {
@@ -59,36 +61,125 @@ export function StatsView() {
  * well as the count — the caption says so, since otherwise the number looks like lost progress.
  */
 function KnownWordsCard() {
+  const colors = useColors()
   const styles = useStyles(makeStyles)
   const index = useContent()
   const { progress } = useProgress()
+  const [listOpen, setListOpen] = useState(false)
 
-  // 900+ words across every unit — worth memoising rather than rebuilding the set each render.
-  const words = useMemo(() => enabledWords(index, progress), [index, progress])
+  // Hundreds of words even part-way in — worth memoising rather than rebuilding the set each render.
+  const words = useMemo(() => introducedWords(index, progress), [index, progress])
   const known = knownWordCount(progress, words)
   const total = words.size
   const pct = total === 0 ? 0 : Math.round((known / total) * 100)
 
   return (
-    <View style={styles.panel}>
-      <View style={styles.titleRow}>
-        <Bilingual native="覚えた言葉" en="Words you know" />
-      </View>
+    <>
+      <Pressable
+        style={styles.panel}
+        onPress={() => setListOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Show every word and its progress"
+      >
+        <View style={styles.titleRow}>
+          <Bilingual native="覚えた言葉" en="Words you know" />
+        </View>
 
-      <View style={styles.bigRow}>
-        <Text style={styles.big}>{known}</Text>
-        <Text style={styles.bigOf}>/ {total}</Text>
-      </View>
+        <View style={styles.bigRow}>
+          <Text style={styles.big}>{known}</Text>
+          <Text style={styles.bigOf}>/ {total}</Text>
+          <View style={styles.spacer} />
+          <Icon name="chevron-right" size={16} color={colors.muted} />
+        </View>
 
-      <View style={styles.bar}>
-        <View style={[styles.fill, { width: `${pct}%` }]} />
-      </View>
+        <View style={styles.bar}>
+          <View style={[styles.fill, { width: `${pct}%` }]} />
+        </View>
 
-      <Text style={styles.caption}>
-        {known === 0
-          ? `A word counts here once you've answered it correctly ${WORD_KNOWN_STREAK} times in a row.`
-          : `${WORD_KNOWN_STREAK} correct in a row to count; a miss walks it back. Out of the words in your enabled set.`}
-      </Text>
+        <Text style={styles.caption}>
+          {total === 0
+            ? 'Learn some kanji and the words that use them show up here.'
+            : known === 0
+              ? `Out of the words in the kanji you've learned. One counts once you've answered it correctly ${WORD_KNOWN_STREAK} times in a row — tap to see them all.`
+              : `Out of the words in the kanji you've learned. ${WORD_KNOWN_STREAK} correct in a row to count; a miss walks it back. Tap to see them all.`}
+        </Text>
+      </Pressable>
+
+      <WordListModal open={listOpen} onClose={() => setListOpen(false)} words={words} />
+    </>
+  )
+}
+
+/**
+ * Every word in the enabled set with its progress, most-progressed first.
+ *
+ * A FlatList in its own Modal rather than rows in the Stats scroll view: there are ~900 of them, and
+ * only the visible slice should ever be rendered.
+ */
+function WordListModal({
+  open,
+  onClose,
+  words,
+}: {
+  open: boolean
+  onClose: () => void
+  words: ReadonlySet<string>
+}) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
+  const index = useContent()
+  const { progress } = useProgress()
+  const insets = useSafeAreaInsets()
+
+  // Sorted by run, so what you're closest to knowing is at the top and untouched words sink.
+  const rows = useMemo(() => {
+    const out = [...words].map((word) => ({
+      word,
+      reading: index.wordReadings.get(word) ?? word,
+      streak: progress.words?.[word] ?? 0,
+    }))
+    out.sort((a, b) => b.streak - a.streak || a.reading.localeCompare(b.reading, 'ja'))
+    return out
+  }, [words, index, progress])
+
+  return (
+    <Modal visible={open} animationType="slide" onRequestClose={onClose}>
+      <View style={[styles.modal, { paddingTop: insets.top }]}>
+        <View style={styles.modalHead}>
+          <Text style={styles.modalTitle}>Words you know</Text>
+          <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="Close">
+            <Icon name="xmark" size={20} color={colors.muted} />
+          </Pressable>
+        </View>
+
+        <FlatList
+          data={rows}
+          keyExtractor={(r) => r.word}
+          contentContainerStyle={styles.modalList}
+          initialNumToRender={20}
+          renderItem={({ item }) => (
+            <View style={styles.wordRow}>
+              <Text style={styles.wordReading} numberOfLines={1}>
+                {item.reading}
+              </Text>
+              <StreakDots streak={item.streak} />
+            </View>
+          )}
+        />
+      </View>
+    </Modal>
+  )
+}
+
+/** WORD_KNOWN_STREAK dots; runs beyond the threshold are buffer and still show as full. */
+function StreakDots({ streak }: { streak: number }) {
+  const styles = useStyles(makeStyles)
+  const filled = Math.min(streak, WORD_KNOWN_STREAK)
+  return (
+    <View style={styles.dots} accessibilityLabel={`${filled} of ${WORD_KNOWN_STREAK}`}>
+      {Array.from({ length: WORD_KNOWN_STREAK }, (_, i) => (
+        <View key={i} style={[styles.dot, i < filled && styles.dotOn]} />
+      ))}
     </View>
   )
 }
@@ -110,4 +201,30 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   fill: { height: '100%', borderRadius: 999, backgroundColor: colors.accent },
   pct: { color: colors.ink, fontFamily: fonts.body, fontSize: 13, width: 40, textAlign: 'right', fontVariant: ['tabular-nums'] },
   count: { color: colors.muted, fontFamily: fonts.body, fontSize: 11, width: 54, textAlign: 'right' },
+  spacer: { flex: 1 },
+  modal: { flex: 1, backgroundColor: colors.bg },
+  modalHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+  },
+  modalTitle: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 18 },
+  modalList: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+  wordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: 10,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+  },
+  wordReading: { flex: 1, color: colors.ink, fontSize: 17 },
+  dots: { flexDirection: 'row', gap: 5 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
+  dotOn: { backgroundColor: colors.accent },
 })

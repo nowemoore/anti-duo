@@ -4,7 +4,7 @@ import type { Progress } from '@shared/types'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR, PRACTICE_ITERATIONS } from '@shared/constants'
 import { introducedUnits, isForgottenLevel } from '@lib/study'
 import { awardDelta, levelDeltaFor, pickTarget } from '@lib/practice'
-import { recordTaskResult, recordWordResult, unrecordWordResult } from '@lib/stats'
+import { recordTaskResult, recordWordResult, restoreWordStreak } from '@lib/stats'
 import { generateAnyTask, testedWord, WHICH_WORDS_OPTIONS, WHICH_WORDS_POINT } from '@lib/tasks'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
@@ -104,7 +104,7 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
    * Apply a revealed question's score to the working levels + persisted progress (once).
    * Returns the level change actually applied, so the caller can store it on the QA for `override`.
    */
-  const record = (item: QA): number => {
+  const record = (item: QA): { levelDelta: number; prevWordStreak: number } => {
     // Damped while the kanji is still warming up, so a new one can't be un-learned by one miss.
     const cur = workingRef.current[item.targetIdx]?.lvl ?? INTRODUCED_LEVEL
     const levelDelta = levelDeltaFor(item.task.kind, item.score, cur)
@@ -118,6 +118,9 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
     // inflection (食べた) which shouldn't be tracked separately from its dictionary form.
     const tested = testedWord(item.task)
     const word = tested && index.words.has(tested) ? tested : null
+    // Read before the update so an override can put it back exactly. Safe to read from the rendered
+    // progress: exactly one answer is recorded per question, and each needs its own tap.
+    const prevWordStreak = word ? (progress.words?.[word] ?? 0) : 0
     update((p) => {
       let next = levelDelta !== 0 ? awardDelta(p, item.targetIdx, levelDelta) : p
       next = recordTaskResult(next, item.task.kind, item.score)
@@ -140,13 +143,13 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
           .catch(() => {})
       }
     }
-    return levelDelta
+    return { levelDelta, prevWordStreak }
   }
 
   const patch = (updated: QA) => setHistory((h) => h.map((x, k) => (k === pos ? updated : x)))
 
   /** Record, then patch once with the applied delta attached. */
-  const commitAnswer = (updated: QA) => patch({ ...updated, appliedDelta: record(updated) })
+  const commitAnswer = (updated: QA) => patch({ ...updated, ...record(updated) })
 
   const lockIn = () => {
     if (!qa || qa.phase === 'revealed') return
@@ -208,13 +211,13 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
     const cur = workingRef.current[qa.targetIdx]?.lvl ?? INTRODUCED_LEVEL
     workingRef.current = { ...workingRef.current, [qa.targetIdx]: { lvl: Math.max(LEVEL_FLOOR, cur + correction) } }
     patch({ ...qa, score: 0, overridden: true, appliedDelta: 0 })
-    // Reverse the word streak too, or a disputed verdict silently leaves the known-count wrong.
+    // Put the word's run back where it was, or a disputed verdict leaves the known-count wrong.
     const tested = testedWord(qa.task)
     const word = tested && index.words.has(tested) ? tested : null
     if (correction !== 0 || word) {
       update((p) => {
         const next = correction !== 0 ? awardDelta(p, qa.targetIdx, correction) : p
-        return word ? unrecordWordResult(next, word, recognizerCorrect) : next
+        return word ? restoreWordStreak(next, word, qa.prevWordStreak ?? 0) : next
       })
     }
     const id = drawingIdRef.current[pos]

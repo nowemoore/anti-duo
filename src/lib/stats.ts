@@ -1,4 +1,4 @@
-import { WORD_KNOWN_STREAK } from '../../shared/constants'
+import { WORD_KNOWN_STREAK, WORD_STREAK_MAX } from '../../shared/constants'
 import type { Progress } from '../../shared/types'
 import { ALL_TASK_TYPES, TASK_SPECS, type TaskType } from './tasks'
 
@@ -43,17 +43,28 @@ export function recordTaskResult(progress: Progress, type: TaskType, delta: numb
 export function recordWordResult(progress: Progress, word: string, correct: boolean): Progress {
   if (!word) return progress
   const prev = progress.words?.[word] ?? 0
-  const next = correct ? Math.min(WORD_KNOWN_STREAK, prev + 1) : Math.max(0, prev - 1)
-  if (next === prev) return progress
+  const next = correct ? Math.min(WORD_STREAK_MAX, prev + 1) : Math.max(0, prev - 1)
+  return setWordStreak(progress, word, next)
+}
+
+/** Set a word's run outright. Zeroed runs are dropped so the map doesn't grow forever. */
+export function setWordStreak(progress: Progress, word: string, streak: number): Progress {
+  if (!word) return progress
+  const prev = progress.words?.[word] ?? 0
+  if (streak === prev) return progress
   const words = { ...progress.words }
-  if (next === 0) delete words[word]
-  else words[word] = next
+  if (streak <= 0) delete words[word]
+  else words[word] = streak
   return { ...progress, words }
 }
 
-/** Undo one recorded answer for a word — used when a draw verdict is overridden. */
-export function unrecordWordResult(progress: Progress, word: string, wasCorrect: boolean): Progress {
-  return recordWordResult(progress, word, !wasCorrect)
+/**
+ * Undo a recorded answer by restoring the run to what it was, rather than applying the opposite
+ * operation. The two differ at the boundaries: a miss recorded against a run already at 0 changes
+ * nothing, so "add one back" would hand out a point the learner never earned.
+ */
+export function restoreWordStreak(progress: Progress, word: string, previous: number): Progress {
+  return setWordStreak(progress, word, previous)
 }
 
 /** True once the learner has answered this word correctly enough times in a row. */

@@ -43,10 +43,17 @@ export const PRACTICE_ITERATIONS = 10
 
 /**
  * Correct answers in a row before a word counts as "known" in Stats. A wrong answer decrements the
- * run rather than resetting it, and the run is capped here — so a known word lapses on a single miss
- * rather than needing several, and can be won back with one.
+ * run rather than resetting it.
  */
 export const WORD_KNOWN_STREAK = 5
+
+/**
+ * How high a word's run may climb. Above {@link WORD_KNOWN_STREAK} the extra counts are pure buffer:
+ * a word you keep getting right survives a miss or two before it stops being "known", instead of
+ * flapping in and out on every slip. Bounded so a heavily practised word can still be forgotten —
+ * uncapped, a word answered fifty times would need fifty misses to lapse.
+ */
+export const WORD_STREAK_MAX = 10
 
 /** Total kanji in the curriculum (informational; actual counts derive from the loaded content). */
 export const TOTAL_KANJI = 121
