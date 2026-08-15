@@ -61,6 +61,9 @@ export function PracticeSession({ onExit }: Props) {
     const task = generateAnyTask(index, targetIdx, {
       studySet,
       taskWeights: progress.settings.taskWeights,
+      // Without this, staged release is a no-op here and the web app would ask about words the
+      // learner hasn't been shown yet.
+      levelOf: (idx) => workingRef.current[idx]?.lvl ?? 0,
     })
     return task ? { task, targetIdx } : null
   }, [index, progress])

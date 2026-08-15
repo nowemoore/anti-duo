@@ -9,6 +9,15 @@ import type { Option } from '../tasks'
 export interface LangEngine {
   id: string
   /**
+   * How many levels one word-batch lasts, for content that stages its example words. Batch N unlocks
+   * at level `1 + (N-1) * batchUnlockEvery`. Omit to use the shared default.
+   *
+   * Per-language because the two use staging for different ends: Arabic reveals successive
+   * derivations of a root fairly quickly, while Japanese holds a kanji's rarer vocabulary back until
+   * the common words are solid.
+   */
+  batchUnlockEvery?: number
+  /**
    * Options for a "pick the reading" task, or null to skip this word. JA makes it okurigana-aware:
    * every distractor reproduces the trailing kana so the ending is never a giveaway.
    */

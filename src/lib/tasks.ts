@@ -38,10 +38,15 @@ export interface TaskContext {
    */
   canDraw?: (word: string) => boolean
   /**
-   * The learner's current level for a unit. Languages that stage their example words (Arabic tags each
-   * with `extra.batch`) use it to release one batch at a time. Omit it and every example is available.
+   * The learner's current level for a unit. Languages that stage their example words use it to
+   * release one batch at a time. Omit it and every example is available.
    */
   levelOf?: (targetIdx: number) => number
+  /**
+   * How many levels a word-batch lasts, from the content's language ({@link LangEngine.batchUnlockEvery}).
+   * Defaults to {@link BATCH_UNLOCK_EVERY} when a caller doesn't supply it.
+   */
+  unlockEvery?: number
 }
 
 // ---------------------------------------------------------------------------
@@ -51,21 +56,36 @@ export interface TaskContext {
 /** Levels of practice between each further batch of a unit's words being released. */
 export const BATCH_UNLOCK_EVERY = 3
 
-/** How many of a unit's word-batches are released at `lvl` (1 = only the first batch). */
-export function batchesUnlocked(lvl: number): number {
-  return 1 + Math.max(0, Math.floor((lvl - 1) / BATCH_UNLOCK_EVERY))
+/**
+ * How many of a unit's word-batches are released at `lvl` (1 = only the first batch).
+ *
+ * `every` is how many levels a batch lasts, and languages set their own: Arabic reveals a new batch
+ * of root derivations briskly, Japanese holds its extra vocabulary back much longer.
+ */
+export function batchesUnlocked(lvl: number, every: number = BATCH_UNLOCK_EVERY): number {
+  return 1 + Math.max(0, Math.floor((lvl - 1) / Math.max(1, every)))
+}
+
+/** A word's release tier. Japanese authors it as `batch`; Arabic builds it into `extra.batch`. */
+function batchOf(w: Word): number {
+  if (typeof w.batch === 'number') return w.batch
+  const legacy = w.extra?.batch
+  return typeof legacy === 'number' ? legacy : 1
 }
 
 /**
- * The example words currently released for a unit. Arabic stages its words (`extra.batch`), so a root
- * starts with its first batch and reveals the next as it's levelled up. Japanese doesn't stage words,
- * and callers with no level info (tests, the web demo) get every example — so this is a no-op there.
+ * The example words currently released for a unit — the single definition of "available", used by
+ * both the Learn card and the task builders so a learner can never be tested on a word they haven't
+ * been shown.
+ *
+ * Batch 1 comes with the unit; later batches unlock as it levels up. A caller with no level info
+ * (scripts, the static demo) gets everything, so this stays a no-op there.
  */
 export function releasedExamples(target: Unit, ctx: TaskContext = {}): Word[] {
-  const staged = target.examples.some((e) => typeof e.extra?.batch === 'number')
+  const staged = target.examples.some((e) => batchOf(e) > 1)
   if (!staged || !ctx.levelOf) return target.examples
-  const unlocked = batchesUnlocked(ctx.levelOf(target.idx))
-  const out = target.examples.filter((e) => ((e.extra?.batch as number) ?? 1) <= unlocked)
+  const unlocked = batchesUnlocked(ctx.levelOf(target.idx), ctx.unlockEvery)
+  const out = target.examples.filter((e) => batchOf(e) <= unlocked)
   // Never strand a unit with nothing to practise.
   return out.length ? out : target.examples.slice(0, 1)
 }
@@ -355,7 +375,8 @@ const KANJI_ONLY = /^[一-鿿]+$/
 function buildDraw(target: Unit, ctx: TaskContext): DrawTask | null {
   const ok = (w: string) =>
     ctx.canDraw ? ctx.canDraw(w) : KANJI_ONLY.test(w) && [...w].length <= DRAW_MAX_CHARS
-  const words = target.examples.filter((e) => ok(e.word))
+  // Released words only — drawing an unreleased one would test vocabulary never shown.
+  const words = releasedExamples(target, ctx).filter((e) => ok(e.word))
   if (words.length) {
     const ex = words[Math.floor(Math.random() * words.length)]
     return { kind: 'draw', targetIdx: target.idx, word: ex.word, reading: ex.reading, meaning: ex.meaning }
@@ -464,13 +485,23 @@ export const TASK_TUNING = Object.fromEntries(TASK_SPECS.map((s) => [s.kind, s.t
 >
 
 /** Build a task of `type` for `targetIdx`, or null if the data doesn't support it. */
+/**
+ * Fill in anything the context can be derived from the content, so no caller has to remember it.
+ * The batch cadence belongs to the language, not to whoever happens to be generating a task.
+ */
+function withLangDefaults(index: ContentIndex, ctx: TaskContext): TaskContext {
+  return ctx.unlockEvery === undefined && index.lang.batchUnlockEvery !== undefined
+    ? { ...ctx, unlockEvery: index.lang.batchUnlockEvery }
+    : ctx
+}
+
 export function generateTask(
   index: ContentIndex,
   targetIdx: number,
   type: TaskType,
   ctx: TaskContext = {},
 ): Task | null {
-  return SPEC_BY_KIND[type]?.generate(index, targetIdx, ctx) ?? null
+  return SPEC_BY_KIND[type]?.generate(index, targetIdx, withLangDefaults(index, ctx)) ?? null
 }
 
 /**

@@ -19,6 +19,14 @@ export interface Word {
    * `['irregular-verb']`. An empty array means "no tags apply", not "unclassified".
    */
   tags?: string[]
+  /**
+   * Staged-release tier, 1-based. Batch 1 is available as soon as the unit is introduced; later
+   * batches unlock as it levels up, at a cadence the language sets. Absent means batch 1.
+   *
+   * This is what stops a learner being *tested* on a word they were never *shown*: the same list
+   * feeds the Learn card and the task builders, so releasing a word reveals it in both at once.
+   */
+  batch?: number
   /** Language-specific fields (e.g. Arabic `voweled`, `plural`) — read only by the language pack. */
   extra?: Record<string, unknown>
 }

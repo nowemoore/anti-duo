@@ -71,6 +71,10 @@ const KANJI_RE = /[㐀-䶿一-鿿豈-﫿]/
 /** Japanese engine logic — the reference implementation. */
 export const jaEngine: LangEngine = {
   id: 'ja',
+  // A kanji's first five words come with it; the rest wait until level 7, by which point the common
+  // ones are solid. Deliberately slower than Arabic's cadence — this is overflow vocabulary, not a
+  // planned progression through a root's derivations.
+  batchUnlockEvery: 6,
   readingOptions(correct, surface, pool) {
     return makeReadingOptions(correct, pool, okuriganaOf(surface))
   },

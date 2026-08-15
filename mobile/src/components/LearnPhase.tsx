@@ -164,7 +164,8 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
 export function LearnCard({ unit }: { unit: Unit }) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
-  const { content } = useContent()
+  const index = useContent()
+  const { content } = index
   const { progress } = useProgress()
   const pack = useLanguage()
   const charGloss = (ch: string) => pack.charGloss?.(content, ch)
@@ -172,10 +173,13 @@ export function LearnCard({ unit }: { unit: Unit }) {
   const hasReveal = pack.detail ? pack.detail.has(content, unit) : false
   const [expanded, setExpanded] = useState(false)
 
-  // Staged word release: show only the batch this unit has unlocked (Arabic ≤4). Languages that don't
-  // stage their words (Japanese) get every example, exactly as before.
+  // Staged word release: show exactly the batches this unit has unlocked. This is the same call the
+  // task builders make, so what's on the card and what can be tested are the same set by construction.
   const lvl = progress.units[unit.idx]?.lvl ?? 0
-  const examples = releasedExamples(unit, { levelOf: () => lvl })
+  const examples = releasedExamples(unit, {
+    levelOf: () => lvl,
+    unlockEvery: index.lang.batchUnlockEvery,
+  })
 
   const toggle = () => setExpanded((v) => !v)
 
@@ -208,9 +212,10 @@ export function LearnCard({ unit }: { unit: Unit }) {
         <Text style={styles.gloss}>{unit.gloss.join(', ')}</Text>
       </View>
 
-      {/* minHeight reserves 5 rows so the card is the same height regardless of example count. */}
+      {/* minHeight reserves 5 rows so the card is the same height regardless of example count. Every
+          released word is listed — truncating here would put words in tasks that were never shown. */}
       <View style={styles.examples}>
-        {examples.slice(0, 5).map((ex, idx) => {
+        {examples.map((ex, idx) => {
           const wordKey = `w:${idx}`
           const wordOn = caption?.key === wordKey
           return (

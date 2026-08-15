@@ -3,13 +3,16 @@ import { loadContent } from '../server/content'
 import { buildContentIndex } from '../src/lib/content'
 import {
   ALL_TASK_TYPES,
+  BATCH_UNLOCK_EVERY,
   CLOZE_OPTIONS,
   checkChoice,
   checkTypeWord,
   generateTask,
   hasAnyTask,
   isWhichWordsPerfect,
+  releasedExamples,
   scoreWhichWords,
+  testedWord,
   WHICH_WORDS_OPTIONS,
   type ChoiceTask,
   type TypeWordTask,
@@ -77,6 +80,38 @@ async function main() {
       }
     }
   }
+  // --- staged word release --------------------------------------------------
+  // The point of batching is that a learner is never *tested* on a word they were never *shown*.
+  // Both the Learn card and the task builders go through releasedExamples, so the invariant is:
+  // any word an example-derived task can produce must be in the released set at that level.
+  const every = index.lang.batchUnlockEvery
+  const staged = index.content.units.filter((u) => u.examples.some((e) => (e.batch ?? 1) > 1))
+  let leaks = 0
+  for (const lvl of [1, 3, 6]) {
+    for (const u of staged) {
+      const shown = new Set(releasedExamples(u, { levelOf: () => lvl, unlockEvery: every }).map((e) => e.word))
+      for (const type of ['type-word', 'draw'] as const) {
+        for (let n = 0; n < 8; n++) {
+          const t = generateTask(index, u.idx, type, { ...ctx, levelOf: () => lvl, canDraw: () => true })
+          const w = t ? testedWord(t) : null
+          if (w && !shown.has(w)) leaks++
+        }
+      }
+    }
+  }
+  const holdsBack = staged.length > 0 && leaks === 0
+  // ...and the held-back words really do arrive later, or batching would just be deletion.
+  const sample = staged[0]
+  const before = releasedExamples(sample, { levelOf: () => 1, unlockEvery: every }).length
+  const after = releasedExamples(sample, { levelOf: () => 1 + (every ?? BATCH_UNLOCK_EVERY), unlockEvery: every }).length
+  const releasesLater = after > before && after === sample.examples.length
+  // A caller with no level info (scripts, the static demo) still sees everything.
+  const unstagedIsNoop = releasedExamples(sample, {}).length === sample.examples.length
+
+  checks.push([`${staged.length} kanji stage words; none testable before release`, holdsBack])
+  checks.push([`held-back words arrive at level ${1 + (every ?? BATCH_UNLOCK_EVERY)}`, releasesLater])
+  checks.push(['no level info → every example available', unstagedIsNoop])
+
   checks.push(['choice tasks: exactly 1 correct, ≥3 options, focus matches target', choiceOk])
   checks.push(['cloze: 4 distinct kanji options, correct = target char in word', clozeOk])
   checks.push(['which-words: 4 options, meanings, ±0.25 scoring (perfect=+1)', whichOk])
