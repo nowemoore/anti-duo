@@ -116,6 +116,16 @@ export const fonts = {
   bold: 'Manrope_700Bold',
   heading: 'Fraunces_400Regular',
   headingBold: 'Fraunces_700Bold',
+  /*
+   * Japanese faces. The Latin families above carry no CJK glyphs, so anything Japanese either names
+   * one of these or is left to the OS font — never Manrope/Fraunces, which would render tofu.
+   *
+   * `brush` (Yuji Syuku) is a hand-brushed display face: the big character on a Learn card, the
+   * tracing guide, and the home-screen watermarks. `serif` (Zen Old Mincho) is the reading face for
+   * exercise text, where legibility at small sizes matters more than character.
+   */
+  brush: 'YujiSyuku_400Regular',
+  serif: 'ZenOldMincho_400Regular',
 } as const
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const

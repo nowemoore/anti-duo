@@ -21,15 +21,31 @@ const SCREEN_W = Dimensions.get('window').width
 interface Props {
   chunk: Unit[]
   reserve: Unit[]
-  onComplete: (learned: Unit[]) => void
+  /**
+   * Finished this card. Reports the (possibly swapped) cards *and* what's left of the reserve, so a
+   * caller running one card at a time can carry the pool forward — a "Not now" requeues into it.
+   */
+  onComplete: (learned: Unit[], reserve: Unit[]) => void
   /** Back to the unit page (Learn/Practice menu). */
   onExit: () => void
   /** Total progress dots across learn + the write review that follows (defaults to just this set). */
   totalSteps?: number
+  /** Dots already consumed before this card — the interleaved session teaches one unit per mount. */
+  baseStep?: number
+  /** Overrides the "N / M" in the header, which counts kanji rather than steps. */
+  headerCount?: { current: number; total: number }
 }
 
 /** Introduces new unit one card at a time: char, glosses, breakdown, and up to 5 example words. */
-export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: Props) {
+export function LearnPhase({
+  chunk,
+  reserve,
+  onComplete,
+  onExit,
+  totalSteps,
+  baseStep = 0,
+  headerCount,
+}: Props) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const [cards, setCards] = useState<Unit[]>(chunk)
@@ -76,7 +92,7 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
   const goNext = () => {
     if (animating.current) return
     if (isLast) {
-      onComplete(cards)
+      onComplete(cards, pool)
       return
     }
     swap(-SCREEN_W, () => setI((n) => n + 1))
@@ -109,11 +125,14 @@ export function LearnPhase({ chunk, reserve, onComplete, onExit, totalSteps }: P
   })
 
   // Back button, step label, and progress bar live in the app-level top bar (above the card).
-  const learnHead = ui.learnHeader(i + 1, cards.length)
+  const learnHead = ui.learnHeader(
+    headerCount?.current ?? i + 1,
+    headerCount?.total ?? cards.length,
+  )
   useScreenHeader(
     onExit,
     { ja: learnHead.native, en: learnHead.en },
-    { current: i + 1, total: totalSteps ?? cards.length },
+    { current: baseStep + i + 1, total: totalSteps ?? cards.length },
   )
 
   return (
@@ -379,7 +398,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   card: { alignItems: 'center' },
   formRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 8, marginTop: spacing.md },
   formSpacer: { width: 34 }, // balances the reveal button so the unit stays centered
-  bigForm: { fontSize: 64, lineHeight: 70, color: colors.ink, fontWeight: '600' },
+  // Brush face: this is the character as an object of study, so it gets the display treatment.
+  // No fontWeight — Yuji Syuku ships one weight, and asking for 600 makes the platform synthesise a
+  // bolder version that thickens the brush strokes unevenly.
+  bigForm: { fontSize: 64, lineHeight: 70, color: colors.ink, fontFamily: fonts.brush },
   revealBtn: {
     width: 34,
     height: 34,

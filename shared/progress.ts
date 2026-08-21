@@ -1,11 +1,17 @@
 // Shared progress normalization — used by the server (file storage) and the static demo
 // (localStorage) so both coerce saved progress into the same valid shape.
-import { GRAMMAR_ATTEMPT_HISTORY, WORD_STREAK_MAX, defaultProgress } from './constants'
+import {
+  GRAMMAR_ATTEMPT_HISTORY,
+  KANA_STREAK_MAX,
+  WORD_STREAK_MAX,
+  defaultProgress,
+} from './constants'
 import type {
   GrammarAttempt,
   GrammarItemResult,
   GrammarReflection,
   GrammarTopicProgress,
+  KanaProgress,
   Progress,
   Settings,
   TaskStats,
@@ -115,6 +121,37 @@ function normalizeWords(raw: unknown): Record<string, number> | undefined {
   return Object.keys(out).length ? out : undefined
 }
 
+/**
+ * Coerce the kana course state. Character runs are clamped to [0, KANA_STREAK_MAX] exactly as word
+ * runs are, so a corrupted entry can't make a character permanently "known".
+ *
+ * Traced entries are kept even when the character isn't one this build knows about: the table could
+ * gain or lose characters, and an older client must not wipe what a newer one recorded.
+ */
+function normalizeKana(raw: unknown): KanaProgress | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined
+  const src = raw as Partial<KanaProgress>
+
+  const chars: Record<string, number> = {}
+  if (typeof src.chars === 'object' && src.chars !== null) {
+    for (const [char, value] of Object.entries(src.chars as Record<string, unknown>)) {
+      if (!char || typeof value !== 'number' || !Number.isFinite(value)) continue
+      const streak = Math.min(KANA_STREAK_MAX, Math.max(0, Math.round(value)))
+      // A zeroed run carries no information — drop it rather than grow the blob forever.
+      if (streak > 0) chars[char] = streak
+    }
+  }
+
+  const traced: Record<string, string> = {}
+  if (typeof src.traced === 'object' && src.traced !== null) {
+    for (const [char, value] of Object.entries(src.traced as Record<string, unknown>)) {
+      if (char && typeof value === 'string') traced[char] = value
+    }
+  }
+
+  return Object.keys(chars).length || Object.keys(traced).length ? { chars, traced } : undefined
+}
+
 /** Fill defaults and coerce settings into valid shapes. Migrates legacy `kanji`/`disabledKanji`
  *  keys (pre-generalization) to `units`/`disabledUnits` so existing progress isn't lost. */
 export function normalizeProgress(p: Partial<Progress> | null | undefined): Progress {
@@ -134,6 +171,7 @@ export function normalizeProgress(p: Partial<Progress> | null | undefined): Prog
   }
   const grammar = normalizeGrammar(p?.grammar)
   const words = normalizeWords(p?.words)
+  const kana = normalizeKana(p?.kana)
   return {
     settings,
     units: legacy.units ?? legacy.kanji ?? {},
@@ -142,5 +180,6 @@ export function normalizeProgress(p: Partial<Progress> | null | undefined): Prog
     // Omitted entirely when empty, so untouched profiles keep the exact shape they had before.
     ...(words ? { words } : {}),
     ...(grammar ? { grammar } : {}),
+    ...(kana ? { kana } : {}),
   }
 }

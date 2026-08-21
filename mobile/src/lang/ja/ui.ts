@@ -11,6 +11,7 @@ export const ui: UiStrings = {
         : { native: 'はじめまして', en: 'Welcome' },
   learnEntry: { native: '漢字を学ぶ', en: 'Learn kanji' },
   grammarEntry: { native: '文法を学ぶ', en: 'Learn grammar' },
+  kanaEntry: { native: 'かなを学ぶ', en: 'Learn kana' },
   browseEntry: { native: '漢字を見る', en: 'Browse kanji' },
   learn: { native: '学ぶ', en: 'Learn' },
   practice: { native: '練習', en: 'Practice' },

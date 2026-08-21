@@ -1,7 +1,14 @@
-import { INTRODUCED_LEVEL, LEARN_CHUNK, LEVEL_FLOOR } from '../../shared/constants'
+import {
+  INTRODUCED_LEVEL,
+  LEARN_CHUNK,
+  LEVEL_FLOOR,
+  MASTERY_GETTING_THERE,
+  MASTERY_SOLID,
+} from '../../shared/constants'
 import type { Unit, Progress } from '../../shared/types'
 import type { ContentIndex } from './content'
 import { isUnitEnabled } from './categories'
+import { batchesUnlocked } from './tasks'
 import { shuffle } from './random'
 
 /**
@@ -22,6 +29,58 @@ export function isKnownLevel(lvl: number): boolean {
 /** A taught kanji that has lapsed all the way back to the floor, so it should be re-taught. */
 export function isForgottenLevel(lvl: number): boolean {
   return !isKnownLevel(lvl)
+}
+
+/** Every unit in the enabled learning set, taught or not — the whole board, in curriculum order. */
+export function enabledUnits(index: ContentIndex, progress: Progress): Unit[] {
+  return index.content.units.filter((k) => isUnitEnabled(progress.settings, k))
+}
+
+/** How solid a unit looks, for the mosaic's four shades. */
+export type MasteryTier = 'unseen' | 'shaky' | 'getting' | 'solid'
+
+/**
+ * Band a level falls into. `unseen` covers both never-taught and lapsed-to-the-floor units: from the
+ * learner's point of view those are the same thing — something to pick up next.
+ */
+export function masteryTier(lvl: number): MasteryTier {
+  if (!isKnownLevel(lvl)) return 'unseen'
+  if (lvl < MASTERY_GETTING_THERE) return 'shaky'
+  if (lvl < MASTERY_SOLID) return 'getting'
+  return 'solid'
+}
+
+// --- staged example words ------------------------------------------------------------------
+
+/** Batches of example words the learner has already been shown for a unit. Absent means just the first. */
+export function seenBatches(progress: Progress, idx: number): number {
+  const n = progress.units[idx]?.seenBatches
+  return typeof n === 'number' && Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1
+}
+
+/**
+ * Whether this unit has example words the learner has earned but not yet been shown — it levelled
+ * past a batch boundary and the card has not been reopened since.
+ *
+ * Units with no staged words can never qualify, so this only ever flags the ones that genuinely have
+ * more to give.
+ */
+export function readyForMore(progress: Progress, unit: Unit, unlockEvery?: number): boolean {
+  if (!unit.examples.some((e) => (e.batch ?? 1) > 1)) return false
+  const lvl = progress.units[unit.idx]?.lvl ?? 0
+  return batchesUnlocked(lvl, unlockEvery) > seenBatches(progress, unit.idx)
+}
+
+/** Record that the unit's currently-unlocked batches have been shown, clearing {@link readyForMore}. */
+export function ackBatches(progress: Progress, unit: Unit, unlockEvery?: number): Progress {
+  const rec = progress.units[unit.idx]
+  if (!rec) return progress
+  const unlocked = batchesUnlocked(rec.lvl, unlockEvery)
+  if (unlocked <= seenBatches(progress, unit.idx)) return progress
+  return {
+    ...progress,
+    units: { ...progress.units, [unit.idx]: { ...rec, seenBatches: unlocked } },
+  }
 }
 
 /**

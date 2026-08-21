@@ -5,6 +5,8 @@
   "dependencies": {
     "@expo-google-fonts/fraunces": "^0.4.1",
     "@expo-google-fonts/manrope": "^0.4.2",
+    "@expo-google-fonts/yuji-syuku": "^0.4.1",
+    "@expo-google-fonts/zen-old-mincho": "^0.4.1",
     "@expo/metro-runtime": "~6.1.2",
     "@fortawesome/fontawesome-svg-core": "^7.3.0",
     "@fortawesome/free-solid-svg-icons": "^7.3.0",

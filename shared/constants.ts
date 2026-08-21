@@ -38,6 +38,15 @@ export const WARMUP_LEVEL = 2
  */
 export const WARMUP_MAX_LOSS = 0.34
 
+/**
+ * Level thresholds for the four mastery bands the kanji mosaic shades by: below the floor is
+ * unseen, then shaky, then getting there from {@link MASTERY_GETTING_THERE}, then solid from
+ * {@link MASTERY_SOLID}. Levels are unbounded and move by roughly ±0.5–1 per answer, so these work
+ * out at a few correct answers to leave "shaky" and a handful more to look "solid".
+ */
+export const MASTERY_GETTING_THERE = 3
+export const MASTERY_SOLID = 6
+
 /** Practice iterations per Practice session. */
 export const PRACTICE_ITERATIONS = 10
 
@@ -79,6 +88,36 @@ export const GRAMMAR_MIN_ITEMS = 20
  * are dropped first. Ample for the error analytics the per-item results are kept for.
  */
 export const GRAMMAR_ATTEMPT_HISTORY = 50
+
+/**
+ * Correct answers in a row before a kana counts as "known". Mirrors {@link WORD_KNOWN_STREAK}; a
+ * wrong answer decrements the run rather than resetting it.
+ */
+export const KANA_KNOWN_STREAK = 5
+
+/** Ceiling on a kana's run, so a well-drilled character still lapses eventually. See WORD_STREAK_MAX. */
+export const KANA_STREAK_MAX = 8
+
+/**
+ * The streak at which a character graduates from "pick the one you heard" to writing it from
+ * memory. Recognition first, free recall once there's some evidence the link exists.
+ */
+export const KANA_RECALL_STREAK = 2
+
+/** How often a question is a multi-character sequence rather than a single character. */
+export const KANA_SEQUENCE_SHARE = 0.3
+
+/** Longest generated sequence. Two or three morae is enough to test hearing a string of sounds. */
+export const KANA_SEQUENCE_MAX = 3
+
+/** Traced characters needed before sequences start appearing at all. */
+export const KANA_SEQUENCE_MIN_POOL = 3
+
+/** Questions in one practice run. */
+export const KANA_DRILL_ITEMS = 12
+
+/** Options shown in a listen-and-pick question, including the answer. */
+export const KANA_PICK_OPTIONS = 4
 
 export const DEFAULT_SETTINGS: Settings = {
   name: '',

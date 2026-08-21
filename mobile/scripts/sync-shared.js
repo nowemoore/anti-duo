@@ -13,8 +13,15 @@ const dirs = [
   [path.join(repoRoot, 'shared'), path.join(mobileRoot, 'vendor', 'shared')],
   [path.join(repoRoot, 'src', 'lib'), path.join(mobileRoot, 'vendor', 'src', 'lib')],
 ]
+// Clear the *contents* rather than the directory itself. Deleting and recreating the watched root
+// leaves Metro's file map pointing at a directory that no longer exists, and it then fails to
+// resolve everything inside it ("unable to resolve module ... from vendor/src/lib/content.ts") until
+// the cache is cleared by hand. Keeping the root in place avoids that entirely.
 for (const [from, to] of dirs) {
-  fs.rmSync(to, { recursive: true, force: true })
+  fs.mkdirSync(to, { recursive: true })
+  for (const entry of fs.readdirSync(to)) {
+    fs.rmSync(path.join(to, entry), { recursive: true, force: true })
+  }
   fs.cpSync(from, to, { recursive: true })
 }
 

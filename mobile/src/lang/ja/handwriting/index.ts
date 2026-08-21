@@ -1,12 +1,20 @@
+import { sameShape } from '@lib/kana'
 import KanjiCanvasRaw from './kanjicanvas'
 import patterns from './draw-patterns.json'
+import kanjivgPatterns from './kanjivg-patterns.json'
 
 // The vendored recognizer and its pattern data are dynamically typed; keep `any` at the boundary.
-const pats = patterns as unknown as [string, number, unknown][]
+// Two reference sets, kept in separate files because their licences differ: draw-patterns.json ships
+// with KanjiCanvas (MIT), kanjivg-patterns.json is generated from KanjiVG (CC BY-SA 3.0) by
+// scripts/gen-kanjivg-patterns.ts. The recognizer just wants one flat list.
+const pats = [
+  ...(patterns as unknown as [string, number, unknown][]),
+  ...(kanjivgPatterns as unknown as [string, number, unknown][]),
+]
 const KC: any = KanjiCanvasRaw
 KC.refPatterns = pats
 
-/** Characters we have a reference pattern for (kanji only — kana are not covered). */
+/** Characters we have a reference pattern for — now every kana, and the whole kanji curriculum. */
 const covered = new Set(pats.map((p) => p[0]))
 
 export type RawPoint = { x: number; y: number }
@@ -57,6 +65,33 @@ export function recognize(strokes: RawStroke[], k = 5): string[] {
   }
   out.sort((a, b) => a[1] - b[1])
   return out.slice(0, k).map((x) => x[0])
+}
+
+/**
+ * Grade a drawn kana against the character that was asked for.
+ *
+ * Unlike {@link recognize}, this is a *verification*: the target is known, so the question is only
+ * whether the strokes are that character, and a top-K hit is enough. Shape-equivalent answers count
+ * (see `sameShape` — a small ゃ and a full-size や are the same drawing once size is normalised
+ * away), but dakuten pairs do not.
+ *
+ * A yōon like きゃ is two codepoints; it's split left-to-right and every part must match, the same
+ * way a multi-kanji word already is.
+ */
+export function gradeKana(target: string, strokes: RawStroke[], topK = 3): boolean {
+  const chars = [...target]
+  if (!strokes.length || strokes.length < chars.length) return false
+  const groups = chars.length === 1 ? [strokes] : segmentByX(strokes, chars.length)
+  return chars.every((char, i) => {
+    const candidates = recognize(groups[i], topK)
+    return candidates.some((c) => sameShape(char, c))
+  })
+}
+
+/** Whether a kana target can be auto-graded — every codepoint in it needs a reference pattern. */
+export function kanaGradable(target: string): boolean {
+  const chars = [...target]
+  return chars.length >= 1 && chars.length <= 2 && chars.every((c) => covered.has(c))
 }
 
 /** Split strokes into `n` left-to-right groups by the largest gaps in mean-x (guided by known count). */

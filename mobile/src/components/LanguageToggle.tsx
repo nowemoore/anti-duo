@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native'
-import { PACKS } from '../lang/registry'
+import { selectablePacks } from '../lang/registry'
 import { useLanguage, useSetLanguage } from '../context/LanguageContext'
-import { fonts, radius, type Palette } from '../theme'
+import { radius, type Palette } from '../theme'
 import { useStyles } from '../hooks/theme'
 
 /** Compact segmented language switch (native labels). Each language keeps its own progress + content. */
@@ -9,7 +9,8 @@ export function LanguageToggle() {
   const active = useLanguage().id
   const setLang = useSetLanguage()
   const styles = useStyles(makeStyles)
-  const packs = Object.values(PACKS)
+  // Hidden packs (see registry) are excluded, so this collapses to nothing when only one is offered.
+  const packs = selectablePacks()
   if (packs.length < 2) return null
 
   return (

@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, Pressable, ScrollView, StyleSheet, Platform, Animated } from 'react-native'
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  Animated,
+  useWindowDimensions,
+} from 'react-native'
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg'
 import { StatusBar } from 'expo-status-bar'
 import { setAudioModeAsync } from 'expo-audio'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -12,6 +22,15 @@ import {
   Manrope_700Bold,
 } from '@expo-google-fonts/manrope'
 import { Fraunces_400Regular, Fraunces_700Bold } from '@expo-google-fonts/fraunces'
+/*
+ * Japanese faces, imported from their per-weight entry points rather than the package barrel.
+ *
+ * These carry the full kana + kanji range, so each weight is 5-8 MB against a Latin face's kilobytes.
+ * The barrel `require`s every weight it ships, which bundled all five Zen Old Mincho cuts (27 MB) for
+ * the one we actually use.
+ */
+import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku/400Regular'
+import { ZenOldMincho_400Regular } from '@expo-google-fonts/zen-old-mincho/400Regular'
 import './src/icons' // registers the FontAwesome library (side effect)
 import { setupPwa } from './src/web/pwa'
 import { LanguageProvider, useLanguage } from './src/context/LanguageContext'
@@ -49,6 +68,8 @@ export default function App() {
     Manrope_700Bold,
     Fraunces_400Regular,
     Fraunces_700Bold,
+    YujiSyuku_400Regular,
+    ZenOldMincho_400Regular,
   })
 
   // Play pronunciations through the speaker even when the iOS Ring/Silent switch is on.
@@ -110,8 +131,7 @@ function Shell() {
       <StatusBar style="light" />
       <Animated.View style={[styles.fill, { opacity: fade }]}>
       {/* Soft color pools behind the frosted panels so the "glass" has something to reveal. */}
-      <View pointerEvents="none" style={styles.glowA} />
-      <View pointerEvents="none" style={styles.glowB} />
+      <Glows />
       {/* Shared top bar: back button + kana chart button, plus the step title/dots — only during a
           Study-tab learn/practice session. StudyView stays mounted across tabs (see below), so without
           gating on `onStudy` its session header would bleed onto Stats/Settings.
@@ -170,10 +190,58 @@ function Shell() {
   )
 }
 
+/**
+ * Splits an `rgba(r,g,b,a)` string into an SVG-friendly colour and a numeric opacity.
+ *
+ * The palette stores glows as rgba because they were plain View fills; SVG gradient stops want the
+ * two apart. Anything unparseable falls back to full opacity rather than vanishing.
+ */
+function rgbaParts(value: string): { color: string; opacity: number } {
+  const m = value.match(/rgba?\(([^)]+)\)/)
+  if (!m) return { color: value, opacity: 1 }
+  const parts = m[1].split(',').map((n) => n.trim())
+  const alpha = parts.length > 3 ? Number(parts[3]) : 1
+  return {
+    color: `rgb(${parts.slice(0, 3).join(',')})`,
+    opacity: Number.isFinite(alpha) ? alpha : 1,
+  }
+}
+
+/**
+ * The two colour pools behind the frosted panels.
+ *
+ * Radial gradients rather than plain circles: glassmorphism needs the light to fall off, and a flat
+ * fill reads as a hard-edged disc with a visible rim. React Native has no CSS `filter: blur`, so the
+ * gradient *is* the blur — same soft pool, no native blur view, and react-native-svg is already a
+ * dependency. Colours come from the active palette, so Arabic's gold/green pools work unchanged.
+ *
+ * Centres match the old absolute offsets: A bleeds off the top-left, B off the bottom-right.
+ */
+function Glows() {
+  const colors = useColors()
+  const { width, height } = useWindowDimensions()
+  const a = rgbaParts(colors.glow1)
+  const b = rgbaParts(colors.glow2)
+  return (
+    <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width={width} height={height}>
+      <Defs>
+        <RadialGradient id="glowA" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={a.color} stopOpacity={a.opacity} />
+          <Stop offset="1" stopColor={a.color} stopOpacity={0} />
+        </RadialGradient>
+        <RadialGradient id="glowB" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={b.color} stopOpacity={b.opacity} />
+          <Stop offset="1" stopColor={b.color} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Circle cx={90} cy={50} r={230} fill="url(#glowA)" />
+      <Circle cx={width - 60} cy={height - 100} r={220} fill="url(#glowB)" />
+    </Svg>
+  )
+}
+
 const makeStyles = (colors: Palette) => StyleSheet.create({
   app: { flex: 1, backgroundColor: colors.bg, overflow: 'hidden' },
-  glowA: { position: 'absolute', top: -130, left: -90, width: 360, height: 360, borderRadius: 180, backgroundColor: colors.glow1 },
-  glowB: { position: 'absolute', bottom: -70, right: -110, width: 340, height: 340, borderRadius: 170, backgroundColor: colors.glow2 },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

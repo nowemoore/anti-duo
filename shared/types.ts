@@ -119,6 +119,15 @@ export interface Settings {
 /** Per-unit progress. `lvl`: 0 = unseen, 1 = introduced, +1 per correct answer. */
 export interface UnitProgress {
   lvl: number
+  /**
+   * How many example-word batches the learner has been shown for this unit. Absent means 1 — the
+   * batch that ships with the unit.
+   *
+   * Levelling up releases later batches (see `releasedExamples`), and the gap between what's
+   * unlocked and what's been acknowledged is what marks a unit as having new words waiting. Cleared
+   * by opening the unit's card again, so it reads as a prompt rather than a permanent label.
+   */
+  seenBatches?: number
 }
 
 /**
@@ -148,6 +157,8 @@ export interface Progress {
   words?: Record<string, number>
   /** Grammar subsection state, keyed by topic id. Absent until a grammar topic is opened. */
   grammar?: Record<string, GrammarTopicProgress>
+  /** Kana course state. Absent until the Learn kana section is opened. */
+  kana?: KanaProgress
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +189,24 @@ export interface GrammarReflection {
   feedback: string | null
   /** ISO timestamp of the last edit. */
   updatedAt?: string
+}
+
+// ---------------------------------------------------------------------------
+// Kana course (read/write, persisted alongside the rest of Progress)
+// ---------------------------------------------------------------------------
+
+export interface KanaProgress {
+  /**
+   * Per-character run of correct answers, keyed by the character itself. A character counts as
+   * known at KANA_KNOWN_STREAK; a wrong answer decrements it.
+   */
+  chars: Record<string, number>
+  /**
+   * Characters the learner has opened in the chart and traced, mapped to when they first did.
+   * This is what makes a character eligible for practice, so the learner can never be asked about
+   * one they haven't chosen to meet.
+   */
+  traced: Record<string, string>
 }
 
 export interface GrammarTopicProgress {

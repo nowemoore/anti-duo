@@ -25,7 +25,7 @@ interface Slot {
  * pager as Practice; ✓/✗ shows in the corner and the button becomes Try again. Low-stakes (no stats).
  * Answers persist per item, so paging back shows a passed word already done.
  */
-export function DrawReview({ units, onDone, baseStep = 0, totalSteps }: DrawReviewProps) {
+export function DrawReview({ units, onDone, onExit, baseStep = 0, totalSteps }: DrawReviewProps) {
   // Same rule as the global useDrawableWord hook, sourced directly (this lives inside the pack) so the
   // pack doesn't import LanguageContext → registry → pack (a cycle).
   const userId = useAuth().session?.user?.id
@@ -47,7 +47,7 @@ export function DrawReview({ units, onDone, baseStep = 0, totalSteps }: DrawRevi
   const slot = slots[pos]
 
   useScreenHeader(
-    onDone,
+    onExit ?? onDone,
     cur ? { ja: '書いてみよう', en: `Write ${pos + 1} / ${total}` } : undefined,
     cur ? { current: baseStep + pos + 1, total: totalSteps ?? baseStep + total } : undefined,
   )

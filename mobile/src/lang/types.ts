@@ -10,6 +10,12 @@ export type DrawStroke = { x: number; y: number }[]
 export interface DrawReviewProps {
   units: Unit[]
   onDone: () => void
+  /**
+   * Leave the session entirely (the top-bar back button). Distinct from {@link onDone}, which means
+   * "this set is finished" — in an interleaved learn→write session those go to different places.
+   * Absent → back behaves as done, the original behaviour.
+   */
+  onExit?: () => void
   baseStep?: number
   totalSteps?: number
 }
@@ -27,6 +33,13 @@ export interface DrawCapability {
    * their strokes are collected to train the recognizer later. Absent → no tracing fallback.
    */
   isTraceable?: (word: string) => boolean
+  /**
+   * Verify a drawing of one known character (or a short cluster like きゃ): "is this that
+   * character?" rather than "which character is this?". Absent → the script can only self-assess.
+   */
+  gradeChar?: (target: string, strokes: DrawStroke[]) => boolean
+  /** Whether {@link gradeChar} has the reference data to judge this target. */
+  canGradeChar?: (target: string) => boolean
   /** Post-learn write-review screen. */
   Review: ComponentType<DrawReviewProps>
   /** Single-unit, freely-repeatable write practice — the "write" page of the browse-detail view. */
@@ -47,6 +60,11 @@ export interface UiStrings {
   greeting: (name: string, hasRecord: boolean) => NativeText
   learnEntry: NativeText
   grammarEntry: NativeText
+  /**
+   * "Learn kana" — the script-course entry card. Optional: only languages that register a course in
+   * src/lib/kana carry one, so Arabic needn't invent a label for a section it doesn't have.
+   */
+  kanaEntry?: NativeText
   /** "Browse" entry — opens the list of already-studied units. */
   browseEntry: NativeText
   learn: NativeText

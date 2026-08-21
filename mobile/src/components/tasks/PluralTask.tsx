@@ -86,7 +86,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   // Each line: a small count label on the left, the (large) word or a blank on the right.
   line: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 46 },
   count: { width: 76, textAlign: 'right', fontSize: 14, color: colors.muted, fontFamily: fonts.body },
-  form: { fontSize: 34, color: colors.ink },
+  form: { fontSize: 34, color: colors.ink, fontFamily: fonts.serif },
   formAnswer: { color: colors.accentInk }, // the revealed answer stands out
   blank: {
     width: 96,
@@ -107,5 +107,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.panel,
     alignItems: 'center',
   },
-  optText: { fontSize: 22, color: colors.ink },
+  optText: { fontSize: 22, color: colors.ink, fontFamily: fonts.serif },
 })

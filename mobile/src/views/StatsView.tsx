@@ -12,7 +12,7 @@ import { Icon } from '../components/Icon'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
-/** Vocabulary mastered + success rate per task type. */
+/** Vocabulary mastered + success rate per task type. (The kanji board lives in Learn kanji.) */
 export function StatsView() {
   const styles = useStyles(makeStyles)
   const { progress } = useProgress()

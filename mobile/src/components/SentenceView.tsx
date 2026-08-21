@@ -159,11 +159,14 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   block: { paddingHorizontal: 2, borderRadius: 6 },
   highlight: { backgroundColor: colors.accentSoft },
   // Fixed lineHeight so a sentence's rows are the same height whatever the script (kanji vs Arabic).
-  base: { fontSize: 24, lineHeight: 32, color: colors.ink },
-  baseAccent: { fontSize: 24, lineHeight: 32, color: colors.accentInk },
-  scaffold: { fontSize: 24, lineHeight: 32, color: colors.muted },
+  // Serif (Zen Old Mincho) for every Japanese run: this is reading text, and the OS default varies
+  // per device, so pinning it keeps sentences looking the same everywhere. The English gloss below
+  // stays on the Latin body face.
+  base: { fontSize: 24, lineHeight: 32, color: colors.ink, fontFamily: fonts.serif },
+  baseAccent: { fontSize: 24, lineHeight: 32, color: colors.accentInk, fontFamily: fonts.serif },
+  scaffold: { fontSize: 24, lineHeight: 32, color: colors.muted, fontFamily: fonts.serif },
   english: { fontSize: 20, color: colors.ink, fontFamily: fonts.body, fontVariant: ['small-caps'] },
-  rtAccent: { fontSize: 11, lineHeight: 13, color: colors.accentInk, textAlign: 'center' },
+  rtAccent: { fontSize: 11, lineHeight: 13, color: colors.accentInk, textAlign: 'center', fontFamily: fonts.serif },
   clozeBase: { flexDirection: 'row', alignItems: 'center' },
   blankBox: {
     width: 22,

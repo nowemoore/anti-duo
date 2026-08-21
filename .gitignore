@@ -23,3 +23,6 @@ data/progress.json
 public/content.json
 
 
+
+# KanjiVG SVG download cache (re-fetched by `npm run gen:patterns`)
+.cache/

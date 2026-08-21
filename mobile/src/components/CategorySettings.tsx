@@ -6,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext'
 import { enabledUnitCount, isCategoryEnabled, isUnitEnabled, toggleInList } from '@lib/categories'
 import { Toggle } from './Toggle'
 import { Icon } from './Icon'
+import { categoryIcon } from '../categoryIcons'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
@@ -65,6 +66,13 @@ export function CategorySettings() {
                 >
                   <Chevron open={isOpen} color={catOn ? colors.muted : colors.border} />
                 </Pressable>
+                <View style={[styles.catIcon, !catOn && styles.catIconOff]}>
+                  <Icon
+                    name={categoryIcon(cat.name)}
+                    size={13}
+                    color={catOn ? colors.accentInk : colors.muted}
+                  />
+                </View>
                 <Text style={[styles.catName, !catOn && styles.off]}>{cat.name}</Text>
                 <Text style={[styles.catCount, !catOn && styles.off]}>
                   {enabledInCat}/{cat.units.length}
@@ -164,6 +172,16 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   block: { borderTopColor: colors.border, borderTopWidth: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   expand: { width: 24, alignItems: 'center' },
+  // Tinted disc so the glyph reads as a label, not a tappable control — the row already has two.
+  catIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentSoft,
+  },
+  catIconOff: { backgroundColor: colors.border },
   catName: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 15 },
   catCount: { marginLeft: 'auto', color: colors.muted, fontFamily: fonts.body, fontSize: 13 },
   off: { color: colors.muted, opacity: 0.7 },

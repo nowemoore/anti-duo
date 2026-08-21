@@ -5,7 +5,7 @@ import { SpeakButton } from '../SpeakButton'
 import { VoweledText } from '../VoweledText'
 import { useLanguage } from '../../context/LanguageContext'
 import type { TaskUI, TaskViewProps } from './types'
-import { type Palette } from '../../theme'
+import { fonts, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 function sentenceSpeech(task: ChoiceTask): string {
@@ -127,7 +127,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   optFlex: { flex: 1 },
   optSlim: { paddingVertical: 9 },
   optBig: { paddingVertical: 18, minHeight: 56 },
-  optText: { fontSize: 20, color: colors.ink },
+  optText: { fontSize: 20, color: colors.ink, fontFamily: fonts.serif },
   // Fixed lineHeight so the unit-form options (kanji char / Arabic root) share a row size across modes.
   clozeOptText: { fontSize: 32, lineHeight: 40 },
   readingText: { fontSize: 22 },

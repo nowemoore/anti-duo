@@ -110,7 +110,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.panel,
     alignItems: 'center',
   },
-  optWord: { fontSize: 22, color: colors.ink },
+  optWord: { fontSize: 22, color: colors.ink, fontFamily: fonts.serif },
   optSpeak: { position: 'absolute', top: 6, right: 6 },
   retry: { color: colors.incorrect, fontFamily: fonts.body, fontSize: 13, textAlign: 'center', paddingVertical: 8 },
 })
