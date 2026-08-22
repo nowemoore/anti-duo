@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
+import { TapScale } from '../TapScale'
 import type { GrammarVocab } from '@lib/grammar'
 import { Icon } from '../Icon'
 import { SpeakButton } from '../SpeakButton'
-import { fonts, radius, spacing, type Palette } from '../../theme'
+import { fonts, btnPrimary, type Palette, spacing, btnLabel } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 /**
@@ -46,7 +47,7 @@ export function VocabIntro({
               </Text>
               <View style={styles.actions}>
                 <SpeakButton text={w.reading} label={`Pronounce ${w.word}`} />
-                <Pressable
+                <TapScale
                   onPressIn={() => setHeld(w.word)}
                   onPressOut={() => setHeld(null)}
                   style={[styles.eyeBtn, on && styles.eyeBtnOn]}
@@ -54,7 +55,7 @@ export function VocabIntro({
                   hitSlop={6}
                 >
                   <Icon name="eye" size={16} color={on ? colors.onAccent : colors.muted} />
-                </Pressable>
+                </TapScale>
               </View>
             </View>
           )
@@ -67,10 +68,10 @@ export function VocabIntro({
         You can come back to this list at any time.
       </Text>
 
-      <Pressable style={styles.doneBtn} onPress={onDone} accessibilityLabel={doneLabel}>
-        <Icon name="check" size={13} color={colors.onAccent} />
+      <TapScale style={styles.doneBtn} onPress={onDone} accessibilityLabel={doneLabel}>
+        <Icon name="check" size={13} color={colors.ink} />
         <Text style={styles.doneText}>{doneLabel}</Text>
-      </Pressable>
+      </TapScale>
     </View>
   )
 }
@@ -103,16 +104,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginTop: spacing.lg,
   },
   doneBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
+    ...btnPrimary(colors),
     alignSelf: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    paddingVertical: 11,
-    paddingHorizontal: spacing.xl,
     marginTop: spacing.sm,
   },
-  doneText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 13 },
+  doneText: btnLabel(colors),
 })

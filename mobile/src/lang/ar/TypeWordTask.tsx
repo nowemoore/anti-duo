@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { View, Text, TextInput, Pressable, Keyboard, StyleSheet } from 'react-native'
+import { View, Text, TextInput, Keyboard, StyleSheet } from 'react-native'
+import { TapScale } from '../../components/TapScale'
 import { checkTypeWord, type TypeWordTask } from '@lib/tasks'
 import { useContent } from '../../context/ContentContext'
 import { SpeakButton } from '../../components/SpeakButton'
@@ -57,19 +58,19 @@ function ArTypeWordView({ task, answer, setAnswer, phase, score, onLock, onGiveU
         />
         {!revealed && (
           <View style={styles.actionRow}>
-            <Pressable style={[styles.actionBtn, styles.clueBtn]} onPress={onGiveUp} accessibilityLabel="No clue">
+            <TapScale style={[styles.actionBtn, styles.clueBtn]} onPress={onGiveUp} accessibilityLabel="No clue">
               <Icon name="skull" size={13} color={colors.muted} />
               <Text style={styles.clueText}>No clue</Text>
-            </Pressable>
-            <Pressable
+            </TapScale>
+            <TapScale
               style={[styles.actionBtn, styles.lockBtn, !canLock && styles.disabled]}
               onPress={onLock}
               disabled={!canLock}
               accessibilityLabel="Lock in your answer"
             >
-              <Icon name="lock" size={14} color={colors.onAccent} />
+              <Icon name="lock" size={14} color={colors.ink} />
               <Text style={styles.lockText}>Lock in answer</Text>
-            </Pressable>
+            </TapScale>
           </View>
         )}
         {phase === 'retry' && (
@@ -140,7 +141,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.pill,
   },
   lockBtn: { backgroundColor: colors.accent },
-  lockText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 14 },
+  lockText: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 14 },
   clueBtn: { backgroundColor: colors.border },
   clueText: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 14 },
   disabled: { opacity: 0.4 },

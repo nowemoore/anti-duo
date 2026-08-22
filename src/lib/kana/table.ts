@@ -193,13 +193,13 @@ export const JA_SCRIPTS: KanaScript[] = [
   {
     id: 'hiragana',
     title: { native: 'ひらがな', en: 'Hiragana' },
-    blurb: 'The everyday script — grammar, native words, and every reading in the app.',
+    blurb: 'The everyday script for grammar, native words, and kanji readings.',
     sections: sections('h', CHART_GOJUON, CHART_DAKUTEN, CHART_YOON),
   },
   {
     id: 'katakana',
     title: { native: 'カタカナ', en: 'Katakana' },
-    blurb: 'The same sounds again, used for foreign words, names, and emphasis.',
+    blurb: 'The script used for foreign words, names, and emphasis.',
     sections: sections(
       'k',
       katakanaRows(CHART_GOJUON),

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { View, Text, Pressable, StyleSheet, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
+import { TapScale } from '../TapScale'
 import type { IconName } from '@fortawesome/fontawesome-svg-core'
 import { Icon } from '../Icon'
 import { fonts, radius, shadow, spacing, type Palette } from '../../theme'
@@ -41,7 +42,7 @@ export function PartCard({
 
   return (
     <View style={[styles.card, locked && styles.cardLocked]}>
-      <Pressable
+      <TapScale
         style={styles.header}
         onPress={locked ? undefined : onToggle}
         disabled={locked}
@@ -72,7 +73,7 @@ export function PartCard({
         {!locked && (
           <Chevron open={open} color={colors.muted} />
         )}
-      </Pressable>
+      </TapScale>
 
       {/* Animated open/close rather than an instant swap. Children stay mounted throughout, so
           collapsing a part mid-run never throws away answers already given — reopening puts you back
@@ -160,7 +161,7 @@ export function Disclosure({ label, children }: { label: string; children: React
   const [open, setOpen] = useState(false)
   return (
     <View style={styles.disclosure}>
-      <Pressable
+      <TapScale
         style={styles.disclosureHead}
         onPress={() => setOpen((v) => !v)}
         accessibilityRole="button"
@@ -168,7 +169,7 @@ export function Disclosure({ label, children }: { label: string; children: React
       >
         <Chevron open={open} color={colors.accentInk} />
         <Text style={styles.disclosureLabel}>{label}</Text>
-      </Pressable>
+      </TapScale>
       {open && <View style={styles.disclosureBody}>{children}</View>}
     </View>
   )

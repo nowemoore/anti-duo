@@ -2,6 +2,7 @@
 // (localStorage) so both coerce saved progress into the same valid shape.
 import {
   GRAMMAR_ATTEMPT_HISTORY,
+  KANA_MASTERY_FULL,
   KANA_STREAK_MAX,
   WORD_STREAK_MAX,
   defaultProgress,
@@ -149,7 +150,20 @@ function normalizeKana(raw: unknown): KanaProgress | undefined {
     }
   }
 
-  return Object.keys(chars).length || Object.keys(traced).length ? { chars, traced } : undefined
+  const wins: Record<string, number> = {}
+  if (typeof src.wins === 'object' && src.wins !== null) {
+    for (const [char, value] of Object.entries(src.wins as Record<string, unknown>)) {
+      if (!char || typeof value !== 'number' || !Number.isFinite(value)) continue
+      const n = Math.min(KANA_MASTERY_FULL, Math.max(0, Math.round(value)))
+      if (n > 0) wins[char] = n
+    }
+  }
+
+  if (!Object.keys(chars).length && !Object.keys(traced).length && !Object.keys(wins).length) {
+    return undefined
+  }
+  // `wins` spread conditionally: a profile written before it existed keeps its exact shape.
+  return { chars, traced, ...(Object.keys(wins).length ? { wins } : {}) }
 }
 
 /** Fill defaults and coerce settings into valid shapes. Migrates legacy `kanji`/`disabledKanji`

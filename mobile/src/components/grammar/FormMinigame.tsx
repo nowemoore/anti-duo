@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
-import { View, Text, Pressable, StyleSheet, Animated, PanResponder, Easing, Dimensions } from 'react-native'
+import { View, Text, StyleSheet, Animated, PanResponder, Easing, Dimensions } from 'react-native'
+import { PagerChevron } from '../PagerChevron'
+import { TapScale } from '../TapScale'
 import type { GrammarItemResult } from '@shared/types'
 import { GRAMMAR_PASS_ACCURACY } from '@shared/constants'
 import {
@@ -11,8 +13,9 @@ import {
 } from '@lib/grammar'
 import { Icon } from '../Icon'
 import { RevealStrip } from '../RevealStrip'
+import { Tally } from '../Tally'
 import { Furigana } from '../../lang/ja/Furigana'
-import { fonts, radius, spacing, type Palette } from '../../theme'
+import { fonts, btnPrimary, type Palette, radius, spacing, btnLabel } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 const SCREEN_W = Dimensions.get('window').width
@@ -183,9 +186,7 @@ export function FormMinigame({
     const passed = accuracy >= GRAMMAR_PASS_ACCURACY
     return (
       <View style={styles.summary}>
-        <Text style={styles.scoreBig}>
-          {correct} / {prepared.length}
-        </Text>
+        <Tally count={correct} total={prepared.length} style={styles.scoreBig} />
         <Text style={styles.scorePct}>{Math.round(accuracy * 100)}% correct</Text>
         <Text style={styles.scoreNote}>
           {passed
@@ -193,14 +194,14 @@ export function FormMinigame({
             : `${Math.round(GRAMMAR_PASS_ACCURACY * 100)}% unlocks the explanation. Your best attempt counts, so a retry can only help.`}
         </Text>
         {/* Reviewing is as useful as retrying — the answers are still there to look through. */}
-        <Pressable style={[styles.primaryBtn, styles.ghostBtn]} onPress={() => { setPage(1); setView('run') }}>
+        <TapScale style={[styles.primaryBtn, styles.ghostBtn]} onPress={() => { setPage(1); setView('run') }}>
           <Icon name="magnifying-glass" size={13} color={colors.accentInk} />
           <Text style={[styles.primaryText, styles.ghostText]}>Review your answers</Text>
-        </Pressable>
-        <Pressable style={styles.primaryBtn} onPress={retry}>
-          <Icon name="rotate-left" size={13} color={colors.onAccent} />
+        </TapScale>
+        <TapScale style={styles.primaryBtn} onPress={retry}>
+          <Icon name="rotate-left" size={13} color={colors.ink} />
           <Text style={styles.primaryText}>Try again</Text>
-        </Pressable>
+        </TapScale>
       </View>
     )
   }
@@ -243,17 +244,17 @@ export function FormMinigame({
                 fill. Either word can be held for its meaning, which lands in the strip below. */}
             <View style={styles.prompt}>
               <View style={styles.frameRow}>
-                <Pressable
+                <TapScale
                   onPressIn={() => setRevealed(`${current.cue.word}  ·  ${current.cue.meaning}`)}
                   onPressOut={() => setRevealed(null)}
                   hitSlop={6}
                   accessibilityLabel={`Meaning of ${current.cue.word}`}
                 >
                   <Furigana surface={current.cue.word} reading={current.cue.reading} baseStyle={styles.cueBase} />
-                </Pressable>
+                </TapScale>
                 <View style={styles.slotRow}>
                   <Text style={styles.bracket}>（</Text>
-                  <Pressable
+                  <TapScale
                     onPressIn={() => setRevealed(`${current.item.form}  ·  ${current.item.meaning}`)}
                     onPressOut={() => setRevealed(null)}
                     hitSlop={6}
@@ -265,7 +266,7 @@ export function FormMinigame({
                       baseStyle={styles.slotBase}
                       rtColor={colors.c500}
                     />
-                  </Pressable>
+                  </TapScale>
                   <Text style={styles.bracket}>）</Text>
                 </View>
               </View>
@@ -276,7 +277,7 @@ export function FormMinigame({
                 const revealedAnswer = picked != null
                 const state = !revealedAnswer ? 'idle' : o.correct ? 'correct' : picked === k ? 'wrong' : 'idle'
                 return (
-                  <Pressable
+                  <TapScale
                     key={o.label}
                     disabled={revealedAnswer}
                     onPress={() => choose(k)}
@@ -293,44 +294,31 @@ export function FormMinigame({
                       {state === 'correct' && <Icon name="circle-check" size={OPT_ICON} color={colors.correct} />}
                       {state === 'wrong' && <Icon name="circle-xmark" size={OPT_ICON} color={colors.incorrect} />}
                     </View>
-                  </Pressable>
+                  </TapScale>
                 )
               })}
             </View>
 
-            {/* Same hold-to-reveal strip the practice exercises use, for the words in the frame. */}
-            <RevealStrip text={revealed} hint="Hold a word above to reveal its meaning." />
+            {/* Same hold-to-reveal strip the practice exercises use, spanning this card rather than
+                the screen — a PartCard clips its children, so it can't bleed past the card edge. */}
+            <RevealStrip bleed="card" text={revealed} hint="Hold a word above to reveal its meaning." />
           </>
         )}
       </Animated.View>
 
       <View style={styles.pager}>
-        <Pressable
-          style={[styles.chevron, styles.chevBack, !canGoPrev && styles.disabled]}
-          onPress={goPrev}
-          disabled={!canGoPrev}
-          accessibilityLabel="Previous question"
-        >
-          <Icon name="chevron-left" size={18} color={colors.muted} />
-        </Pressable>
+        <PagerChevron dir="prev" onPress={goPrev} disabled={!canGoPrev} label="Previous question" />
 
-        <Pressable
-          style={[styles.chevron, styles.chevNext, !canGoNext && styles.disabled]}
-          onPress={goNext}
-          disabled={!canGoNext}
-          accessibilityLabel="Next question"
-        >
-          <Icon name="chevron-right" size={18} color={colors.onAccent} />
-        </Pressable>
+        <PagerChevron dir="next" onPress={goNext} disabled={!canGoNext} label="Next question" />
       </View>
 
       {/* Finishing is always an explicit act — nothing here ends the run on your behalf. Once the
           attempt is recorded this button becomes the way back to the score. */}
       {remaining === 0 && (
-        <Pressable style={[styles.primaryBtn, styles.finishBtn]} onPress={finish}>
-          <Icon name={recorded.current ? 'chart-column' : 'check'} size={13} color={colors.onAccent} />
+        <TapScale style={[styles.primaryBtn, styles.finishBtn]} onPress={finish}>
+          <Icon name={recorded.current ? 'chart-column' : 'check'} size={13} color={colors.ink} />
           <Text style={styles.primaryText}>{recorded.current ? 'Back to your score' : 'See your score'}</Text>
-        </Pressable>
+        </TapScale>
       )}
     </View>
   )
@@ -404,12 +392,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   // Reserved from the start so the ✓/✗ appearing can't nudge the label sideways.
   iconSlot: { width: OPT_ICON, alignItems: 'center', justifyContent: 'center' },
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.lg },
-  chevron: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  chevBack: { borderWidth: 1.5, borderColor: colors.border },
-  chevNext: { backgroundColor: colors.accent, borderWidth: 1.5, borderColor: colors.accent },
   disabled: { opacity: 0.3 },
   summary: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
-  scoreBig: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 34, fontVariant: ['tabular-nums'] },
+  scoreBig: { fontFamily: fonts.semibold, fontSize: 34, fontVariant: ['tabular-nums'] },
   scorePct: { color: colors.accentInk, fontFamily: fonts.semibold, fontSize: 14 },
   scoreNote: {
     color: colors.muted,
@@ -420,17 +405,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginBottom: spacing.xs,
   },
   primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.xl,
+    ...btnPrimary(colors),
   },
   ghostBtn: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.border },
   ghostText: { color: colors.accentInk },
   finishBtn: { marginTop: spacing.md },
-  primaryText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 13 },
+  primaryText: btnLabel(colors),
 })

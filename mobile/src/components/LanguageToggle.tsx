@@ -1,53 +1,32 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native'
+import { Segmented } from './Segmented'
 import { selectablePacks } from '../lang/registry'
 import { useLanguage, useSetLanguage } from '../context/LanguageContext'
-import { radius, type Palette } from '../theme'
-import { useStyles } from '../hooks/theme'
 
 /** Compact segmented language switch (native labels). Each language keeps its own progress + content. */
 export function LanguageToggle() {
   const active = useLanguage().id
   const setLang = useSetLanguage()
-  const styles = useStyles(makeStyles)
   // Hidden packs (see registry) are excluded, so this collapses to nothing when only one is offered.
   const packs = selectablePacks()
   if (packs.length < 2) return null
 
+  const index = Math.max(0, packs.findIndex((p) => p.id === active))
   return (
-    <View style={styles.seg}>
-      {packs.map((p) => {
-        const on = p.id === active
-        return (
-          <Pressable
-            key={p.id}
-            onPress={() => !on && setLang(p.id)}
-            style={[styles.item, on && styles.itemOn]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={`Switch to ${p.label.en}`}
-          >
-            {/* Native label on the system font — the bundled Latin fonts have no CJK/Arabic glyphs. */}
-            <Text style={[styles.text, on && styles.textOn]}>{p.label.native}</Text>
-          </Pressable>
-        )
-      })}
-    </View>
+    <Segmented
+      // Native labels on the system font — the bundled Latin fonts have no CJK/Arabic glyphs.
+      values={packs.map((p) => p.label.native)}
+      index={index}
+      onChange={(next) => {
+        const picked = packs[next]
+        if (picked && picked.id !== active) setLang(picked.id)
+      }}
+      style={styles.seg}
+    />
   )
 }
 
-const makeStyles = (colors: Palette) => StyleSheet.create({
-  seg: {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    gap: 2,
-    padding: 3,
-    backgroundColor: colors.panel,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-  },
-  item: { paddingVertical: 6, paddingHorizontal: 16, borderRadius: radius.pill },
-  itemOn: { backgroundColor: colors.accent },
-  text: { color: colors.muted, fontSize: 15, fontWeight: '600' },
-  textOn: { color: colors.onAccent },
+const styles = StyleSheet.create({
+  // Narrow: two or three glyph-wide labels, centred rather than stretched across the screen.
+  seg: { alignSelf: 'center', width: 180 },
 })

@@ -30,26 +30,25 @@ import { Fraunces_400Regular, Fraunces_700Bold } from '@expo-google-fonts/fraunc
  * the one we actually use.
  */
 import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku/400Regular'
-import { ZenOldMincho_400Regular } from '@expo-google-fonts/zen-old-mincho/400Regular'
+import { ShipporiMincho_400Regular } from '@expo-google-fonts/shippori-mincho/400Regular'
+import { KleeOne_400Regular } from '@expo-google-fonts/klee-one/400Regular'
 import './src/icons' // registers the FontAwesome library (side effect)
 import { setupPwa } from './src/web/pwa'
 import { LanguageProvider, useLanguage } from './src/context/LanguageContext'
 import { ContentProvider } from './src/context/ContentContext'
 import { ProgressProvider } from './src/context/ProgressContext'
-import { HeaderProvider, useHeaderConfig } from './src/context/HeaderContext'
 import { AuthProvider } from './src/context/AuthContext'
 import { SyncProvider } from './src/context/SyncContext'
 import { ScrollLockContext } from './src/context/ScrollLockContext'
+import { TabBarContext } from './src/context/TabBarContext'
 import { OverlayProvider } from './src/components/Overlay'
 import { StudyView } from './src/views/StudyView'
 import { StatsView } from './src/views/StatsView'
 import { SettingsView } from './src/views/SettingsView'
-import { HelpButton } from './src/components/HelpButton'
-import { BackButton } from './src/components/BackButton'
-import { Bilingual } from './src/components/Bilingual'
 import { FadeView } from './src/components/FadeView'
+import { GlassSurface } from './src/components/Glass'
 import { Icon } from './src/components/Icon'
-import { fonts, spacing, type Palette } from './src/theme'
+import { fonts, radius, spacing, type Palette } from './src/theme'
 import { useColors, useStyles } from './src/hooks/theme'
 
 type Tab = 'study' | 'stats' | 'settings'
@@ -69,7 +68,8 @@ export default function App() {
     Fraunces_400Regular,
     Fraunces_700Bold,
     YujiSyuku_400Regular,
-    ZenOldMincho_400Regular,
+    ShipporiMincho_400Regular,
+    KleeOne_400Regular,
   })
 
   // Play pronunciations through the speaker even when the iOS Ring/Silent switch is on.
@@ -89,9 +89,7 @@ export default function App() {
             <AuthProvider>
               <SyncProvider>
                 <OverlayProvider>
-                  <HeaderProvider>
-                    <Shell />
-                  </HeaderProvider>
+                  <Shell />
                 </OverlayProvider>
               </SyncProvider>
             </AuthProvider>
@@ -108,7 +106,8 @@ function Shell() {
   const insets = useSafeAreaInsets()
   const [tab, setTab] = useState<Tab>('study')
   const [scrollLocked, setScrollLocked] = useState(false)
-  const header = useHeaderConfig()
+  /** Height of the floating tab bar, so the content behind it can end above it. */
+  const [barH, setBarH] = useState(0)
   const onStudy = tab === 'study'
 
   // Crossfade the UI when the language (theme + content) switches, so it isn't a hard cut. The bg
@@ -127,65 +126,65 @@ function Shell() {
 
   return (
     <ScrollLockContext.Provider value={setScrollLocked}>
+    <TabBarContext.Provider value={barH}>
     <View style={styles.app}>
       <StatusBar style="light" />
       <Animated.View style={[styles.fill, { opacity: fade }]}>
       {/* Soft color pools behind the frosted panels so the "glass" has something to reveal. */}
       <Glows />
-      {/* Shared top bar: back button + kana chart button, plus the step title/dots — only during a
-          Study-tab learn/practice session. StudyView stays mounted across tabs (see below), so without
-          gating on `onStudy` its session header would bleed onto Stats/Settings.
-          The chart follows step progress, or an explicit `help` opt-in for screens (grammar) that
-          render their own progress instead of the shared dots. */}
-      <View style={[styles.topRow, { paddingTop: insets.top + 4 }]}>
-        {onStudy && header.back ? <BackButton onPress={header.back} /> : <View style={styles.topSpacer} />}
-        {onStudy && (header.progress != null || header.help) ? <HelpButton /> : <View style={styles.topSpacer} />}
-      </View>
-      {onStudy && header.title && (
-        <View style={styles.titleRow}>
-          <Bilingual native={header.title.ja} en={header.title.en} />
-        </View>
-      )}
-      {onStudy && header.progress != null && (
-        <View style={styles.dotsRow}>
-          {Array.from({ length: header.progress.total }, (_, k) => (
-            <View key={k} style={[styles.dot, k < header.progress!.current && styles.dotOn]} />
-          ))}
-        </View>
-      )}
+      {/* Study owns its own chrome now: it runs a native stack, whose system bar carries the back
+          control, the help button and — under it — the step title and dots. Stats and Settings have
+          no bar of their own, so they just need the status-bar inset. */}
+      {!onStudy && <View style={{ paddingTop: insets.top + 4 }} />}
       {/* Study stays mounted (just hidden) while you're on another tab, so an in-progress practice/learn
-          session keeps its exact place — hop to Stats/Settings and come back to the same question. */}
+          session keeps its exact place — hop to Stats/Settings and come back to the same question.
+          That includes the navigation stack: the screen you were on is still on it when you return. */}
+      {/* Full height: screens decide for themselves whether to end above the bar or run under it. */}
       <View style={[styles.studyBody, !onStudy && styles.hidden]}>
-        <FadeView key="study" style={styles.fill}>
-          <StudyView />
-        </FadeView>
+        <StudyView />
       </View>
       {!onStudy && (
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: barH + spacing.lg }]}
           keyboardShouldPersistTaps="handled"
           scrollEnabled={!scrollLocked}
         >
           <FadeView key={tab}>{tab === 'stats' ? <StatsView /> : <SettingsView />}</FadeView>
         </ScrollView>
       )}
-      {/* Bottom bar pinned to the very bottom; its padding absorbs the home-indicator inset. */}
-      <View style={[styles.tabbar, { paddingBottom: insets.bottom + 2 }]}>
-        {TABS.map((t) => {
-          const active = t.key === tab
-          return (
-            <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
-              <Icon name={t.icon} size={20} color={active ? colors.accentInk : colors.muted} />
-              <Text style={[styles.tabLabel, { color: active ? colors.accentInk : colors.muted }]}>
-                {t.label}
-              </Text>
-            </Pressable>
-          )
-        })}
+      {/*
+        A floating bar rather than a full-width strip, and real glass rather than a painted fill.
+        Overlaid on the content rather than sitting in the column below it — in flow it reserved a
+        band of bare background for itself, which is the grey stripe that gave it away as not being
+        system chrome. Content clears it via `barH`, measured here rather than guessed.
+      */}
+      <View
+        style={[styles.tabbarWrap, { paddingBottom: insets.bottom + spacing.sm }]}
+        onLayout={(e) => setBarH(e.nativeEvent.layout.height)}
+      >
+        <GlassSurface tint={colors.panelStrong} style={styles.tabbar}>
+          {TABS.map((t) => {
+            const active = t.key === tab
+            return (
+              <Pressable
+                key={t.key}
+                style={[styles.tab, active && styles.tabOn]}
+                onPress={() => setTab(t.key)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={t.label}
+              >
+                <Icon name={t.icon} size={20} color={active ? colors.accentInk : colors.muted} />
+                <Text style={[styles.tabLabel, !active && styles.tabLabelOff]}>{t.label}</Text>
+              </Pressable>
+            )
+          })}
+        </GlassSurface>
       </View>
       </Animated.View>
     </View>
+    </TabBarContext.Provider>
     </ScrollLockContext.Provider>
   )
 }
@@ -242,37 +241,41 @@ function Glows() {
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   app: { flex: 1, backgroundColor: colors.bg, overflow: 'hidden' },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingBottom: 2,
-  },
-  topSpacer: { width: 40, height: 40 }, // keeps the help button pinned right when there's no back button
-  titleRow: { alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  dotsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 7,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
-  dotOn: { backgroundColor: colors.accent },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, flexGrow: 1 },
-  studyBody: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, flexGrow: 1 },
+  // No padding: the stack's system bar has to reach the screen edges. Screens inset themselves.
+  studyBody: { flex: 1 },
   hidden: { display: 'none' },
   fill: { flex: 1 },
-  tabbar: {
-    flexDirection: 'row',
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    backgroundColor: colors.panel,
+  // The wrapper carries the home-indicator inset; the bar itself floats clear of the screen edges.
+  tabbarWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
-  tab: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 4 },
-  tabLabel: { fontFamily: fonts.body, fontSize: 11 },
+  tabbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.sm,
+    overflow: 'hidden',
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 40,
+    borderRadius: radius.pill,
+  },
+  // The selected tab is a filled pill; the rest are bare glyphs on the bar.
+  tabOn: { backgroundColor: colors.accentSoft },
+  tabLabel: { color: colors.accentInk, fontFamily: fonts.semibold, fontSize: 13 },
+  tabLabelOff: { color: colors.muted },
 })

@@ -1,12 +1,22 @@
-import { useCallback, useState, type ReactNode } from 'react'
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { View, Text, ScrollView, StyleSheet } from 'react-native'
+import { DefaultTheme, NavigationContainer, useNavigationContainerRef, type Theme } from '@react-navigation/native'
+import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { useHeaderHeight } from '@react-navigation/elements'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { TapScale } from '../components/TapScale'
 import type { Unit } from '@shared/types'
+import { PRACTICE_ITERATIONS } from '@shared/constants'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { Bilingual } from '../components/Bilingual'
 import { LanguageToggle } from '../components/LanguageToggle'
 import { Icon } from '../components/Icon'
-import { FadeView } from '../components/FadeView'
+import { ActionRow } from '../components/ActionRow'
+import { ProgressTally } from '../components/ProgressTally'
+import { HelpButton } from '../components/HelpButton'
+import { Stagger } from '../components/Stagger'
+import { Tally } from '../components/Tally'
 import { LearnPhase } from '../components/LearnPhase'
 import { PracticeSession } from '../components/PracticeSession'
 import { KanjiMosaic } from '../components/KanjiMosaic'
@@ -15,7 +25,8 @@ import { GrammarSection } from '../components/grammar/GrammarSection'
 import { KanaMenu } from '../components/kana/KanaMenu'
 import { KanaCharacter } from '../components/kana/KanaCharacter'
 import { KanaPractice } from '../components/kana/KanaPractice'
-import { useScreenHeader } from '../context/HeaderContext'
+import { HeaderProvider, useHeaderConfig, useScreenHeader } from '../context/HeaderContext'
+import { useTabBarHeight } from '../context/TabBarContext'
 import { useLanguage } from '../context/LanguageContext'
 import { topicsForLang, type GrammarTopic } from '@lib/grammar'
 import { scriptsForLang, studiedCount, totalKanaCount, type KanaScript } from '@lib/kana'
@@ -30,10 +41,10 @@ import {
   unlearnedUnits,
 } from '@lib/study'
 
-// 'home' = welcome; 'menu' = the unit page;
-// 'grammar'/'grammarTopic' = the grammar subsections; 'kana*' = the script course (menu → chart →
-// one character, plus its own practice); then the sessions.
-type Phase =
+// 'home' = welcome; 'menu' = the unit page; 'grammar'/'grammarTopic' = the grammar subsections;
+// 'kana*' = the script course (menu → chart → one character, plus its own practice); then the
+// sessions. These are the stack's route names, so moving between them is a real push or pop.
+type Route =
   | 'home'
   | 'menu'
   | 'learn'
@@ -45,16 +56,44 @@ type Phase =
   | 'kanaPractice'
 
 export function StudyView() {
-  const styles = useStyles(makeStyles)
   const index = useContent()
   const { progress, update } = useProgress()
   const { draw, id: langId } = useLanguage()
-  const [phase, setPhase] = useState<Phase>('home')
+  const colors = useColors()
+  const navRef = useNavigationContainerRef()
+  /**
+   * Push a route. Goes through the container ref rather than `useNavigation` because the handlers
+   * live here, above the navigator — `navigate` to a route already on the stack pops back to it,
+   * which is what every "done, return to the menu" path wants.
+   */
+  const go = (route: Route) => {
+    if (navRef.isReady()) navRef.navigate(route as never)
+  }
+  /**
+   * The stack draws over the app's own background, so its own surfaces stay out of the way.
+   * Memoised: a fresh object every render would re-theme the container on every keystroke.
+   */
+  const navTheme: Theme = useMemo(
+    () => ({
+      dark: true,
+      colors: {
+        primary: colors.accent,
+        background: 'transparent',
+        card: 'transparent',
+        text: colors.ink,
+        border: 'transparent',
+        notification: colors.accent,
+      },
+      fonts: DefaultTheme.fonts,
+    }),
+    [colors],
+  )
   // One learn session: the units to teach, the pool "Not now" swaps from, and where we are in it.
   // Each unit runs learn → write before the next begins, so `qi`/`stage` walk that interleaving.
   const [chunk, setChunk] = useState<Unit[]>([])
   const [reserve, setReserve] = useState<Unit[]>([])
   const [qi, setQi] = useState(0)
+  const [practiceRun, setPracticeRun] = useState(0)
   const [stage, setStage] = useState<'learn' | 'write'>('learn')
   const [topic, setTopic] = useState<GrammarTopic | null>(null)
   const [kanaScript, setKanaScript] = useState<KanaScript | null>(null)
@@ -78,7 +117,7 @@ export function StudyView() {
     setReserve(pool)
     setQi(0)
     setStage('learn')
-    setPhase('learn')
+    go('learn')
   }
 
   /**
@@ -114,7 +153,7 @@ export function StudyView() {
   /** On to the next unit in the session, or back to the board when it's done. */
   function advance() {
     if (qi + 1 >= chunk.length) {
-      setPhase('menu')
+      go('menu')
       return
     }
     setQi(qi + 1)
@@ -127,93 +166,227 @@ export function StudyView() {
   const stepOffset = chunk.slice(0, qi).reduce((n, u) => n + stepsFor(u), 0)
   const current = chunk[qi]
 
-  let content
-  if (phase === 'learn' && current && stage === 'learn')
-    content = (
-      <LearnPhase
-        // Remounts per unit, so each card starts clean.
-        key={current.idx}
-        chunk={[current]}
-        reserve={reserve}
-        onComplete={finishCard}
-        onExit={() => setPhase('menu')}
-        totalSteps={stepTotal}
-        baseStep={stepOffset}
-        headerCount={{ current: qi + 1, total: chunk.length }}
-      />
-    )
-  else if (phase === 'learn' && current && stage === 'write')
-    content = draw ? (
-      <draw.Review
-        key={current.idx}
-        units={[current]}
-        baseStep={stepOffset + 1}
-        totalSteps={stepTotal}
-        onDone={advance}
-        onExit={() => setPhase('menu')}
-      />
-    ) : null
-  else if (phase === 'practice') content = <PracticeSession onExit={() => setPhase('menu')} />
-  else if (phase === 'grammar')
-    content = (
-      <GrammarMenu
-        topics={grammarTopics}
-        onBack={() => setPhase('home')}
-        onSelect={(t) => {
-          setTopic(t)
-          setPhase('grammarTopic')
-        }}
-      />
-    )
-  else if (phase === 'grammarTopic' && topic)
-    content = <GrammarSection topic={topic} onBack={() => setPhase('grammar')} />
-  else if (phase === 'kana')
-    content = (
-      <KanaMenu
-        scripts={kanaScripts}
-        onBack={() => setPhase('home')}
-        onSelect={(s, c) => {
-          setKanaScript(s)
-          setKanaChar(c)
-          setPhase('kanaChar')
-        }}
-        onPractice={() => setPhase('kanaPractice')}
-      />
-    )
-  else if (phase === 'kanaChar' && kanaScript && kanaChar)
-    content = (
-      <KanaCharacter
-        char={kanaChar}
-        script={kanaScript}
-        onBack={() => setPhase('kana')}
-        onChange={setKanaChar}
-      />
-    )
-  else if (phase === 'kanaPractice') content = <KanaPractice onBack={() => setPhase('kana')} />
-  else if (phase === 'menu')
-    content = (
-      <StudyMenu
-        onBack={() => setPhase('home')}
-        onLearn={startLearn}
-        onPractice={() => setPhase('practice')}
-        onSelectUnit={startOne}
-      />
-    )
-  else
-    content = (
-      <StudyHome
-        onOpen={() => setPhase('menu')}
-        onGrammar={grammarTopics.length ? () => setPhase('grammar') : undefined}
-        // A language with no script course (Arabic) simply doesn't get the card.
-        onKana={kanaScripts.length ? () => setPhase('kana') : undefined}
-        kanaScripts={kanaScripts}
-      />
-    )
-
   return (
-    <FadeView key={phase} style={styles.fill}>
-      {content}
-    </FadeView>
+    <NavigationContainer ref={navRef} theme={navTheme}>
+      <Stack.Navigator screenOptions={screenOptions}>
+        <Stack.Screen name="home" options={{ headerShown: false }}>
+          {() => (
+            <ScreenFrame bare>
+              <StudyHome
+                onOpen={() => go('menu')}
+                onGrammar={grammarTopics.length ? () => go('grammar') : undefined}
+                // A language with no script course (Arabic) simply doesn't get the card.
+                onKana={kanaScripts.length ? () => go('kana') : undefined}
+                kanaScripts={kanaScripts}
+              />
+            </ScreenFrame>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="menu">
+          {() => (
+            <ScreenFrame scrolls>
+              <StudyMenu onLearn={startLearn} onPractice={() => go('practice')} onSelectUnit={startOne} />
+            </ScreenFrame>
+          )}
+        </Stack.Screen>
+
+        {/* One route for the whole learn step: the card and the writing view are two faces of the
+            same unit, and moving between them is the view's own business (its chevrons), not a push. */}
+        <Stack.Screen name="learn" options={withHelp}>
+          {() => (
+            <ScreenFrame>
+              {current && stage === 'learn' ? (
+                <LearnPhase
+                  // Remounts per unit, so each card starts clean.
+                  key={current.idx}
+                  chunk={[current]}
+                  reserve={reserve}
+                  onComplete={finishCard}
+                  totalSteps={stepTotal}
+                  baseStep={stepOffset}
+                  headerCount={{ current: qi + 1, total: chunk.length }}
+                />
+              ) : current && stage === 'write' && draw ? (
+                <draw.Review
+                  key={current.idx}
+                  units={[current]}
+                  baseStep={stepOffset + 1}
+                  totalSteps={stepTotal}
+                  onDone={advance}
+                  // Back returns to this unit's card, so the two views are a pair you can move between.
+                  onPrev={() => setStage('learn')}
+                  // Only the session's final unit finishes; mid-session, writing hands on to the next kanji.
+                  lastStep={qi + 1 >= chunk.length}
+                />
+              ) : null}
+            </ScreenFrame>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="practice" options={withHelp}>
+          {() => (
+            <ScreenFrame>
+              <PracticeSession
+                // A fresh key remounts the session, so "Keep practising" re-picks targets from the
+                // levels this round just changed rather than replaying the set it started with.
+                key={practiceRun}
+                onExit={() => go('menu')}
+                onRestart={() => setPracticeRun((n) => n + 1)}
+              />
+            </ScreenFrame>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="grammar" options={withHelp}>
+          {() => (
+            <ScreenFrame>
+              <GrammarMenu
+                topics={grammarTopics}
+                onSelect={(t) => {
+                  setTopic(t)
+                  go('grammarTopic')
+                }}
+              />
+            </ScreenFrame>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="grammarTopic" options={withHelp}>
+          {() => <ScreenFrame>{topic ? <GrammarSection topic={topic} /> : null}</ScreenFrame>}
+        </Stack.Screen>
+
+        <Stack.Screen name="kana">
+          {() => (
+            <ScreenFrame scrolls>
+              <KanaMenu
+                scripts={kanaScripts}
+                onSelect={(sc, c) => {
+                  setKanaScript(sc)
+                  setKanaChar(c)
+                  go('kanaChar')
+                }}
+                onPractice={() => go('kanaPractice')}
+              />
+            </ScreenFrame>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="kanaChar">
+          {() => (
+            <ScreenFrame>
+              {kanaScript && kanaChar ? (
+                <KanaCharacter char={kanaChar} script={kanaScript} onChange={setKanaChar} />
+              ) : null}
+            </ScreenFrame>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="kanaPractice">
+          {() => (
+            <ScreenFrame>
+              <KanaPractice onBack={() => go('kana')} />
+            </ScreenFrame>
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    </NavigationContainer>
+  )
+}
+
+const Stack = createNativeStackNavigator()
+
+/**
+ * Every study screen sits under the system navigation bar, so the back control, its swipe gesture
+ * and the push/pop transitions are UIKit's rather than ours.
+ *
+ * There is no bar to see: no title, no background, no blur, no hairline — just the chevron floating
+ * on the page, the way it looked before it was native. All that changes is that it's now UIKit's
+ * control, with UIKit's swipe-back and transitions behind it.
+ */
+const screenOptions = {
+  title: '',
+  headerTransparent: true,
+  headerStyle: { backgroundColor: 'transparent' },
+  headerShadowVisible: false,
+  // Chevron only — no "Back", and no previous screen's title trailing it.
+  headerBackButtonDisplayMode: 'minimal',
+  headerBackTitle: '',
+} as const
+
+/**
+ * Opts a screen into the script-reference button, in the system bar's right slot. Declared per
+ * screen rather than derived from the header config, which is now scoped to inside the screen and
+ * so can't be read from the bar.
+ */
+const withHelp = { ...screenOptions, headerRight: () => <HelpButton /> } as const
+
+/**
+ * Wraps one screen. The provider is per screen on purpose — see {@link HeaderProvider}; sharing one
+ * across the stack let a departing screen's step header render over the screen beneath it.
+ */
+function ScreenFrame({
+  children,
+  bare,
+  scrolls,
+}: {
+  children: ReactNode
+  bare?: boolean
+  /**
+   * This screen is one long scroll, so it runs *under* the floating tab bar and pads its own
+   * content instead. Without it the screen ends above the bar, leaving a band of bare background
+   * that reads as a grey stripe across the foot of the page.
+   */
+  scrolls?: boolean
+}) {
+  return (
+    <HeaderProvider>
+      <ScreenBody bare={bare} scrolls={scrolls}>
+        {children}
+      </ScreenBody>
+    </HeaderProvider>
+  )
+}
+
+/**
+ * The page body under the transparent bar: the step title and dots this screen registered via
+ * `useScreenHeader`, then the screen itself.
+ *
+ * `useHeaderHeight` rather than a constant — a transparent header doesn't inset its content, and
+ * the bar's height varies with the device's status bar.
+ */
+function ScreenBody({
+  children,
+  bare,
+  scrolls,
+}: {
+  children: ReactNode
+  bare?: boolean
+  scrolls?: boolean
+}) {
+  const styles = useStyles(makeStyles)
+  const header = useHeaderConfig()
+  const insets = useSafeAreaInsets()
+  const barHeight = useHeaderHeight()
+  const tabBar = useTabBarHeight()
+  // `bare` is the home screen, which shows no bar at all — it still has to clear the status bar.
+  const top = bare ? insets.top + spacing.sm : barHeight
+  return (
+    <View style={[styles.screen, { paddingTop: top, paddingBottom: scrolls ? 0 : tabBar }]}>
+      {header.title && (
+        <View style={styles.titleRow}>
+          <Bilingual native={header.title.ja} en={header.title.en} />
+        </View>
+      )}
+      {header.progress != null && (
+        <View style={styles.dotsRow}>
+          {Array.from({ length: header.progress.total }, (_, k) => (
+            <View key={k} style={[styles.dot, k < header.progress!.current && styles.dotOn]} />
+          ))}
+        </View>
+      )}
+      {children}
+    </View>
   )
 }
 
@@ -247,33 +420,36 @@ function GlyphMark({
 }) {
   const colors = useColors()
   /*
-   * RN has no `calc`, so the vertical centring offset is half the line box, precomputed.
-   *
    * The box is a shade *taller* than the font size, not shorter. A short box does crop the glyph top
    * and bottom, but the result reads as the card accidentally covering the character rather than as
    * a deliberate bleed — the grid watermark runs edge to edge and looked right next to it. Cropping
    * happens on the right edge only, which is where it reads as intentional.
    */
   const box = lineHeight ?? Math.round(size * 1.1)
+  /*
+   * Centred by the layout engine, not by hand.
+   *
+   * This used to be `top: '50%'` with a `translateY(-box / 2)`, which assumes the text renders at
+   * exactly `box` tall — it doesn't, because RN adds the font's own ascent/descent padding around
+   * the line box, so every mark sat a few points low. The wrapper is anchored top-to-bottom and has
+   * no width of its own, so the glyph still sizes to its content and overflows the right edge.
+   */
   return (
-    <Text
-      numberOfLines={1}
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        right,
-        top: '50%',
-        transform: [{ translateY: -box / 2 }],
-        color: colors.ink,
-        opacity,
-        fontFamily: fonts.brush,
-        fontSize: size,
-        lineHeight: box,
-        ...(letterSpacing != null ? { letterSpacing } : {}),
-      }}
-    >
-      {text}
-    </Text>
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, right, justifyContent: 'center' }}>
+      <Text
+        numberOfLines={1}
+        style={{
+          color: colors.ink,
+          opacity,
+          fontFamily: fonts.brush,
+          fontSize: size,
+          lineHeight: box,
+          ...(letterSpacing != null ? { letterSpacing } : {}),
+        }}
+      >
+        {text}
+      </Text>
+    </View>
   )
 }
 
@@ -331,9 +507,10 @@ function StudyHome({
       </View>
 
       <View style={styles.cardsCol}>
+        <Stagger>
         {/* Only for languages that ship a script course; `kanaEntry` is optional for the same reason. */}
         {onKana && ui.kanaEntry && (
-          <Pressable style={styles.entryCard} onPress={onKana}>
+          <TapScale style={styles.entryCard} onPress={onKana}>
             {marks && (
               <Watermark>
                 <GlyphMark text="あア" size={150} opacity={0.06} />
@@ -345,13 +522,14 @@ function StudyHome({
             <View style={styles.entryText}>
               <Text style={styles.entryTitle}>{ui.kanaEntry.native}</Text>
               <Text style={styles.entrySub}>
-                {studiedCount(progress, kanaScripts)} / {totalKanaCount(kanaScripts)} characters studied
+                <Tally count={studiedCount(progress, kanaScripts)} total={totalKanaCount(kanaScripts)} />
+                {' characters studied'}
               </Text>
             </View>
-          </Pressable>
+          </TapScale>
         )}
 
-        <Pressable style={styles.entryCard} onPress={onOpen}>
+        <TapScale style={styles.entryCard} onPress={onOpen}>
           {marks && (
             <Watermark>
               <GlyphMark text="漢字" size={150} opacity={0.06} />
@@ -363,13 +541,14 @@ function StudyHome({
           <View style={styles.entryText}>
             <Text style={styles.entryTitle}>{ui.learnEntry.native}</Text>
             <Text style={styles.entrySub}>
-              {introduced} / {enabledTotal} {ui.noun} learnt
+              <Tally count={introduced} total={enabledTotal} />
+              {` ${ui.noun} learnt`}
             </Text>
           </View>
-        </Pressable>
+        </TapScale>
 
         {/* Languages with no grammar subsections yet keep the original disabled placeholder. */}
-        <Pressable
+        <TapScale
           style={[styles.entryCard, !onGrammar && styles.entryDisabled]}
           onPress={onGrammar}
           disabled={!onGrammar}
@@ -391,125 +570,89 @@ function StudyHome({
             <Text style={styles.entryTitle}>{ui.grammarEntry.native}</Text>
             <Text style={styles.entrySub}>{onGrammar ? 'grammar subsections' : 'coming soon'}</Text>
           </View>
-        </Pressable>
+        </TapScale>
+        </Stagger>
       </View>
     </View>
   )
 }
 
-/** The unit page: Back + the Learn / Practice cards. (Browsing lives in Stats, as the mosaic.) */
+/** The unit page: the Learn / Practice actions over the browsable board. */
 function StudyMenu({
-  onBack,
   onLearn,
   onPractice,
   onSelectUnit,
 }: {
-  onBack: () => void
   onLearn: () => void
   onPractice: () => void
   onSelectUnit: (u: Unit) => void
 }) {
-  const colors = useColors()
   const styles = useStyles(makeStyles)
+  const tabBar = useTabBarHeight()
   const index = useContent()
   const { progress } = useProgress()
   const { ui } = useLanguage()
   const introduced = introducedUnits(index, progress).length
   const remainingToLearn = unlearnedUnits(index, progress).length
   const chunkSize = learnChunkSize(index, progress)
+  const total = introduced + remainingToLearn
   const canLearn = remainingToLearn > 0
   const canPractice = introduced > 0
 
-  useScreenHeader(onBack) // back button in the app top bar; no step label here
+  useScreenHeader() // the system bar owns the back control; no step label on this screen
 
   return (
-    <ScrollView style={styles.menuScroll} contentContainerStyle={styles.menuWrap}>
-      <Text style={styles.unlockedHeader}>
-        {introduced} / {introduced + remainingToLearn} {ui.noun} unlocked
-      </Text>
+    <ScrollView
+      style={styles.menuScroll}
+      contentContainerStyle={[styles.menuWrap, { paddingBottom: tabBar + spacing.xxl }]}
+    >
+      <Stagger>
+      <ProgressTally count={introduced} total={total} label={`${ui.noun} unlocked`} />
 
-      {/* The two ways in: let the app pick, or pick one yourself off the board below. */}
-      <Pressable
-        style={[styles.teachBtn, !canLearn && styles.teachBtnOff]}
-        onPress={onLearn}
-        disabled={!canLearn}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canLearn }}
-      >
-        <Icon
-          name="graduation-cap"
-          size={16}
-          color={canLearn ? colors.onAccent : colors.muted}
-        />
-        <Text style={[styles.teachText, !canLearn && styles.teachTextOff]}>
-          {canLearn ? `Teach me ${chunkSize} random ${ui.noun}` : `All ${ui.noun} introduced`}
-        </Text>
-      </Pressable>
-
-      <ChoiceCard
-        icon="dumbbell"
-        native={ui.practice.native}
-        en={ui.practice.en}
-        sub={canPractice ? `practice ${ui.noun} you already know` : 'learn some first'}
+      {/* Two ways to let the app choose for you; the board below is the third, and its own thing. */}
+      <ActionRow
+        primary
+        icon="play"
+        title="Practice"
+        sub={canPractice ? `${PRACTICE_ITERATIONS} questions` : `learn some ${ui.noun} first`}
         disabled={!canPractice}
         onPress={onPractice}
       />
+      <ActionRow
+        icon="plus"
+        title={canLearn ? `Learn ${chunkSize} new` : 'Nothing left to learn'}
+        sub={canLearn ? `${remainingToLearn} still to meet` : `all ${ui.noun} introduced`}
+        disabled={!canLearn}
+        onPress={onLearn}
+      />
 
-      <Text style={styles.boardNote}>or tap any {ui.noun} to study it</Text>
+      <Text style={styles.boardNote}>or keep scrolling to study {ui.noun} you like</Text>
+      <Text style={styles.boardHint}>
+        tap {ui.noun} to learn it · hold {ui.noun} to disable it for practice
+      </Text>
       <KanjiMosaic onSelect={onSelectUnit} />
+      </Stagger>
     </ScrollView>
-  )
-}
-
-function ChoiceCard({
-  icon,
-  native,
-  en,
-  sub,
-  disabled,
-  onPress,
-}: {
-  icon: 'graduation-cap' | 'dumbbell' | 'book'
-  native: string
-  en: string
-  sub: string
-  disabled?: boolean
-  onPress: () => void
-}) {
-  const colors = useColors()
-  const styles = useStyles(makeStyles)
-  return (
-    <Pressable
-      style={[styles.choice, disabled && styles.choiceDisabled]}
-      onPress={onPress}
-      disabled={disabled}
-    >
-      <View style={styles.iconCircle}>
-        <Icon name={icon} size={22} color={colors.onAccent} />
-      </View>
-      <Bilingual native={native} en={en} />
-      <Text style={styles.choiceSub}>{sub}</Text>
-    </Pressable>
   )
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   fill: { flex: 1 },
+  // Page gutter lives here rather than on the app body, so the system bar spans the full width.
+  screen: { flex: 1, paddingHorizontal: spacing.lg },
+  titleRow: { alignItems: 'center', paddingBottom: spacing.sm },
+  dotsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 7,
+    marginBottom: spacing.md,
+  },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
+  dotOn: { backgroundColor: colors.accent },
   menuScroll: { flex: 1 },
   // Was a centred column of two cards; now a scrolling page, because the board below is long.
-  menuWrap: { gap: spacing.md, paddingVertical: spacing.md, paddingBottom: spacing.xxl },
-  teachBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    minHeight: 52,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-  },
-  teachBtnOff: { backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1 },
-  teachText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 15 },
-  teachTextOff: { color: colors.muted, fontFamily: fonts.body, fontSize: 14 },
+  menuWrap: { gap: spacing.md, paddingTop: spacing.md },
   boardNote: {
     color: colors.muted,
     fontFamily: fonts.body,
@@ -518,16 +661,22 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.sm,
   },
-  // Faint section header over the Learn/Practice cards.
-  unlockedHeader: {
-    textAlign: 'center',
+  // The board's two gestures, spelled out — neither is discoverable from the tiles themselves.
+  boardHint: {
     color: colors.muted,
     fontFamily: fonts.body,
-    fontSize: 13,
-    opacity: 0.7,
-    marginBottom: spacing.lg,
-    fontVariant: ['tabular-nums'],
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: -spacing.sm,
   },
+  // Count and total at one size — the total is the thing being counted against, not a footnote.
+  // One font and size throughout — only the colour separates the count from what it's counting.
+
+  // Fill only: the row owns its own layout (badge, two-line text, chevron), so it can't take
+  // the centred single-label shell the button helpers carry.
+  // A lightened well rather than a tint: on the filled row an accent-on-accent badge vanishes.
+  // No fontFamily: the system face is SF Pro on iOS, which is what makes these read as controls.
+
   // Language toggle sits flush at the very top; the greeting centres in the gap between it and the cards.
   home: { flex: 1, alignItems: 'center', width: '100%' },
   greetingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' },
@@ -562,20 +711,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   entryTitle: { color: colors.ink, fontSize: 16, fontWeight: '600' },
   entrySub: { color: colors.muted, fontFamily: fonts.body, fontSize: 12 },
   iconMuted: { backgroundColor: colors.border },
-  choicesCol: { alignSelf: 'stretch', gap: spacing.md },
-  choice: {
-    ...shadow,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.panel,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.md,
-  },
-  choiceDisabled: { opacity: 0.45 },
   iconCircle: {
     width: 52,
     height: 52,
@@ -584,5 +719,4 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  choiceSub: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center' },
 })

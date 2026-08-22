@@ -1,4 +1,5 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
+import { TapScale } from './TapScale'
 import type { Unit } from '@shared/types'
 import { applyLearned } from '@lib/study'
 import { learnedVerbCount, topicsForLang, unitsNeededForVerbs } from '@lib/grammar'
@@ -56,20 +57,20 @@ export function DevTools() {
       </Text>
 
       <View style={styles.row}>
-        <Pressable style={styles.btn} onPress={() => seedVerbs(needed - 1)}>
+        <TapScale style={styles.btn} onPress={() => seedVerbs(needed - 1)}>
           <Text style={styles.btnText}>Just below the gate ({needed - 1})</Text>
-        </Pressable>
-        <Pressable style={styles.btn} onPress={() => seedVerbs(needed)}>
+        </TapScale>
+        <TapScale style={styles.btn} onPress={() => seedVerbs(needed)}>
           <Text style={styles.btnText}>Exactly the gate ({needed})</Text>
-        </Pressable>
+        </TapScale>
       </View>
       <View style={styles.row}>
-        <Pressable style={styles.btn} onPress={() => seedVerbs(needed * 2)}>
+        <TapScale style={styles.btn} onPress={() => seedVerbs(needed * 2)}>
           <Text style={styles.btnText}>Comfortably past ({needed * 2})</Text>
-        </Pressable>
-        <Pressable style={styles.btn} onPress={seedAll}>
+        </TapScale>
+        <TapScale style={styles.btn} onPress={seedAll}>
           <Text style={styles.btnText}>Learn everything</Text>
-        </Pressable>
+        </TapScale>
       </View>
 
       <Text style={styles.note}>

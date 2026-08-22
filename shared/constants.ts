@@ -39,13 +39,11 @@ export const WARMUP_LEVEL = 2
 export const WARMUP_MAX_LOSS = 0.34
 
 /**
- * Level thresholds for the four mastery bands the kanji mosaic shades by: below the floor is
- * unseen, then shaky, then getting there from {@link MASTERY_GETTING_THERE}, then solid from
- * {@link MASTERY_SOLID}. Levels are unbounded and move by roughly ±0.5–1 per answer, so these work
- * out at a few correct answers to leave "shaky" and a handful more to look "solid".
+ * Where a kanji stops counting as merely introduced and starts counting as learnt, for the mosaic's
+ * shading. Levels are unbounded and move by roughly ±0.5–1 per answer, so this works out at a
+ * handful of correct answers past the introduction.
  */
-export const MASTERY_GETTING_THERE = 3
-export const MASTERY_SOLID = 6
+export const MASTERY_LEARNT = 6
 
 /** Practice iterations per Practice session. */
 export const PRACTICE_ITERATIONS = 10
@@ -99,6 +97,16 @@ export const KANA_KNOWN_STREAK = 5
 export const KANA_STREAK_MAX = 8
 
 /**
+ * Correct answers — of any question type, across the whole history rather than in a row — before a
+ * character's chart cell is filled solid. The cell ramps up to this, so the chart reads as a map of
+ * how far along the script is.
+ *
+ * Cumulative rather than a streak on purpose: the cell records what you have done, so a later slip
+ * shouldn't erase it. The streak (see {@link KANA_KNOWN_STREAK}) is the thing that lapses.
+ */
+export const KANA_MASTERY_FULL = 10
+
+/**
  * The streak at which a character graduates from "pick the one you heard" to writing it from
  * memory. Recognition first, free recall once there's some evidence the link exists.
  */
@@ -113,8 +121,9 @@ export const KANA_SEQUENCE_MAX = 3
 /** Traced characters needed before sequences start appearing at all. */
 export const KANA_SEQUENCE_MIN_POOL = 3
 
-/** Questions in one practice run. */
-export const KANA_DRILL_ITEMS = 12
+/** Questions in one practice run. Matches {@link PRACTICE_ITERATIONS}, so both practices are
+ *  the same length. */
+export const KANA_DRILL_ITEMS = 10
 
 /** Options shown in a listen-and-pick question, including the answer. */
 export const KANA_PICK_OPTIONS = 4

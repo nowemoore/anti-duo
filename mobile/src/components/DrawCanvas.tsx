@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { View, Text, Pressable, PanResponder, StyleSheet } from 'react-native'
+import { View, Text, PanResponder, StyleSheet } from 'react-native'
+import { TapScale } from './TapScale'
 import Svg, { Path, Text as SvgText } from 'react-native-svg'
 import { Icon } from './Icon'
 import { colors, fonts, radius, spacing } from '../theme'
@@ -51,6 +52,7 @@ export function DrawCanvas({
   initialStrokes,
   guide,
   status,
+  guideFont,
 }: {
   disabled?: boolean
   onChange?: (count: number) => void
@@ -77,6 +79,11 @@ export function DrawCanvas({
   guide?: string
   /** Tints the drawing surface once an answer has been judged. Absent → the neutral surface. */
   status?: 'right' | 'wrong'
+  /**
+   * Face for the tracing guide. Defaults to the brush face used for kanji; the kana course passes its
+   * own so the guide matches the characters shown everywhere else in that section.
+   */
+  guideFont?: string
 }) {
   const [strokes, setStrokes] = useState<Stroke[]>(() => initialStrokes ?? [])
   const [current, setCurrent] = useState<Stroke>([])
@@ -169,20 +176,20 @@ export function DrawCanvas({
     <View style={styles.wrap}>
       <View style={styles.toolbar}>
         {onNoClue && (
-          <Pressable onPress={onNoClue} disabled={disabled} style={[styles.noclue, disabled && styles.toolOff]}>
+          <TapScale onPress={onNoClue} disabled={disabled} style={[styles.noclue, disabled && styles.toolOff]}>
             <Icon name="skull" size={12} color={colors.muted} />
             <Text style={styles.noclueText}>No clue</Text>
-          </Pressable>
+          </TapScale>
         )}
         <View style={styles.toolGroup}>
-          <Pressable onPress={undo} disabled={disabled || empty} style={[styles.tool, (disabled || empty) && styles.toolOff]}>
+          <TapScale onPress={undo} disabled={disabled || empty} style={[styles.tool, (disabled || empty) && styles.toolOff]}>
             <Icon name="rotate-left" size={12} color={colors.accentInk} />
             <Text style={styles.toolText}>Undo</Text>
-          </Pressable>
-          <Pressable onPress={clear} disabled={disabled || empty} style={[styles.tool, (disabled || empty) && styles.toolOff]}>
+          </TapScale>
+          <TapScale onPress={clear} disabled={disabled || empty} style={[styles.tool, (disabled || empty) && styles.toolOff]}>
             <Icon name="trash-can" size={12} color={colors.accentInk} />
             <Text style={styles.toolText}>Clear</Text>
-          </Pressable>
+          </TapScale>
         </View>
       </View>
 
@@ -209,7 +216,7 @@ export function DrawCanvas({
               x={surface.width / 2}
               y={surface.height / 2 + guideSize * GUIDE_BASELINE}
               fontSize={guideSize}
-              fontFamily={fonts.brush}
+              fontFamily={guideFont ?? fonts.brush}
               textAnchor="middle"
               fill={colors.ink}
               opacity={0.14}
@@ -230,7 +237,7 @@ export function DrawCanvas({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, gap: spacing.sm },
+  wrap: { flex: 1, gap: spacing.xs },
   toolbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   toolGroup: { flexDirection: 'row', gap: spacing.sm, marginLeft: 'auto' },
   tool: {

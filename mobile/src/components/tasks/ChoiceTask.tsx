@@ -1,4 +1,4 @@
-import { View, Pressable, StyleSheet } from 'react-native'
+import { Animated, View, Pressable, StyleSheet } from 'react-native'
 import { checkChoice, type ChoiceTask } from '@lib/tasks'
 import { SentenceView, type TokenOverride } from '../SentenceView'
 import { SpeakButton } from '../SpeakButton'
@@ -7,6 +7,7 @@ import { useLanguage } from '../../context/LanguageContext'
 import type { TaskUI, TaskViewProps } from './types'
 import { fonts, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
+import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
 function sentenceSpeech(task: ChoiceTask): string {
   return task.sentence.tokens.map((t) => t.surface).join('')
@@ -18,6 +19,7 @@ function ChoiceView({ task, answer, setAnswer, phase }: TaskViewProps<ChoiceTask
   const styles = useStyles(makeStyles)
   const pack = useLanguage()
   const revealed = phase === 'revealed'
+  const verdict = useVerdictFade(revealed)
   const isCloze = task.kind === 'cloze' // blank one char; select the target unit form
   const isRootCloze = task.kind === 'root-cloze' // blank the whole word; select which root fills it
   const isPickReading = task.kind === 'pick-reading' // select pronunciation
@@ -48,6 +50,8 @@ function ChoiceView({ task, answer, setAnswer, phase }: TaskViewProps<ChoiceTask
 
       <View style={[styles.grid, stacked && styles.gridCol]}>
         {task.options.map((o, i) => {
+          // Once revealed: the answer, the one you actually picked, and the also-rans. The last of
+          // those recede — left untouched they'd read as choices still in play.
           const state = !revealed
             ? answer === i
               ? 'selected'
@@ -56,25 +60,33 @@ function ChoiceView({ task, answer, setAnswer, phase }: TaskViewProps<ChoiceTask
               ? 'correct'
               : answer === i
                 ? 'wrong'
-                : 'idle'
+                : 'recessed'
           return (
             <View key={i} style={[styles.cell, stacked && styles.cellFull, isPickReading && styles.readingCell]}>
-              <Pressable
+              <AnimatedPressable
                 disabled={revealed}
                 onPress={() => setAnswer(i)}
-                style={[styles.opt, formSelect && styles.optBig, stacked && styles.optSlim, isPickReading && styles.optFlex, optStyle(state, colors)]}
+                style={[
+                  styles.opt,
+                  formSelect && styles.optBig,
+                  stacked && styles.optSlim,
+                  isPickReading && styles.optFlex,
+                  optFade(verdict, state, colors),
+                ]}
               >
                 <VoweledText
                   text={formSelect ? (pack.displayForm?.(o.label) ?? o.label) : o.label}
                   style={[
                     styles.optText,
+                    // pick-meaning's options are English glosses — Latin text on a Latin face.
+                    isMeaning && styles.optTextEn,
                     formSelect && styles.clozeOptText,
                     isPickReading && styles.readingText,
                     isMeaning && styles.meaningText,
                     optTextStyle(state, colors),
                   ]}
                 />
-              </Pressable>
+              </AnimatedPressable>
               {isPickReading && <SpeakButton text={o.label} label={`Play ${o.label}`} />}
             </View>
           )
@@ -93,15 +105,37 @@ export const choiceTask: TaskUI<ChoiceTask, number | null> = {
     answer == null ? { phase: 'retry' } : { phase: 'revealed', score: checkChoice(task, answer) ? 1 : -1 },
 }
 
-function optStyle(state: string, colors: Palette) {
-  if (state === 'selected') return { borderColor: colors.accent, backgroundColor: colors.accentSoft }
-  if (state === 'correct') return { borderColor: colors.correct, backgroundColor: colors.correctSoft }
-  if (state === 'wrong') return { borderColor: colors.incorrect, backgroundColor: colors.incorrectSoft }
-  return null
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+
+/**
+ * The chip's colours, eased across the reveal rather than swapped.
+ *
+ * Before the answer lands the fade sits at 0, so the interpolation just yields the idle or selected
+ * look and still tracks taps; afterwards it eases to the verdict. Transparent is spelled as a
+ * zero-alpha rgba because the keyword is not interpolable.
+ */
+function optFade(v: Animated.Value, state: string, colors: Palette) {
+  const from =
+    state === 'selected'
+      ? { bg: colors.accentSoft, edge: colors.accent }
+      : { bg: colors.panel, edge: colors.border }
+  const to =
+    state === 'correct'
+      ? { bg: colors.correctSoft, edge: colors.correct }
+      : state === 'wrong'
+        ? { bg: colors.incorrectSoft, edge: colors.incorrect }
+        : state === 'recessed'
+          ? { bg: colors.recessed, edge: 'rgba(0,0,0,0)' }
+          : from
+  return {
+    backgroundColor: fadeColor(v, from.bg, to.bg),
+    borderColor: fadeColor(v, from.edge, to.edge),
+  }
 }
 function optTextStyle(state: string, colors: Palette) {
   if (state === 'correct') return { color: colors.correct }
   if (state === 'wrong') return { color: colors.incorrect }
+  if (state === 'recessed') return { color: colors.recessedInk }
   return null
 }
 
@@ -127,7 +161,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   optFlex: { flex: 1 },
   optSlim: { paddingVertical: 9 },
   optBig: { paddingVertical: 18, minHeight: 56 },
-  optText: { fontSize: 20, color: colors.ink, fontFamily: fonts.serif },
+  // No family: VoweledText gives kanji runs the mincho face and leaves kana on the OS gothic.
+  optText: { fontSize: 20, color: colors.ink },
+  optTextEn: { fontFamily: fonts.body },
   // Fixed lineHeight so the unit-form options (kanji char / Arabic root) share a row size across modes.
   clozeOptText: { fontSize: 32, lineHeight: 40 },
   readingText: { fontSize: 22 },

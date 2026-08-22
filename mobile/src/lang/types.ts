@@ -10,12 +10,10 @@ export type DrawStroke = { x: number; y: number }[]
 export interface DrawReviewProps {
   units: Unit[]
   onDone: () => void
-  /**
-   * Leave the session entirely (the top-bar back button). Distinct from {@link onDone}, which means
-   * "this set is finished" — in an interleaved learn→write session those go to different places.
-   * Absent → back behaves as done, the original behaviour.
-   */
-  onExit?: () => void
+  /** Step back off the first item — in practice, back to the card that introduced it. */
+  onPrev?: () => void
+  /** Whether finishing here ends the whole session, so the forward control can read as a finish. */
+  lastStep?: boolean
   baseStep?: number
   totalSteps?: number
 }
@@ -74,11 +72,6 @@ export interface UiStrings {
   summaryTitle: NativeText
   learnHeader: (step: number, total: number) => NativeText
   questionHeader: (step: number, total: number) => NativeText
-  /** The how-to-use manual content (task descriptions + personalise tips) — language-specific prose. */
-  manual: {
-    tasks: { title: string; desc: string }[]
-    points: string[]
-  }
 }
 
 /**

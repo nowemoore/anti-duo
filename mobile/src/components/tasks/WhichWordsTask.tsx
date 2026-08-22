@@ -1,18 +1,21 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { Animated, View, Text, Pressable, StyleSheet } from 'react-native'
 import { isWhichWordsPerfect, scoreWhichWords, type WhichWordsTask } from '@lib/tasks'
 import { useReveal } from '../RevealStrip'
+import { VoweledText } from '../VoweledText'
 import { useLanguage } from '../../context/LanguageContext'
 import { RootWord } from '../RootWord'
 import { SpeakButton } from '../SpeakButton'
 import type { TaskUI, TaskViewProps } from './types'
 import { fonts, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
+import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
 /** T2: multi-select the real words. Tap toggles; hold reveals reading (→ + meaning once answered). */
 function WhichWordsView({ task, answer, setAnswer, phase }: TaskViewProps<WhichWordsTask, number[]>) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const revealed = phase === 'revealed'
+  const verdict = useVerdictFade(revealed)
   const reveal = useReveal()
   const pack = useLanguage()
   const selSet = new Set(answer)
@@ -25,17 +28,19 @@ function WhichWordsView({ task, answer, setAnswer, phase }: TaskViewProps<WhichW
 
   return (
     <View style={styles.root}>
-      <Text style={styles.promptForm}>{pack.displayForm?.(task.form) ?? task.form}</Text>
+      <VoweledText text={pack.displayForm?.(task.form) ?? task.form} style={styles.promptForm} />
 
       <View style={styles.grid}>
         {task.options.map((o, i) => {
           const isSel = selSet.has(i)
+          // Multi-select, so "correct" means a real word. Invented ones you ticked stay highlighted
+          // as your mistake; the ones you left alone recede.
           const state = revealed
             ? o.correct
               ? 'correct'
               : isSel
                 ? 'wrong'
-                : 'idle'
+                : 'recessed'
             : isSel
               ? 'selected'
               : 'idle'
@@ -43,19 +48,19 @@ function WhichWordsView({ task, answer, setAnswer, phase }: TaskViewProps<WhichW
           const canReveal = revealed ? o.correct : true
           return (
             <View key={i} style={styles.cell}>
-              <Pressable
+              <AnimatedPressable
                 onPress={() => toggle(i)}
                 onLongPress={canReveal ? () => reveal.show(revealText) : undefined}
                 delayLongPress={150}
                 onPressOut={reveal.hide}
-                style={[styles.opt, optStyle(state, colors)]}
+                style={[styles.opt, optFade(verdict, state, colors)]}
               >
                 <RootWord
                   surface={o.word}
                   spans={revealed && o.correct ? pack.rootSpans?.(o.word, task.form) : undefined}
                   style={[styles.optWord, optTextStyle(state, colors)]}
                 />
-              </Pressable>
+              </AnimatedPressable>
               {revealed && o.correct && (
                 <SpeakButton text={o.reading} label={`Play ${o.word}`} small style={styles.optSpeak} />
               )}
@@ -64,9 +69,12 @@ function WhichWordsView({ task, answer, setAnswer, phase }: TaskViewProps<WhichW
         })}
       </View>
 
-      {phase === 'retry' && (
-        <Text style={styles.retry}>Not quite — adjust your selection and lock in once more.</Text>
-      )}
+      {/* Reserved, so the retry line appearing doesn't lift the options. */}
+      <View style={styles.retrySlot}>
+        {phase === 'retry' && (
+          <Text style={styles.retry}>Not quite! Try again.</Text>
+        )}
+      </View>
     </View>
   )
 }
@@ -83,22 +91,43 @@ export const whichWordsTask: TaskUI<WhichWordsTask, number[]> = {
   },
 }
 
-function optStyle(state: string, colors: Palette) {
-  if (state === 'selected') return { borderColor: colors.accent, backgroundColor: colors.accentSoft }
-  if (state === 'correct') return { borderColor: colors.correct, backgroundColor: colors.correctSoft }
-  if (state === 'wrong') return { borderColor: colors.incorrect, backgroundColor: colors.incorrectSoft }
-  return null
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+
+/**
+ * The chip's colours, eased across the reveal rather than swapped. Before the answer lands the fade
+ * sits at 0, so the interpolation yields the idle or selected look and still tracks taps. Transparent
+ * is spelled as a zero-alpha rgba because the keyword is not interpolable.
+ */
+function optFade(v: Animated.Value, state: string, colors: Palette) {
+  const from =
+    state === 'selected'
+      ? { bg: colors.accentSoft, edge: colors.accent }
+      : { bg: colors.panel, edge: colors.border }
+  const to =
+    state === 'correct'
+      ? { bg: colors.correctSoft, edge: colors.correct }
+      : state === 'wrong'
+        ? { bg: colors.incorrectSoft, edge: colors.incorrect }
+        : state === 'recessed'
+          ? { bg: colors.recessed, edge: 'rgba(0,0,0,0)' }
+          : from
+  return {
+    backgroundColor: fadeColor(v, from.bg, to.bg),
+    borderColor: fadeColor(v, from.edge, to.edge),
+  }
 }
 function optTextStyle(state: string, colors: Palette) {
   if (state === 'correct') return { color: colors.correct }
   if (state === 'wrong') return { color: colors.incorrect }
+  if (state === 'recessed') return { color: colors.recessedInk }
   return null
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   root: { width: '100%' },
   // lineHeight fixed (matches the Learn card's bigForm) so the line size is the same in every language.
-  promptForm: { fontSize: 64, lineHeight: 70, fontWeight: '600', color: colors.ink, textAlign: 'center', marginBottom: 18 },
+  // No family here either — the prompt is routed through VoweledText for the same split.
+  promptForm: { fontSize: 64, lineHeight: 70, color: colors.ink, textAlign: 'center', marginBottom: 18 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, alignSelf: 'center', width: '100%', maxWidth: 460 },
   cell: { width: '48%', position: 'relative' },
   opt: {
@@ -110,7 +139,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.panel,
     alignItems: 'center',
   },
-  optWord: { fontSize: 22, color: colors.ink, fontFamily: fonts.serif },
+  // No family: VoweledText gives kanji runs the mincho face and leaves kana on the OS gothic.
+  optWord: { fontSize: 22, color: colors.ink },
   optSpeak: { position: 'absolute', top: 6, right: 6 },
+  retrySlot: { minHeight: 34, justifyContent: 'center' },
   retry: { color: colors.incorrect, fontFamily: fonts.body, fontSize: 13, textAlign: 'center', paddingVertical: 8 },
 })

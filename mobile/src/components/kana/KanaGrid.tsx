@@ -1,10 +1,21 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { Animated, View, Text, Pressable, StyleSheet } from 'react-native'
 import { chartRomaji, type ChartSection } from '@lib/kana'
+import { useStagger, useStaggerStyles } from '../Stagger'
 import { fonts, radius, type Palette } from '../../theme'
-import { useStyles } from '../../hooks/theme'
+import { useColors, useStyles } from '../../hooks/theme'
 
-/** How a cell reads: never opened, or studied. Two states only — mastery lives inside the card. */
+/** How a cell reads: never opened, or studied. The fill within `studied` is a ramp — see `fillOf`. */
 export type CellState = 'new' | 'studied'
+
+/** Alpha a just-studied cell carries, so it still reads as coloured rather than empty. */
+const FILL_FLOOR = 0.18
+
+/** `#rrggbb` → `r,g,b`, so an accent from any palette can be given a variable alpha. */
+function rgbOf(hex: string): string {
+  const h = hex.replace('#', '')
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`
+}
 
 /**
  * One block of the kana chart. Used both for the small read-only reference behind the help button
@@ -19,6 +30,7 @@ export function KanaGrid({
   size = 'small',
   flip = true,
   stateOf,
+  fillOf,
   onPress,
 }: {
   section: ChartSection
@@ -31,15 +43,26 @@ export function KanaGrid({
   flip?: boolean
   /** Shading per character. Omitted → every cell renders plain. */
   stateOf?: (char: string) => CellState
+  /**
+   * How solid a studied cell is, 0..1. The chart then reads as a map of how far along the script
+   * is, rather than a binary opened/not-opened. Omitted → studied cells render at full strength.
+   */
+  fillOf?: (char: string) => number
   onPress?: (char: string) => void
 }) {
+  const colors = useColors()
   const styles = useStyles(makeStyles)
+  const accentRgb = rgbOf(colors.accent)
   const large = size === 'large'
+  const rows = flip ? transpose(section.rows) : section.rows
+  // Staggered by row rather than by cell: the wave reads the same and it's a fraction of the nodes.
+  const wave = useStagger(rows.length)
+  const rowAnim = useStaggerStyles(wave, rows.length)
 
   return (
     <View style={styles.grid}>
-      {(flip ? transpose(section.rows) : section.rows).map((row, r) => (
-        <View key={r} style={styles.row}>
+      {rows.map((row, r) => (
+        <Animated.View key={r} style={[styles.row, rowAnim[r]]}>
           {row.map((char, c) => {
             if (!char) {
               return (
@@ -62,6 +85,10 @@ export function KanaGrid({
                   large && styles.cellLarge,
                   section.wide && (large ? styles.wideLarge : styles.wide),
                   state === 'new' && styles.cellNew,
+                  state === 'studied' &&
+                    fillOf != null && {
+                      backgroundColor: `rgba(${accentRgb},${(FILL_FLOOR + (1 - FILL_FLOOR) * Math.min(1, Math.max(0, fillOf(char)))).toFixed(3)})`,
+                    },
                 ]}
               >
                 <Text style={[styles.kana, large && styles.kanaLarge]}>{char}</Text>
@@ -69,7 +96,7 @@ export function KanaGrid({
               </Pressable>
             )
           })}
-        </View>
+        </Animated.View>
       ))}
     </View>
   )

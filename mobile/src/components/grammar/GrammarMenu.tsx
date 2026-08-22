@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
+import { View, Text, ScrollView, StyleSheet } from 'react-native'
+import { TapScale } from '../TapScale'
 import {
   bestAccuracy,
   hasPassed,
@@ -19,11 +20,9 @@ import { useColors, useStyles } from '../../hooks/theme'
 /** The grammar landing page: one card per subsection available in the current language. */
 export function GrammarMenu({
   topics,
-  onBack,
   onSelect,
 }: {
   topics: GrammarTopic[]
-  onBack: () => void
   onSelect: (topic: GrammarTopic) => void
 }) {
   const colors = useColors()
@@ -32,7 +31,7 @@ export function GrammarMenu({
   const index = useContent()
   const ctx = useMemo(() => ({ index, progress }), [index, progress])
 
-  useScreenHeader(onBack, undefined, undefined, true)
+  useScreenHeader()
 
   if (topics.length === 0) {
     return (
@@ -57,7 +56,7 @@ export function GrammarMenu({
         const kanjiToGo = gated ? unitsNeededForVerbs(index, progress, needed).length : 0
 
         return (
-          <Pressable
+          <TapScale
             key={topic.id}
             style={[styles.card, gated && styles.cardLocked]}
             onPress={() => onSelect(topic)}
@@ -88,7 +87,7 @@ export function GrammarMenu({
                   : 'Learn more kanji and come back.'}
               </Text>
             )}
-          </Pressable>
+          </TapScale>
         )
       })}
     </ScrollView>

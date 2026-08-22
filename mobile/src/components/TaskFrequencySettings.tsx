@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
+import { Icon } from './Icon'
 import { MiniSlider } from './MiniSlider'
+import { taskIcon } from './TaskChip'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
 import { TASK_TUNING, type TaskType } from '@lib/tasks'
 import { TASK_LABELS } from '@lib/stats'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
-import { useStyles } from '../hooks/theme'
+import { useColors, useStyles } from '../hooks/theme'
 
 /** Settings section: adjust how often each practice task type appears (its selection weight). */
 export function TaskFrequencySettings() {
@@ -27,7 +29,9 @@ export function TaskFrequencySettings() {
 }
 
 function FreqRow({ type }: { type: TaskType }) {
+  const colors = useColors()
   const styles = useStyles(makeStyles)
+  const icon = taskIcon(type)
   const { progress, update } = useProgress()
   const stored = progress.settings.taskWeights?.[type] ?? TASK_TUNING[type].weight
   const [val, setVal] = useState(stored)
@@ -41,6 +45,7 @@ function FreqRow({ type }: { type: TaskType }) {
   return (
     <View style={styles.row}>
       <View style={styles.rowHead}>
+        {icon && <Icon name={icon} size={11} color={colors.muted} />}
         <Text style={styles.label} numberOfLines={2}>
           {TASK_LABELS[type]}
         </Text>

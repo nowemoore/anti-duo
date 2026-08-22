@@ -24,5 +24,6 @@ export function Furigana({
 const styles = StyleSheet.create({
   col: { alignItems: 'center' },
   rt: { fontSize: 11, lineHeight: 13 },
-  base: { fontSize: 24, color: colors.ink, fontFamily: fonts.serif },
+  // lineHeight pinned so a cloze reveal occupies the same height as the blank it replaces.
+  base: { fontSize: 24, lineHeight: 32, color: colors.ink, fontFamily: fonts.klee },
 })

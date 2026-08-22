@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 
 export interface HeaderTitle {
   ja: string
@@ -11,17 +11,10 @@ export interface HeaderProgress {
 }
 
 interface HeaderConfig {
-  /** Back handler shown as a top-left button; absent → no back button. */
-  back?: () => void
   /** Step label shown above the card (e.g. "Question 3 / 10"); absent → no label. */
   title?: HeaderTitle
   /** Step count rendered as dots under the label; absent → no dots. */
   progress?: HeaderProgress
-  /**
-   * Force the script-reference ("?") button on for a screen that has no step progress. Screens with
-   * `progress` get it automatically — this is for the ones that draw their own progress instead.
-   */
-  help?: boolean
 }
 
 interface HeaderCtx {
@@ -31,33 +24,34 @@ interface HeaderCtx {
 
 const Ctx = createContext<HeaderCtx | null>(null)
 
+/**
+ * Scopes a header registration to one screen.
+ *
+ * Mounted per screen, not once for the app: a native stack keeps the screen you left alive for the
+ * duration of the pop animation, so a single shared config meant the screen underneath rendered the
+ * departing screen's title and dots — practice's "question 4 / 10" sitting over the kanji board.
+ * One provider per screen means a screen can only ever see its own.
+ */
 export function HeaderProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<HeaderConfig>({})
   return <Ctx.Provider value={{ config, setConfig }}>{children}</Ctx.Provider>
 }
 
-/** Read the current header config (used by the app shell to render the top bar). */
+/** Read the current header config (used by the study stack's screen frame). */
 export function useHeaderConfig(): HeaderConfig {
   return useContext(Ctx)?.config ?? {}
 }
 
 /**
- * Registers this screen's back handler and/or step title in the app-level top bar,
- * clearing them when the screen unmounts. `back` is kept in a ref so passing a fresh
- * closure each render doesn't re-fire the effect — only a change in title text (or in
- * whether a back handler exists) re-registers.
+ * Registers this screen's step title and dots, clearing them when the screen unmounts.
+ *
+ * Back is not part of this any more: the study stack is a native stack, so the system bar draws
+ * the back control and owns the pop. Screens that still take an `onExit` use it for their own
+ * in-content exits, not for the header.
  */
-export function useScreenHeader(
-  back?: () => void,
-  title?: HeaderTitle,
-  progress?: HeaderProgress,
-  help?: boolean,
-) {
+export function useScreenHeader(title?: HeaderTitle, progress?: HeaderProgress) {
   const setConfig = useContext(Ctx)?.setConfig
-  const backRef = useRef(back)
-  backRef.current = back
 
-  const hasBack = back != null
   const ja = title?.ja
   const en = title?.en
   const current = progress?.current
@@ -66,11 +60,9 @@ export function useScreenHeader(
   useEffect(() => {
     if (!setConfig) return
     setConfig({
-      back: hasBack ? () => backRef.current?.() : undefined,
       title: ja != null && en != null ? { ja, en } : undefined,
       progress: current != null && totalSteps != null ? { current, total: totalSteps } : undefined,
-      help,
     })
     return () => setConfig({})
-  }, [setConfig, hasBack, ja, en, current, totalSteps, help])
+  }, [setConfig, ja, en, current, totalSteps])
 }

@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native'
+import { View, Text, TextInput, StyleSheet } from 'react-native'
+import { TapScale } from './TapScale'
 import { useAuth } from '../context/AuthContext'
 import { useSync } from '../context/SyncContext'
 import { Icon } from './Icon'
-import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { fonts, btnPrimary, type Palette, radius, shadow, spacing, btnLabel } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
 /** Settings card: optional cloud login (emailed code) that backs up and syncs progress. */
@@ -64,10 +65,10 @@ function SignedIn({ email, onSignOut }: { email: string | null; onSignOut: () =>
           <Text style={styles.muted}>{status.text}</Text>
         </View>
       ) : null}
-      <Pressable style={styles.secondaryBtn} onPress={onSignOut}>
+      <TapScale style={styles.secondaryBtn} onPress={onSignOut}>
         <Icon name="arrow-right-from-bracket" size={13} color={colors.accentInk} />
         <Text style={styles.secondaryText}>Sign out</Text>
-      </Pressable>
+      </TapScale>
     </View>
   )
 }
@@ -116,14 +117,14 @@ function SignedOut({
           inputMode="email"
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable
+        <TapScale
           style={[styles.primaryBtn, (busy || !email.trim()) && styles.disabled]}
           disabled={busy || !email.trim()}
           onPress={() => run(() => sendCode(email), () => setStage('code'))}
         >
-          <Icon name={busy ? 'spinner' : 'paper-plane'} size={13} color={colors.onAccent} />
+          <Icon name={busy ? 'spinner' : 'paper-plane'} size={13} color={colors.ink} />
           <Text style={styles.primaryText}>{busy ? 'Sending…' : 'Email me a code'}</Text>
-        </Pressable>
+        </TapScale>
       </View>
     )
   }
@@ -144,15 +145,15 @@ function SignedOut({
         maxLength={10}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Pressable
+      <TapScale
         style={[styles.primaryBtn, (busy || code.length < 6) && styles.disabled]}
         disabled={busy || code.length < 6}
         onPress={() => run(() => verifyCode(email, code))}
       >
-        <Icon name={busy ? 'spinner' : 'right-to-bracket'} size={13} color={colors.onAccent} />
+        <Icon name={busy ? 'spinner' : 'right-to-bracket'} size={13} color={colors.ink} />
         <Text style={styles.primaryText}>{busy ? 'Verifying…' : 'Verify & sign in'}</Text>
-      </Pressable>
-      <Pressable
+      </TapScale>
+      <TapScale
         onPress={() => {
           setStage('email')
           setCode('')
@@ -160,7 +161,7 @@ function SignedOut({
         }}
       >
         <Text style={styles.link}>Use a different email</Text>
-      </Pressable>
+      </TapScale>
     </View>
   )
 }
@@ -183,15 +184,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   codeInput: { fontSize: 22, letterSpacing: 6, textAlign: 'center', fontVariant: ['tabular-nums'] },
   primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    paddingVertical: 11,
+    ...btnPrimary(colors),
   },
-  primaryText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 14 },
+  primaryText: btnLabel(colors),
   secondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',

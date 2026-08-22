@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { View, Text, TextInput, Pressable, Alert, Modal, ScrollView, StyleSheet } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { View, Text, TextInput, Alert, StyleSheet } from 'react-native'
+import { TapScale } from '../components/TapScale'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
 import { AccountSettings } from '../components/AccountSettings'
 import { CategorySettings } from '../components/CategorySettings'
 import { DevTools } from '../components/DevTools'
 import { TaskFrequencySettings } from '../components/TaskFrequencySettings'
-import { ManualView } from './ManualView'
 import { Icon } from '../components/Icon'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
@@ -17,8 +16,6 @@ export function SettingsView() {
   const styles = useStyles(makeStyles)
   const { progress, update, saving } = useProgress()
   const { ui } = useLanguage()
-  const [manualOpen, setManualOpen] = useState(false)
-  const insets = useSafeAreaInsets()
 
   function resetProgress() {
     Alert.alert(
@@ -53,17 +50,6 @@ export function SettingsView() {
         </View>
       </View>
 
-      <Pressable style={styles.manualCard} onPress={() => setManualOpen(true)}>
-        <View style={styles.manualIcon}>
-          <Icon name="book" size={16} color={colors.accentInk} />
-        </View>
-        <View style={styles.manualCardBody}>
-          <Text style={styles.manualCardTitle}>How to use this tool</Text>
-          <Text style={styles.manualCardSub}>Learn, Practice, and the task types explained</Text>
-        </View>
-        <Icon name="chevron-right" size={16} color={colors.muted} />
-      </Pressable>
-
       <AccountSettings />
       <CategorySettings />
       <TaskFrequencySettings />
@@ -71,25 +57,10 @@ export function SettingsView() {
       {/* Renders nothing outside a development build. */}
       <DevTools />
 
-      <Pressable style={styles.resetBtn} onPress={resetProgress}>
+      <TapScale style={styles.resetBtn} onPress={resetProgress}>
         <Icon name="trash-can" size={13} color={colors.accentInk} />
         <Text style={styles.resetText}>Reset progress</Text>
-      </Pressable>
-
-      <Modal visible={manualOpen} animationType="slide" onRequestClose={() => setManualOpen(false)}>
-        <View style={[styles.modal, { paddingTop: insets.top }]}>
-          <Pressable
-            onPress={() => setManualOpen(false)}
-            hitSlop={8}
-            style={[styles.modalClose, { top: insets.top + 6 }]}
-          >
-            <Icon name="xmark" size={20} color={colors.muted} />
-          </Pressable>
-          <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + 40 }}>
-            <ManualView />
-          </ScrollView>
-        </View>
-      </Modal>
+      </TapScale>
     </View>
   )
 }
@@ -110,21 +81,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   saveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   saveText: { color: colors.muted, fontFamily: fonts.body, fontSize: 13 },
-  manualCard: {
-    ...shadow,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.panel,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  manualIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  manualCardBody: { flex: 1 },
-  manualCardTitle: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 15 },
-  manualCardSub: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, marginTop: 2 },
   resetBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -136,17 +92,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: 18,
   },
   resetText: { color: colors.accentInk, fontFamily: fonts.semibold, fontSize: 14 },
-  modal: { flex: 1, backgroundColor: colors.bg },
-  modalClose: {
-    position: 'absolute',
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.panel,
-    zIndex: 2,
-  },
 })
 

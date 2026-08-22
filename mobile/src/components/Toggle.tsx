@@ -1,8 +1,12 @@
-import { Pressable, View, StyleSheet } from 'react-native'
-import { type Palette } from '../theme'
-import { useStyles } from '../hooks/theme'
+import { Switch } from 'react-native'
+import { useColors } from '../hooks/theme'
 
-/** A small slider switch (align the knob to start/end instead of translate math). */
+/**
+ * An on/off switch — the platform's own (`UISwitch` on iOS), tinted to the palette.
+ *
+ * Was a hand-drawn track and knob. The system switch is the one control every user already knows
+ * the feel of (the drag-to-flick, the haptic), and none of that survives a re-implementation.
+ */
 export function Toggle({
   checked,
   onChange,
@@ -14,35 +18,21 @@ export function Toggle({
   onChange: (next: boolean) => void
   disabled?: boolean
   small?: boolean
+  /** Not shown — the switch is unlabelled, so this names it for screen readers. */
   label?: string
 }) {
-  const styles = useStyles(makeStyles)
+  const colors = useColors()
   return (
-    <Pressable
-      accessibilityRole="switch"
-      accessibilityState={{ checked, disabled: !!disabled }}
-      accessibilityLabel={label}
+    <Switch
+      value={checked}
+      onValueChange={onChange}
       disabled={disabled}
-      onPress={() => onChange(!checked)}
-      style={[
-        styles.track,
-        small && styles.trackSmall,
-        { alignItems: checked ? 'flex-end' : 'flex-start' },
-        checked && (small ? styles.onSmall : styles.on),
-        disabled && styles.disabled,
-      ]}
-    >
-      <View style={[styles.knob, small && styles.knobSmall]} />
-    </Pressable>
+      accessibilityLabel={label}
+      trackColor={{ false: colors.border, true: colors.accent }}
+      // iOS paints the off-track white underneath `trackColor.false` unless this matches it.
+      ios_backgroundColor={colors.border}
+      // The nested variant sits in a tighter row; the switch has no size prop, so scale it.
+      style={small ? { transform: [{ scale: 0.82 }] } : undefined}
+    />
   )
 }
-
-const makeStyles = (colors: Palette) => StyleSheet.create({
-  track: { width: 44, height: 26, borderRadius: 13, backgroundColor: colors.border, padding: 3, justifyContent: 'center' },
-  trackSmall: { width: 40, height: 23, borderRadius: 12 },
-  on: { backgroundColor: colors.accent },
-  onSmall: { backgroundColor: colors.accentInk },
-  disabled: { opacity: 0.4 },
-  knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
-  knobSmall: { width: 17, height: 17, borderRadius: 8.5 },
-})

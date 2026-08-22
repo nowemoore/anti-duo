@@ -1,6 +1,6 @@
 // Kana course state: which characters the learner has met, and how solid each one is. Pure
 // functions over the persisted KanaProgress — no React, no UI.
-import { KANA_KNOWN_STREAK, KANA_STREAK_MAX } from '../../../shared/constants'
+import { KANA_KNOWN_STREAK, KANA_MASTERY_FULL, KANA_STREAK_MAX } from '../../../shared/constants'
 import type { KanaProgress, Progress } from '../../../shared/types'
 import { charsOfScript, type KanaScript } from './table'
 
@@ -103,7 +103,26 @@ export function recordCharResult(progress: Progress, char: string, correct: bool
   const next = correct
     ? Math.min(KANA_STREAK_MAX, streakOf(progress, char) + 1)
     : Math.max(0, streakOf(progress, char) - 1)
-  return withKana(progress, (kp) => ({ ...kp, chars: { ...kp.chars, [char]: next } }))
+  // Wins only ever go up: they record what the learner has done, not their current form.
+  const won = correct ? Math.min(KANA_MASTERY_FULL, winsOf(progress, char) + 1) : winsOf(progress, char)
+  return withKana(progress, (kp) => ({
+    ...kp,
+    chars: { ...kp.chars, [char]: next },
+    ...(won > 0 ? { wins: { ...(kp.wins ?? {}), [char]: won } } : {}),
+  }))
+}
+
+/** Lifetime correct answers for a character, capped at {@link KANA_MASTERY_FULL}. */
+export function winsOf(progress: Progress, char: string): number {
+  return progress.kana?.wins?.[char] ?? 0
+}
+
+/**
+ * How filled a character's chart cell is, 0..1 — its wins against {@link KANA_MASTERY_FULL}.
+ * Untraced characters return 0; so does a traced character nobody has answered yet.
+ */
+export function masteryOf(progress: Progress, char: string): number {
+  return Math.min(1, winsOf(progress, char) / KANA_MASTERY_FULL)
 }
 
 /**

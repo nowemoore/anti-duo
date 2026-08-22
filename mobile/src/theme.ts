@@ -31,10 +31,33 @@ export const jaColors = {
   accentHover: 'rgba(227,152,221,0.28)', // color-mix(accent 28%, transparent)
   onAccent: '#2f2f2f',
 
-  correct: '#d3fbd8',
-  correctSoft: 'rgba(211,251,216,0.18)',
-  incorrect: '#efedff',
-  incorrectSoft: 'rgba(239,237,255,0.22)',
+  /*
+   * Verdict colours: sage for right, slate for wrong. Both are mid-tones far too light to sit behind
+   * near-white ink, so a judged card tints with the Soft variant rather than filling.
+   *
+   * The slate is deliberately dull — a wrong answer shouldn't shout — which also makes it the palette's
+   * quietest text at 2.8:1 on the page. Fine for a verdict the card border already announces.
+   *
+   * `recessed` is the other half of that idea: once a question is answered, every option that isn't
+   * the answer *darkens* below the glass instead of tinting, so it can't be mistaken for one still in
+   * play. It's the only option state that reads as "not a choice any more".
+   */
+  correct: '#9cc2a1',
+  correctSoft: 'rgba(156,194,161,0.18)',
+  incorrect: '#6b727c',
+  incorrectSoft: 'rgba(107,114,124,0.20)',
+  recessed: 'rgba(0,0,0,0.22)',
+  recessedInk: '#7d8489',
+
+  /*
+   * "Ready for more": a kanji that has levelled far enough to unlock example words it hasn't been
+   * shown. Deliberately off the mastery ramp — it isn't more-mastered-than-solid, it's a prompt.
+   * Deep enough to carry the ink text at 4.8:1, which the accent tile never did (1.9:1).
+   */
+  ready: '#007678',
+  readySoft: 'rgba(0,118,120,0.22)',
+  // Light enough to sit on readySoft: the teal itself is 2.4:1 as text, this is 6.5:1.
+  readyInk: '#a9cec2',
 
   // Dark "chip" strips (the reveal strip + Learn caption): light text on a dark surface in both themes.
   onChip: '#edf1ef',
@@ -86,10 +109,22 @@ export const arColors: Palette = {
   onAccent: '#fbf3e6', // cream text on the green accent
 
   // Shared with Japanese: light mint / lavender — legible on the dark chocolate.
-  correct: '#d3fbd8',
-  correctSoft: 'rgba(211,251,216,0.18)',
-  incorrect: '#efedff',
-  incorrectSoft: 'rgba(239,237,255,0.22)',
+  correct: '#9cc2a1',
+  correctSoft: 'rgba(156,194,161,0.18)',
+  incorrect: '#6b727c',
+  incorrectSoft: 'rgba(107,114,124,0.20)',
+  recessed: 'rgba(0,0,0,0.22)',
+  recessedInk: '#7d8489',
+
+  /*
+   * "Ready for more": a kanji that has levelled far enough to unlock example words it hasn't been
+   * shown. Deliberately off the mastery ramp — it isn't more-mastered-than-solid, it's a prompt.
+   * Deep enough to carry the ink text at 4.8:1, which the accent tile never did (1.9:1).
+   */
+  ready: '#007678',
+  readySoft: 'rgba(0,118,120,0.22)',
+  // Light enough to sit on readySoft: the teal itself is 2.4:1 as text, this is 6.5:1.
+  readyInk: '#a9cec2',
 
   // Dark chip strips carry cream / gold text (like the rest of the theme).
   onChip: '#efe6d7',
@@ -121,15 +156,56 @@ export const fonts = {
    * one of these or is left to the OS font — never Manrope/Fraunces, which would render tofu.
    *
    * `brush` (Yuji Syuku) is a hand-brushed display face: the big character on a Learn card, the
-   * tracing guide, and the home-screen watermarks. `serif` (Zen Old Mincho) is the reading face for
-   * exercise text, where legibility at small sizes matters more than character.
+   * tracing guide, and the home-screen watermarks.
+   *
+   * The two reading faces split by what a task is asking for. `mincho` (Shippori Mincho) is a
+   * printed serif — used where the character itself is the answer (which-words, type-the-word, draw)
+   * and across the kana course, because its strokes are the ones a learner is trying to reproduce.
+   * `klee` (Klee One) is a softer handwriting-style face for everything else, where the Japanese is
+   * context to read rather than a form to copy.
    */
   brush: 'YujiSyuku_400Regular',
-  serif: 'ZenOldMincho_400Regular',
+  mincho: 'ShipporiMincho_400Regular',
+  klee: 'KleeOne_400Regular',
 } as const
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const
 export const radius = { sm: 8, md: 10, lg: 14, pill: 999 } as const
+
+/**
+ * iOS button metrics, applied app-wide.
+ *
+ * Apple's numbers, not ours: a filled button is 50pt tall with 14pt corners, and its label is 17pt
+ * semibold on the system font. Leaving `fontFamily` off {@link btnLabel} is the important part —
+ * RN's default face on iOS *is* SF Pro, so the labels render in the real system type rather than
+ * the bundled Manrope, which was the loudest tell that these weren't native controls.
+ *
+ * The fill is opaque. Real Liquid Glass was tried here (the material is available in Expo Go, and
+ * the pager chevrons use it) and the flat fill was preferred — a frosted button competes with the
+ * colour pools behind it, where a solid one just reads as the thing to press.
+ */
+const btnBase = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  minHeight: 50,
+  paddingHorizontal: 20,
+  borderRadius: 14,
+} as const
+
+export const btnPrimary = (colors: Palette) => ({ ...btnBase, backgroundColor: colors.accent })
+
+/** The quieter of the pair — iOS's grey filled button. Same shell, so they sit level side by side. */
+export const btnSecondary = (colors: Palette) => ({ ...btnBase, backgroundColor: colors.panelStrong })
+
+/** Label for {@link btnPrimary}: dark ink on the accent measures 6.3:1. */
+export const btnLabel = (colors: Palette) =>
+  ({ color: colors.onAccent, fontSize: 17, fontWeight: '600', letterSpacing: -0.4 }) as const
+
+/** Label for {@link btnSecondary}: light ink on the grey fill measures 8.0:1. */
+export const btnLabelQuiet = (colors: Palette) =>
+  ({ color: colors.ink, fontSize: 17, fontWeight: '600', letterSpacing: -0.4 }) as const
 
 /** Soft drop shadow to make frosted cards float. Spread into a card's style. */
 export const shadow = {

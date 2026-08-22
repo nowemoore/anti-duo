@@ -1,10 +1,11 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { Animated, View, Text, Pressable, StyleSheet } from 'react-native'
 import { type PluralTask } from '@lib/tasks'
 import { VoweledText } from '../VoweledText'
 import { SpeakButton } from '../SpeakButton'
 import type { TaskUI, TaskViewProps } from './types'
 import { fonts, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
+import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
 /**
  * Singular ↔ plural: two lines — "1 [singular]" and "multiple [plural]" — with one form blanked out.
@@ -14,6 +15,7 @@ function PluralView({ task, answer, setAnswer, phase }: TaskViewProps<PluralTask
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const revealed = phase === 'revealed'
+  const verdict = useVerdictFade(revealed)
 
   // A count-label + the word (or a blank, if this is the line being asked about; filled once revealed).
   const line = (count: string, form: string, blanked: boolean) => (
@@ -39,6 +41,7 @@ function PluralView({ task, answer, setAnswer, phase }: TaskViewProps<PluralTask
       </View>
       <View style={styles.grid}>
         {task.options.map((o, i) => {
+          // Once revealed: the answer, your pick if it was wrong, and the also-rans, which recede.
           const state = !revealed
             ? answer === i
               ? 'selected'
@@ -47,11 +50,11 @@ function PluralView({ task, answer, setAnswer, phase }: TaskViewProps<PluralTask
               ? 'correct'
               : answer === i
                 ? 'wrong'
-                : 'idle'
+                : 'recessed'
           return (
-            <Pressable key={i} disabled={revealed} onPress={() => setAnswer(i)} style={[styles.opt, optStyle(state, colors)]}>
+            <AnimatedPressable key={i} disabled={revealed} onPress={() => setAnswer(i)} style={[styles.opt, optFade(verdict, state, colors)]}>
               <VoweledText text={o.label} style={[styles.optText, optTextStyle(state, colors)]} />
-            </Pressable>
+            </AnimatedPressable>
           )
         })}
       </View>
@@ -68,15 +71,35 @@ export const pluralTask: TaskUI<PluralTask, number | null> = {
     answer == null ? { phase: 'retry' } : { phase: 'revealed', score: task.options[answer]?.correct ? 1 : -1 },
 }
 
-function optStyle(state: string, colors: Palette) {
-  if (state === 'selected') return { borderColor: colors.accent, backgroundColor: colors.accentSoft }
-  if (state === 'correct') return { borderColor: colors.correct, backgroundColor: colors.correctSoft }
-  if (state === 'wrong') return { borderColor: colors.incorrect, backgroundColor: colors.incorrectSoft }
-  return null
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+
+/**
+ * The chip's colours, eased across the reveal rather than swapped. Before the answer lands the fade
+ * sits at 0, so the interpolation yields the idle or selected look and still tracks taps. Transparent
+ * is spelled as a zero-alpha rgba because the keyword is not interpolable.
+ */
+function optFade(v: Animated.Value, state: string, colors: Palette) {
+  const from =
+    state === 'selected'
+      ? { bg: colors.accentSoft, edge: colors.accent }
+      : { bg: colors.panel, edge: colors.border }
+  const to =
+    state === 'correct'
+      ? { bg: colors.correctSoft, edge: colors.correct }
+      : state === 'wrong'
+        ? { bg: colors.incorrectSoft, edge: colors.incorrect }
+        : state === 'recessed'
+          ? { bg: colors.recessed, edge: 'rgba(0,0,0,0)' }
+          : from
+  return {
+    backgroundColor: fadeColor(v, from.bg, to.bg),
+    borderColor: fadeColor(v, from.edge, to.edge),
+  }
 }
 function optTextStyle(state: string, colors: Palette) {
   if (state === 'correct') return { color: colors.correct }
   if (state === 'wrong') return { color: colors.incorrect }
+  if (state === 'recessed') return { color: colors.recessedInk }
   return null
 }
 
@@ -86,7 +109,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   // Each line: a small count label on the left, the (large) word or a blank on the right.
   line: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 46 },
   count: { width: 76, textAlign: 'right', fontSize: 14, color: colors.muted, fontFamily: fonts.body },
-  form: { fontSize: 34, color: colors.ink, fontFamily: fonts.serif },
+  form: { fontSize: 34, color: colors.ink, fontFamily: fonts.klee },
   formAnswer: { color: colors.accentInk }, // the revealed answer stands out
   blank: {
     width: 96,
@@ -107,5 +130,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.panel,
     alignItems: 'center',
   },
-  optText: { fontSize: 22, color: colors.ink, fontFamily: fonts.serif },
+  optText: { fontSize: 22, color: colors.ink, fontFamily: fonts.klee },
 })

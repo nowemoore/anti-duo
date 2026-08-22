@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { View, Text, Pressable, StyleSheet, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
+import { TapScale } from './TapScale'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
@@ -58,14 +59,14 @@ export function CategorySettings() {
           return (
             <View key={cat.name} style={styles.block}>
               <View style={styles.row}>
-                <Pressable
+                <TapScale
                   onPress={() => catOn && toggleExpand(cat.name)}
                   disabled={!catOn}
                   style={styles.expand}
                   hitSlop={6}
                 >
                   <Chevron open={isOpen} color={catOn ? colors.muted : colors.border} />
-                </Pressable>
+                </TapScale>
                 <View style={[styles.catIcon, !catOn && styles.catIconOff]}>
                   <Icon
                     name={categoryIcon(cat.name)}

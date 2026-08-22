@@ -13,8 +13,11 @@ const TABLE = 'drawings'
  *   'traced'     — no reference pattern for these characters, so the word was shown faintly and
  *                  traced over. Ungraded, and the strokes follow a guide rather than recall, which
  *                  matters if they're used as training data.
+ *   'self'       — kana practice: written from memory with no guide and no recognizer, then marked
+ *                  by the learner. Free recall like 'recognized', but the verdict is a human's, so
+ *                  it lands in `override_correct` with `assessed_correct` left null.
  */
-export type DrawingMode = 'recognized' | 'traced'
+export type DrawingMode = 'recognized' | 'traced' | 'self'
 
 export interface DrawingRow {
   userId: string
@@ -25,6 +28,11 @@ export interface DrawingRow {
   strokes: unknown
   /** The on-device recognizer's verdict at lock-in; null when there was nothing to grade against. */
   correct: boolean | null
+  /**
+   * The learner's own verdict, for modes nothing can grade ('self'). Written straight to
+   * `override_correct`, which is where a human's call belongs whether or not it overrode a machine.
+   */
+  selfMarked?: boolean
   mode: DrawingMode
 }
 
@@ -62,7 +70,8 @@ export async function saveDrawing(row: DrawingRow): Promise<string | null> {
     word: row.word,
     strokes: row.strokes,
     assessed_correct: row.correct,
-    // override_correct left null — set only if the learner disputes it.
+    // Null unless the learner marked it themselves; otherwise set later, if they dispute the machine.
+    override_correct: row.selfMarked ?? null,
   }
 
   const { data, error } = await supabase.from(TABLE).insert({ ...base, mode: row.mode }).select('id').single()
@@ -70,6 +79,10 @@ export async function saveDrawing(row: DrawingRow): Promise<string | null> {
 
   // PGRST204 = column not found in the schema cache, i.e. `mode` hasn't been added yet.
   const missingColumn = error?.code === 'PGRST204' || /mode/i.test(error?.message ?? '')
+  // A traced row is dropped rather than written unlabelled — an ungraded, guide-following attempt
+  // recorded as if it were free recall would poison the training data. A 'self' row is safe to keep:
+  // its assessed_correct is null and its verdict sits in override_correct, so nothing is claimed
+  // about the recognizer either way.
   if (!missingColumn || row.mode === 'traced') return null
 
   const retry = await supabase.from(TABLE).insert(base).select('id').single()

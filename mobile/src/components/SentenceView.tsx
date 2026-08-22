@@ -159,18 +159,24 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   block: { paddingHorizontal: 2, borderRadius: 6 },
   highlight: { backgroundColor: colors.accentSoft },
   // Fixed lineHeight so a sentence's rows are the same height whatever the script (kanji vs Arabic).
-  // Serif (Zen Old Mincho) for every Japanese run: this is reading text, and the OS default varies
-  // per device, so pinning it keeps sentences looking the same everywhere. The English gloss below
-  // stays on the Latin body face.
-  base: { fontSize: 24, lineHeight: 32, color: colors.ink, fontFamily: fonts.serif },
-  baseAccent: { fontSize: 24, lineHeight: 32, color: colors.accentInk, fontFamily: fonts.serif },
-  scaffold: { fontSize: 24, lineHeight: 32, color: colors.muted, fontFamily: fonts.serif },
+  // Klee One for every Japanese run. Sentences are context to read rather than forms to copy, and
+  // pinning the family keeps them identical across devices where the OS default would not. The
+  // English gloss below stays on the Latin body face.
+  base: { fontSize: 24, lineHeight: 32, color: colors.ink, fontFamily: fonts.klee },
+  baseAccent: { fontSize: 24, lineHeight: 32, color: colors.accentInk, fontFamily: fonts.klee },
+  scaffold: { fontSize: 24, lineHeight: 32, color: colors.muted, fontFamily: fonts.klee },
   english: { fontSize: 20, color: colors.ink, fontFamily: fonts.body, fontVariant: ['small-caps'] },
-  rtAccent: { fontSize: 11, lineHeight: 13, color: colors.accentInk, textAlign: 'center', fontFamily: fonts.serif },
-  clozeBase: { flexDirection: 'row', alignItems: 'center' },
+  rtAccent: { fontSize: 11, lineHeight: 13, color: colors.accentInk, textAlign: 'center', fontFamily: fonts.klee },
+  /*
+   * Fixed to the base line box so blanked and revealed states occupy identical space. The blank used
+   * to be a 22px box where the kanji that replaces it is a 24px glyph on a 32px line, so revealing
+   * an answer nudged the whole sentence sideways and down.
+   */
+  clozeBase: { flexDirection: 'row', alignItems: 'center', height: 32 },
   blankBox: {
-    width: 22,
-    height: 22,
+    // Matches one CJK glyph's advance at the base font size, so the swap is width-stable.
+    width: 24,
+    height: 24,
     borderWidth: 2,
     borderColor: colors.accent,
     borderStyle: 'dashed',

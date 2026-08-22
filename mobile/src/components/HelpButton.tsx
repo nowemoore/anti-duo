@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
+import { Modal, View, Text, ScrollView, StyleSheet } from 'react-native'
 import { useLanguage } from '../context/LanguageContext'
 import { Icon } from './Icon'
+import { TapScale } from './TapScale'
 import { fonts, radius, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
@@ -16,15 +17,17 @@ export function HelpButton() {
 
   return (
     <>
-      <Pressable
+      <TapScale
         style={styles.helpBtn}
         onPressIn={() => setOpen(true)}
         onPressOut={() => setOpen(false)}
         accessibilityLabel={`Hold for ${title.en} chart`}
         hitSlop={8}
       >
-        <Icon name="circle-question" size={30} color={colors.muted} />
-      </Pressable>
+        {/* `ink` to match the system back chevron opposite it, which the stack tints from
+            `navTheme.colors.text`. Anything quieter reads as a different kind of control. */}
+        <Icon name="question" size={20} color={colors.ink} />
+      </TapScale>
 
       {/* pointerEvents: 'none' so the held "?" keeps the touch — releasing it hides the chart. */}
       <Modal visible={open} transparent animationType="fade">

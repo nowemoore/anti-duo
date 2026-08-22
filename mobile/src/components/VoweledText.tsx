@@ -1,14 +1,24 @@
 import { Text, type StyleProp, type TextStyle } from 'react-native'
+import { fonts } from '../theme'
 import { useColors } from '../hooks/theme'
 
 // Arabic vowel/diacritic marks (harakat): tanwīn, short vowels, shadda, sukūn, and the superscript alef.
 const HARAKAT = /[ً-ْٰ]/
 
+/** Any CJK ideograph. Kana, Latin and Arabic all fall outside it, so the split is a no-op for them. */
+const KANJI = /[㐀-䶿一-鿿豈-﫿]/
+
 /**
- * Renders Arabic text with the vowel marks (harakat) painted in a separate colour (the accent — teal
- * for Arabic). The marks are combining characters, so nesting them in coloured <Text> spans keeps them
- * attached to their base letter — only the mark's glyph is recoloured. Text with no harakat (kana,
- * bare Arabic, English) renders unchanged, so this is safe to drop in anywhere a reading shows.
+ * Renders text run by run, so a mixed string can carry more than one treatment on one line.
+ *
+ * Two independent splits, neither of which can fire on the other's script:
+ *
+ *  - Arabic vowel marks (harakat) are painted in the accent. They're combining characters, so nesting
+ *    them in coloured spans keeps them attached to their base letter — only the mark is recoloured.
+ *  - Kanji runs take the mincho face while kana is left to the OS gothic, which is the house style for
+ *    Japanese: 食べる renders 食 in mincho and べる in the system font, on a single flowing line.
+ *
+ * Text with neither (English, bare kana) renders unchanged, so this is safe to drop in anywhere.
  */
 export function VoweledText({
   text,
@@ -24,7 +34,7 @@ export function VoweledText({
   const colors = useColors()
   const markColor = color ?? colors.vowel
   const chars = [...text]
-  if (!chars.some((c) => HARAKAT.test(c))) {
+  if (!chars.some((c) => HARAKAT.test(c) || KANJI.test(c))) {
     return (
       <Text style={style} numberOfLines={numberOfLines}>
         {text}
@@ -32,19 +42,24 @@ export function VoweledText({
     )
   }
 
-  // Group consecutive base vs. mark characters into as few spans as possible.
-  const segs: { t: string; mark: boolean }[] = []
+  // Group consecutive characters that want the same treatment into as few spans as possible.
+  const segs: { t: string; mark: boolean; kanji: boolean }[] = []
   for (const ch of chars) {
     const mark = HARAKAT.test(ch)
+    const kanji = KANJI.test(ch)
     const last = segs[segs.length - 1]
-    if (last && last.mark === mark) last.t += ch
-    else segs.push({ t: ch, mark })
+    if (last && last.mark === mark && last.kanji === kanji) last.t += ch
+    else segs.push({ t: ch, mark, kanji })
   }
   return (
     <Text style={style} numberOfLines={numberOfLines}>
       {segs.map((s, i) =>
         s.mark ? (
           <Text key={i} style={{ color: markColor }}>
+            {s.t}
+          </Text>
+        ) : s.kanji ? (
+          <Text key={i} style={{ fontFamily: fonts.mincho }}>
             {s.t}
           </Text>
         ) : (

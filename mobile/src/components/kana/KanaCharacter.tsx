@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
-  Pressable,
   ScrollView,
   StyleSheet,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native'
+import { TapScale } from '../TapScale'
 import { charsOfScript, isTraced, markTraced, type KanaScript } from '@lib/kana'
 import { useProgress } from '../../context/ProgressContext'
 import { useScreenHeader } from '../../context/HeaderContext'
@@ -17,7 +17,7 @@ import { DrawCanvas } from '../DrawCanvas'
 import { SpeakButton } from '../SpeakButton'
 import { Icon } from '../Icon'
 import { useKanaAudio } from './audio'
-import { fonts, radius, spacing, type Palette } from '../../theme'
+import { fonts, btnPrimary, type Palette, spacing, btnLabel } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 /** Meet it, copy it, then produce it unaided. */
@@ -69,12 +69,10 @@ interface Attempt {
 export function KanaCharacter({
   char,
   script,
-  onBack,
   onChange,
 }: {
   char: string
   script: KanaScript
-  onBack: () => void
   /** Keeps the owning view's idea of the current character in step with the pager. */
   onChange: (char: string) => void
 }) {
@@ -127,7 +125,7 @@ export function KanaCharacter({
   const canGrade = draw?.gradeChar != null && (draw.canGradeChar?.(char) ?? true)
 
   // No help button: a kana reference chart would hand over the very thing this page teaches.
-  useScreenHeader(onBack)
+  useScreenHeader()
 
   // Say the character on every page of it, not just on arrival: by the last page nothing is on
   // screen, so the sound is the only thing identifying what you're being asked to write.
@@ -344,15 +342,15 @@ export function KanaCharacter({
                   {(() => {
                     const action = actionFor(p)
                     return (
-                      <Pressable
+                      <TapScale
                         style={[styles.primaryBtn, action.dim && styles.primaryOff]}
                         disabled={!action.press}
                         onPress={action.press ?? undefined}
                         accessibilityRole="button"
                       >
                         <Text style={styles.primaryText}>{action.label}</Text>
-                        {!action.dim && <Icon name={action.icon} size={13} color={colors.onAccent} />}
-                      </Pressable>
+                        {!action.dim && <Icon name={action.icon} size={13} color={colors.ink} />}
+                      </TapScale>
                     )
                   })()}
                 </View>
@@ -405,15 +403,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
 
   // Directly under the check mark, inside the page — not pinned to the foot of the screen.
   primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    minHeight: 48,
+    ...btnPrimary(colors),
     marginHorizontal: spacing.xl,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
   },
   primaryOff: { opacity: 0.3 },
-  primaryText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 13 },
+  primaryText: btnLabel(colors),
 })

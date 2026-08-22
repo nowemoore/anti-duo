@@ -2,8 +2,7 @@ import {
   INTRODUCED_LEVEL,
   LEARN_CHUNK,
   LEVEL_FLOOR,
-  MASTERY_GETTING_THERE,
-  MASTERY_SOLID,
+  MASTERY_LEARNT,
 } from '../../shared/constants'
 import type { Unit, Progress } from '../../shared/types'
 import type { ContentIndex } from './content'
@@ -36,8 +35,8 @@ export function enabledUnits(index: ContentIndex, progress: Progress): Unit[] {
   return index.content.units.filter((k) => isUnitEnabled(progress.settings, k))
 }
 
-/** How solid a unit looks, for the mosaic's four shades. */
-export type MasteryTier = 'unseen' | 'shaky' | 'getting' | 'solid'
+/** How far along a unit is, for the mosaic's shading. */
+export type MasteryTier = 'unseen' | 'introduced' | 'learnt'
 
 /**
  * Band a level falls into. `unseen` covers both never-taught and lapsed-to-the-floor units: from the
@@ -45,9 +44,18 @@ export type MasteryTier = 'unseen' | 'shaky' | 'getting' | 'solid'
  */
 export function masteryTier(lvl: number): MasteryTier {
   if (!isKnownLevel(lvl)) return 'unseen'
-  if (lvl < MASTERY_GETTING_THERE) return 'shaky'
-  if (lvl < MASTERY_SOLID) return 'getting'
-  return 'solid'
+  return lvl < MASTERY_LEARNT ? 'introduced' : 'learnt'
+}
+
+/**
+ * How far a unit has travelled from introduced (0) to learnt (1), for shading the board as a ramp
+ * rather than two flat steps. Clamped at both ends, so an unseen unit and an over-levelled one both
+ * sit at a defined value.
+ */
+export function masteryProgress(lvl: number): number {
+  if (!isKnownLevel(lvl)) return 0
+  const span = Math.max(1, MASTERY_LEARNT - INTRODUCED_LEVEL)
+  return Math.max(0, Math.min(1, (lvl - INTRODUCED_LEVEL) / span))
 }
 
 // --- staged example words ------------------------------------------------------------------

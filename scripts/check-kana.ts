@@ -2,6 +2,7 @@
 import {
   defaultProgress,
   KANA_KNOWN_STREAK,
+  KANA_MASTERY_FULL,
   KANA_PICK_OPTIONS,
   KANA_SEQUENCE_MAX,
   KANA_RECALL_STREAK,
@@ -14,6 +15,7 @@ import {
   buildDrill,
   buildOptions,
   buildSequenceOptions,
+  canDrill,
   charsOfScript,
   checkRomaji,
   isKnown,
@@ -21,6 +23,7 @@ import {
   kanaOf,
   knownCount,
   markTraced,
+  masteryOf,
   recordResult,
   sameSound,
   scriptOf,
@@ -32,6 +35,7 @@ import {
   toKatakana,
   totalKanaCount,
   tracedChars,
+  tracedToPractise,
 } from '../src/lib/kana'
 
 const scripts = scriptsForLang('ja')
@@ -193,6 +197,43 @@ checks.push([
   scriptFiltered.every((i) => i.chars.every((c) => scriptOf(c) === 'katakana')),
 ])
 
+// One script per question — a run may mix them, a single question may not. Includes the options,
+// which is where the two used to collide most visibly (ア offered against あ, か, さ).
+const mixedPool = traced('あ', 'か', 'さ', 'た', 'な', 'は', 'ア', 'カ', 'サ', 'タ', 'ナ', 'ハ')
+let crossScript = 0
+let sawBoth = false
+for (let n = 0; n < 60; n++) {
+  const run = buildDrill(mixedPool, { count: 20 })
+  const scripts = new Set<string>()
+  for (const item of run) {
+    const seen = new Set(item.chars.map(scriptOf))
+    for (const o of item.options) for (const c of [...o.label]) seen.add(scriptOf(c))
+    if (seen.size > 1) crossScript++
+    for (const sc of seen) scripts.add(sc)
+  }
+  if (scripts.size > 1) sawBoth = true
+}
+checks.push(['no question mixes hiragana and katakana across 60 runs', crossScript === 0])
+checks.push(['a run still mixes both scripts across its questions', sawBoth])
+
+// A script below KANA_PICK_OPTIONS traced characters can't fill a multiple-choice question, so it
+// isn't practised at all — one studied character used to yield questions offering only itself.
+for (let n = 1; n < KANA_PICK_OPTIONS; n++) {
+  const few = traced(...['あ', 'か', 'さ', 'た'].slice(0, n))
+  checks.push([`${n} traced character${n === 1 ? '' : 's'} → no practice`, buildDrill(few).length === 0])
+  checks.push([`${n} traced → practice reports ${KANA_PICK_OPTIONS - n} to go`, tracedToPractise(few) === KANA_PICK_OPTIONS - n])
+  checks.push([`${n} traced → canDrill is false`, !canDrill(few)])
+}
+const enough = traced('あ', 'か', 'さ', 'た')
+checks.push([`${KANA_PICK_OPTIONS} traced → practice opens`, canDrill(enough) && buildDrill(enough).length > 0])
+checks.push(['every question offers a real choice', buildDrill(enough, { count: 40 }).every((i) => i.format !== 'pick' || i.options.length > 1)])
+// One script short of the threshold is skipped, not padded out of the other.
+const lopsided = traced('あ', 'か', 'さ', 'た', 'ア')
+checks.push([
+  'a script under the threshold never appears',
+  buildDrill(lopsided, { count: 60 }).every((i) => i.chars.every((c) => scriptOf(c) === 'hiragana')),
+])
+
 // --- formats ----------------------------------------------------------------
 
 const fresh = buildDrill(traced('あ', 'か', 'さ', 'た'), { count: 40 })
@@ -221,6 +262,24 @@ checks.push([
 ])
 checks.push(['a sequence target matches its characters', many.every((i) => i.target === i.chars.join(''))])
 checks.push(['no sequence repeats a character back to back', many.every((i) => i.chars.every((c, n) => n === 0 || c !== i.chars[n - 1]))])
+
+// Chart fill: cumulative wins, capped, and never lost to a later miss.
+{
+  let p2 = traced('あ')
+  checks.push(['an unanswered character is unfilled', masteryOf(p2, 'あ') === 0])
+  for (let n = 0; n < KANA_MASTERY_FULL; n++) p2 = recordResult(p2, ['あ'], true)
+  checks.push([`${KANA_MASTERY_FULL} correct fills the cell`, masteryOf(p2, 'あ') === 1])
+  p2 = recordResult(p2, ['あ'], false)
+  checks.push(['a later miss does not empty the cell', masteryOf(p2, 'あ') === 1])
+  checks.push(['wins are capped', (p2.kana?.wins?.['あ'] ?? 0) === KANA_MASTERY_FULL])
+
+  let half = traced('か')
+  for (let n = 0; n < 5; n++) half = recordResult(half, ['か'], true)
+  checks.push(['half the wins fill half the cell', Math.abs(masteryOf(half, 'か') - 0.5) < 1e-9])
+  checks.push(['wins survive a round-trip', normalizeProgress(JSON.parse(JSON.stringify(half))).kana?.wins?.['か'] === 5])
+  const noWins = normalizeProgress({ kana: { chars: {}, traced: { あ: 'x' } } })
+  checks.push(['a profile without wins gains no wins key', noWins.kana?.wins === undefined])
+}
 
 // --- mastery ----------------------------------------------------------------
 

@@ -207,6 +207,11 @@ export interface KanaProgress {
    * one they haven't chosen to meet.
    */
   traced: Record<string, string>
+  /**
+   * Lifetime correct answers per character, capped at KANA_MASTERY_FULL. Drives how filled that
+   * character's chart cell is. Optional so profiles written before it existed round-trip unchanged.
+   */
+  wins?: Record<string, number>
 }
 
 export interface GrammarTopicProgress {

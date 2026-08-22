@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { View, Text, TextInput, Pressable, Keyboard, StyleSheet } from 'react-native'
+import { View, Text, TextInput, Keyboard, StyleSheet } from 'react-native'
+import { TapScale } from '../TapScale'
 import { checkTypeWord, type TypeWordTask } from '@lib/tasks'
 import { useContent } from '../../context/ContentContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -8,6 +9,10 @@ import { SpeakButton } from '../SpeakButton'
 import { Icon } from '../Icon'
 import type { TaskUI, TaskViewProps } from './types'
 import { colors, fonts, radius } from '../../theme'
+
+/** Any CJK ideograph — kana and Latin fall outside it. */
+const KANJI = /[㐀-䶿一-鿿豈-﫿]/
+const isKanji = (ch: string) => KANJI.test(ch)
 
 /** T1: show a word, type its reading. Owns its own lock / No-clue buttons (pagerLock: false). */
 function TypeWordView({ task, answer, setAnswer, phase, score, onLock, onGiveUp }: TaskViewProps<TypeWordTask, string>) {
@@ -31,17 +36,19 @@ function TypeWordView({ task, answer, setAnswer, phase, score, onLock, onGiveUp 
             const m = charGloss?.(content, ch)
             if (revealed && m) {
               return (
-                <Pressable
+                <TapScale
                   key={i}
                   onPressIn={() => reveal.show(`${ch}  ·  ${m.split(';')[0].trim()}`)}
                   onPressOut={reveal.hide}
                 >
-                  <Text style={[styles.promptWord, styles.promptChar]}>{ch}</Text>
-                </Pressable>
+                  <Text style={[styles.promptWord, isKanji(ch) && styles.kanji, styles.promptChar]}>
+                    {ch}
+                  </Text>
+                </TapScale>
               )
             }
             return (
-              <Text key={i} style={styles.promptWord}>
+              <Text key={i} style={[styles.promptWord, isKanji(ch) && styles.kanji]}>
                 {ch}
               </Text>
             )
@@ -59,43 +66,47 @@ function TypeWordView({ task, answer, setAnswer, phase, score, onLock, onGiveUp 
           onSubmitEditing={() => canLock && onLock()}
           placeholder={inputHint}
           placeholderTextColor={colors.muted}
-          style={styles.input}
+          style={[styles.input, revealed && (score > 0 ? styles.inputOk : styles.inputBad)]}
           autoCapitalize="none"
           autoCorrect={false}
         />
         {!revealed && (
           <View style={styles.actionRow}>
-            <Pressable style={[styles.actionBtn, styles.clueBtn]} onPress={onGiveUp} accessibilityLabel="No clue">
+            <TapScale style={[styles.actionBtn, styles.clueBtn]} onPress={onGiveUp} accessibilityLabel="No clue">
               <Icon name="skull" size={13} color={colors.muted} />
               <Text style={styles.clueText}>No clue</Text>
-            </Pressable>
-            <Pressable
+            </TapScale>
+            <TapScale
               style={[styles.actionBtn, styles.lockBtn, !canLock && styles.disabled]}
               onPress={onLock}
               disabled={!canLock}
               accessibilityLabel="Lock in your answer"
             >
-              <Icon name="lock" size={14} color={colors.onAccent} />
+              <Icon name="lock" size={14} color={colors.ink} />
               <Text style={styles.lockText}>Lock in answer</Text>
-            </Pressable>
+            </TapScale>
           </View>
         )}
-        {phase === 'retry' && (
-          <Text style={styles.retry}>Not quite — fix your answer and lock in once more.</Text>
-        )}
-        {revealed && (
-          <Pressable
-            onPressIn={() => reveal.show(`${task.word}  ·  ${task.meaning.split(';')[0].trim()}`)}
-            onPressOut={reveal.hide}
-            hitSlop={6}
-          >
-            <Text style={styles.answer}>
-              {score <= 0 ? 'Answer: ' : ''}
-              <Text style={styles.answerReading}>{task.reading}</Text>
-            </Text>
-            <Text style={styles.answerHint}>hold for the whole word’s meaning</Text>
-          </Pressable>
-        )}
+        {/* Reserved: the retry line and the revealed answer both live here, so neither appearing
+            shunts the input and buttons up the card. */}
+        <View style={styles.answerSlot}>
+          {phase === 'retry' && (
+            <Text style={styles.retry}>Not quite — fix your answer and lock in once more.</Text>
+          )}
+          {revealed && (
+            <TapScale
+              onPressIn={() => reveal.show(`${task.word}  ·  ${task.meaning.split(';')[0].trim()}`)}
+              onPressOut={reveal.hide}
+              hitSlop={6}
+            >
+              <Text style={styles.answer}>
+                {score <= 0 ? 'Answer: ' : ''}
+                <Text style={styles.answerReading}>{task.reading}</Text>
+              </Text>
+              <Text style={styles.answerHint}>hold for the whole word’s meaning</Text>
+            </TapScale>
+          )}
+        </View>
       </View>
     </View>
   )
@@ -121,8 +132,13 @@ export const typeWordTask: TaskUI<TypeWordTask, string> = {
 const styles = StyleSheet.create({
   root: { alignItems: 'center', gap: 14 },
   promptRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  wordRow: { flexDirection: 'row', alignItems: 'center' },
-  promptWord: { fontSize: 40, color: colors.ink },
+  // Wraps rather than overflowing: the longest words in the curriculum are five characters
+  // (待ち合わせ), which at this size is wider than a narrow phone's card.
+  wordRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, flexWrap: 'wrap', justifyContent: 'center' },
+  // The word is the whole question here, so it carries the card. Family is per character: kanji take
+  // mincho, kana are left to the OS gothic (see `isKanji`).
+  promptWord: { fontSize: 52, lineHeight: 62, color: colors.ink },
+  kanji: { fontFamily: fonts.mincho },
   promptChar: { textDecorationLine: 'underline', textDecorationColor: colors.border },
   form: { width: '100%', maxWidth: 320, gap: 10 },
   input: {
@@ -137,6 +153,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     width: '100%',
   },
+  // Matches the card's verdict tint, so the field is judged along with everything else.
+  inputOk: { borderColor: colors.correct, backgroundColor: colors.correctSoft },
+  inputBad: { borderColor: colors.incorrect, backgroundColor: colors.incorrectSoft },
   actionRow: { flexDirection: 'row', gap: 10 },
   actionBtn: {
     flex: 1,
@@ -148,10 +167,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   lockBtn: { backgroundColor: colors.accent },
-  lockText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 14 },
+  lockText: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 14 },
   clueBtn: { backgroundColor: colors.border },
   clueText: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 14 },
   disabled: { opacity: 0.4 },
+  answerSlot: { height: 46, justifyContent: 'center' },
   retry: { color: colors.incorrect, fontFamily: fonts.body, fontSize: 13, textAlign: 'center' },
   answer: { color: colors.muted, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
   answerReading: { color: colors.ink, fontFamily: fonts.semibold, textDecorationLine: 'underline', textDecorationColor: colors.border },

@@ -30,7 +30,7 @@ import { useStyles } from '../../hooks/theme'
  * One grammar subsection, rendered entirely from a {@link GrammarTopic}. The four parts unlock in
  * order and stay open-able once unlocked; adding a second topic needs no change here.
  */
-export function GrammarSection({ topic, onBack }: { topic: GrammarTopic; onBack: () => void }) {
+export function GrammarSection({ topic }: { topic: GrammarTopic }) {
   const styles = useStyles(makeStyles)
   const { progress, update } = useProgress()
   const index = useContent()
@@ -61,7 +61,7 @@ export function GrammarSection({ topic, onBack }: { topic: GrammarTopic; onBack:
 
   // No step dots here (each part draws its own), but the kana chart should still be a hold away —
   // the game and the reflection are both places you may need to look a kana up.
-  useScreenHeader(onBack, { ja: topic.titleNative, en: topic.titleEn }, undefined, true)
+  useScreenHeader({ ja: topic.titleNative, en: topic.titleEn })
 
   const finishVocab = () => {
     update((p) => markVocabDone(p, topic.id, new Date().toISOString()))
@@ -137,7 +137,7 @@ export function GrammarSection({ topic, onBack }: { topic: GrammarTopic; onBack:
         subtitle={
           reflectionCount === 0
             ? `${promptTotal} questions · saved as you type`
-            : `${reflectionCount} / ${promptTotal} answered`
+            : `${reflectionCount}/${promptTotal} answered`
         }
         locked={!unlocked('reflection')}
         lockedHint="Play the game once to unlock this."
@@ -162,7 +162,7 @@ export function GrammarSection({ topic, onBack }: { topic: GrammarTopic; onBack:
         lockedHint={
           reflectionCount === 0
             ? `Answer the ${promptTotal} reflection questions first, then score ${Math.round(pass.required * 100)}% on the game.`
-            : `Reflection ${reflectionCount} / ${promptTotal}, then score ${Math.round(pass.required * 100)}% on the game.`
+            : `Reflection ${reflectionCount}/${promptTotal}, then score ${Math.round(pass.required * 100)}% on the game.`
         }
         done={unlocked('explanation')}
         open={open === 'explanation'}

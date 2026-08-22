@@ -1,6 +1,7 @@
 import * as Speech from 'expo-speech'
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { Icon } from './Icon'
+import { TapScale } from './TapScale'
 import { useLanguage } from '../context/LanguageContext'
 import { type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
@@ -25,7 +26,7 @@ export function SpeakButton({ text, label, disabled, small, style }: Props) {
     Speech.speak(text, { language: ttsLang, rate: 0.95 })
   }
   return (
-    <Pressable
+    <TapScale
       accessibilityRole="button"
       accessibilityLabel={label ?? 'Play pronunciation'}
       disabled={disabled}
@@ -34,7 +35,7 @@ export function SpeakButton({ text, label, disabled, small, style }: Props) {
       style={[styles.btn, small && styles.small, disabled && styles.disabled, style]}
     >
       <Icon name="volume-high" size={small ? 12 : 14} color={colors.ink} />
-    </Pressable>
+    </TapScale>
   )
 }
 
@@ -43,7 +44,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.accentSoft,
+    // Neutral, not the accent: playback is a utility that sits beside content everywhere in the app,
+    // and tinting every one of them pink made the accent stop meaning "this is the thing to press".
+    backgroundColor: colors.panelStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },

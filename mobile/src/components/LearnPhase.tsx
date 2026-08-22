@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { View, Text, Pressable, ScrollView, StyleSheet, PanResponder, Animated, Dimensions, Easing } from 'react-native'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { View, Text, ScrollView, StyleSheet, PanResponder, Animated, Dimensions, Easing } from 'react-native'
+import { PagerChevron } from '../components/PagerChevron'
+import { TapScale } from './TapScale'
 import type { Unit } from '@shared/types'
 import { SKIP_REQUEUE_GAP } from '@shared/constants'
 import { skipCard } from '@lib/study'
@@ -10,6 +12,7 @@ import { useLanguage } from '../context/LanguageContext'
 import { Bilingual } from './Bilingual'
 import { Icon } from './Icon'
 import { RootWord } from './RootWord'
+import { RevealContextProvider, RevealStrip, useReveal } from './RevealStrip'
 import { VoweledText } from './VoweledText'
 import { SpeakButton } from './SpeakButton'
 import { useScreenHeader } from '../context/HeaderContext'
@@ -27,7 +30,6 @@ interface Props {
    */
   onComplete: (learned: Unit[], reserve: Unit[]) => void
   /** Back to the unit page (Learn/Practice menu). */
-  onExit: () => void
   /** Total progress dots across learn + the write review that follows (defaults to just this set). */
   totalSteps?: number
   /** Dots already consumed before this card — the interleaved session teaches one unit per mount. */
@@ -41,7 +43,6 @@ export function LearnPhase({
   chunk,
   reserve,
   onComplete,
-  onExit,
   totalSteps,
   baseStep = 0,
   headerCount,
@@ -124,18 +125,22 @@ export function LearnPhase({
     onPanResponderTerminate: snapBack,
   })
 
+  // Held text lands in the band below the card, not inside it — same channel Practice uses.
+  const [reveal, setReveal] = useState<string | null>(null)
+  const revealApi = useMemo(() => ({ show: setReveal, hide: () => setReveal(null) }), [])
+
   // Back button, step label, and progress bar live in the app-level top bar (above the card).
   const learnHead = ui.learnHeader(
     headerCount?.current ?? i + 1,
     headerCount?.total ?? cards.length,
   )
   useScreenHeader(
-    onExit,
     { ja: learnHead.native, en: learnHead.en },
     { current: baseStep + i + 1, total: totalSteps ?? cards.length },
   )
 
   return (
+    <>
     <View style={styles.panel} {...pan.current.panHandlers}>
       <ScrollView
         style={styles.cardScroll}
@@ -154,27 +159,35 @@ export function LearnPhase({
         }}
       >
         <Animated.View style={{ transform: [{ translateX: dragX }] }}>
-          <LearnCard key={unit.idx} unit={unit} />
+          <RevealContextProvider value={revealApi}>
+            <LearnCard key={unit.idx} unit={unit} />
+          </RevealContextProvider>
         </Animated.View>
       </ScrollView>
 
       <View style={styles.pager}>
-        <Pressable
-          style={[styles.chevron, styles.chevBack, isFirst && styles.disabled]}
-          onPress={goBack}
-          disabled={isFirst}
-        >
-          <Icon name="chevron-left" size={18} color={colors.muted} />
-        </Pressable>
-        <Pressable style={[styles.skip, !canSkip && styles.disabled]} onPress={skip} disabled={!canSkip}>
-          <Icon name="forward" size={13} color={colors.muted} />
-          <Bilingual native={ui.notNow.native} en={ui.notNow.en} />
-        </Pressable>
-        <Pressable style={[styles.chevron, styles.chevNext]} onPress={goNext}>
-          <Icon name="chevron-right" size={18} color={colors.onAccent} />
-        </Pressable>
+        <PagerChevron dir="prev" onPress={goBack} disabled={isFirst} />
+        {/* Hidden, not greyed: studying one chosen kanji has nothing to defer it in favour of, so
+            offering "not now" at all is a question the learner can't act on. */}
+        {canSkip ? (
+          <TapScale style={styles.skip} onPress={skip}>
+            <Icon name="forward" size={13} color={colors.muted} />
+            <Bilingual native={ui.notNow.native} en={ui.notNow.en} />
+          </TapScale>
+        ) : (
+          <View />
+        )}
+        <PagerChevron dir="next" onPress={goNext} />
       </View>
     </View>
+
+    {/* The same band Practice uses, below the card and edge to edge. Was a rounded chip inside the
+        card, which made Learn the one screen where the reveal looked like a panel. */}
+    <RevealStrip
+      text={reveal}
+      hint={`Hold a ${ui.noun} or the eye button to reveal its meaning here`}
+    />
+    </>
   )
 }
 
@@ -202,11 +215,23 @@ export function LearnCard({ unit }: { unit: Unit }) {
 
   const toggle = () => setExpanded((v) => !v)
 
-  // Hold-to-reveal: the meaning shows in the caption strip only while a unit/eye is held,
-  // reverting to the hint on release. Resets per card (LearnCard is keyed by unit).
-  const [caption, setCaption] = useState<{ key: string; label: string; meaning: string } | null>(null)
-  const show = (key: string, label: string, meaning: string) => setCaption({ key, label, meaning })
-  const hide = () => setCaption(null)
+  /*
+   * Hold-to-reveal: the meaning shows in the band below the card only while a unit/eye is held,
+   * reverting to the hint on release.
+   *
+   * `held` is kept locally purely to highlight whichever word is being pressed; the text itself goes
+   * to the shared reveal channel, so Learn and Practice put it in the same place.
+   */
+  const reveal = useReveal()
+  const [held, setHeld] = useState<string | null>(null)
+  const show = (key: string, label: string, meaning: string) => {
+    setHeld(key)
+    reveal.show(`${label}  ·  ${meaning}`)
+  }
+  const hide = () => {
+    setHeld(null)
+    reveal.hide()
+  }
 
   return (
     <View style={styles.card}>
@@ -214,9 +239,9 @@ export function LearnCard({ unit }: { unit: Unit }) {
         {hasReveal && <View style={styles.formSpacer} />}
         <Text style={styles.bigForm}>{pack.displayForm?.(unit.form) ?? unit.form}</Text>
         {hasReveal && (
-          <Pressable style={[styles.revealBtn, expanded && styles.revealBtnOn]} onPress={toggle}>
+          <TapScale style={[styles.revealBtn, expanded && styles.revealBtnOn]} onPress={toggle}>
             <Icon name="magnifying-glass" size={13} color={expanded ? colors.onAccent : colors.ink} />
-          </Pressable>
+          </TapScale>
         )}
       </View>
 
@@ -236,7 +261,7 @@ export function LearnCard({ unit }: { unit: Unit }) {
       <View style={styles.examples}>
         {examples.map((ex, idx) => {
           const wordKey = `w:${idx}`
-          const wordOn = caption?.key === wordKey
+          const wordOn = held === wordKey
           return (
             <View key={idx} style={styles.example}>
               <View style={styles.exWordCell}>
@@ -246,7 +271,7 @@ export function LearnCard({ unit }: { unit: Unit }) {
                     word={ex.word}
                     wordIndex={idx}
                     gloss={charGloss}
-                    activeKey={caption?.key}
+                    activeKey={held ?? undefined}
                     onShow={show}
                     onHide={hide}
                   />
@@ -258,7 +283,7 @@ export function LearnCard({ unit }: { unit: Unit }) {
               <VoweledText text={ex.reading} style={styles.exReading} />
               <View style={styles.exActions}>
                 <SpeakButton text={ex.reading} label={`Pronounce ${ex.word}`} />
-                <Pressable
+                <TapScale
                   onPressIn={() => show(wordKey, ex.word, ex.meaning)}
                   onPressOut={hide}
                   style={[styles.eyeBtn, wordOn && styles.eyeBtnOn]}
@@ -266,38 +291,18 @@ export function LearnCard({ unit }: { unit: Unit }) {
                   hitSlop={6}
                 >
                   <Icon name="eye" size={16} color={wordOn ? colors.onAccent : colors.muted} />
-                </Pressable>
+                </TapScale>
               </View>
             </View>
           )
         })}
       </View>
 
-      {/* Fixed caption strip: the pinned meaning shows here, never under the finger. */}
-      <View style={styles.caption}>
-        {caption ? (
-          <Text style={styles.captionText} numberOfLines={2}>
-            <Text style={styles.captionLabel}>{caption.label}</Text>
-            {`  ·  ${caption.meaning}`}
-          </Text>
-        ) : pack.charGloss ? (
-          <Text style={styles.captionHint} numberOfLines={2}>
-            Hold a {pack.ui.noun} or the eye button to reveal its meaning here
-          </Text>
-        ) : (
-          // Languages with no per-character gloss (Arabic): the eye button is the only way to reveal.
-          <View style={styles.captionHintRow}>
-            <Text style={styles.captionHint}>hold </Text>
-            <Icon name="eye" size={12} color={colors.onChipMuted} />
-            <Text style={styles.captionHint}> to reveal the meaning</Text>
-          </View>
-        )}
-      </View>
     </View>
   )
 }
 
-/** A word whose unit characters reveal their meaning in the caption strip while held. */
+/** A word whose unit characters reveal their meaning in the band below the card while held. */
 function ExampleWord({
   word,
   wordIndex,
@@ -329,7 +334,7 @@ function ExampleWord({
         const key = `k:${wordIndex}:${i}`
         const on = activeKey === key
         return (
-          <Pressable
+          <TapScale
             key={i}
             onPressIn={() => onShow(key, ch, g.split(';')[0].trim())}
             onPressOut={onHide}
@@ -337,7 +342,7 @@ function ExampleWord({
             style={[styles.charBtn, on && styles.charBtnOn]}
           >
             <Text style={[styles.exWord, on && styles.exCharOn]}>{ch}</Text>
-          </Pressable>
+          </TapScale>
         )
       })}
     </View>
@@ -446,21 +451,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   exActions: { width: 82, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
   eyeBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   eyeBtnOn: { backgroundColor: colors.accent },
-  caption: {
-    alignSelf: 'stretch',
-    height: 56, // fixed so the card doesn't resize when a meaning is shown
-    justifyContent: 'center',
-    backgroundColor: colors.c900,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.md,
-  },
-  captionText: { color: colors.onChip, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
-  captionLabel: { color: colors.onChipAccent, fontFamily: fonts.semibold, fontSize: 16 },
-  captionHint: { color: colors.onChipMuted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
-  captionHintRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   pager: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.lg },
-  chevron: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  chevBack: { borderWidth: 1.5, borderColor: colors.border },
-  chevNext: { backgroundColor: colors.accent, borderWidth: 1.5, borderColor: colors.accent },
 })

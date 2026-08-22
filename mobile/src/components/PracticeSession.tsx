@@ -1,5 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
+import { Animated, View, Text, ScrollView, StyleSheet } from 'react-native'
+import { PagerChevron } from './PagerChevron'
+import { TapScale } from './TapScale'
+import { TaskChip } from './TaskChip'
 import type { Progress } from '@shared/types'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR, PRACTICE_ITERATIONS } from '@shared/constants'
 import { introducedUnits, isForgottenLevel } from '@lib/study'
@@ -21,8 +24,9 @@ import { useDrawableWord } from '../hooks/useDrawableWord'
 import { useAuth } from '../context/AuthContext'
 import { saveDrawing, overrideDrawing } from '../lib/drawings'
 import type { DrawStroke } from '../lang/types'
-import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { fonts, btnPrimary, btnSecondary, radius, shadow, spacing, type Palette, btnLabel, btnLabelQuiet } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
+import { fadeColor, useVerdictFade } from '../hooks/verdictFade'
 
 type Levels = Record<number, { lvl: number }>
 
@@ -40,7 +44,14 @@ function isCorrect(qa: QA): boolean {
   return qa.score > 0
 }
 
-export function PracticeSession({ onExit }: { onExit: () => void }) {
+export function PracticeSession({
+  onExit,
+  onRestart,
+}: {
+  onExit: () => void
+  /** Start a fresh round. Remounts the session, so targets are re-picked from updated progress. */
+  onRestart?: () => void
+}) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const index = useContent()
@@ -95,7 +106,6 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
   // Step label + progress bar go in the app top bar; the summary keeps only the back button.
   const qHead = pack.ui.questionHeader(pos + 1, total)
   useScreenHeader(
-    onExit,
     done || !qa ? undefined : { ja: qHead.native, en: qHead.en },
     done || !qa ? undefined : { current: pos + 1, total },
   )
@@ -236,8 +246,41 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
     next()
   }
 
+  /*
+   * Above the early return: hooks must run in the same order every render, and the Summary path
+   * below bails out before the card is built. Reads `qa` defensively for that reason.
+   *
+   * The verdict lands on the whole card, not just a pill — eased in, because a card that changes
+   * colour instantly reads as an alarm rather than an answer.
+   */
+  // Overriding re-scores the answer rather than voiding it, so a corrected verdict colours the
+  // card like any other. It used to fall back to neutral, which read as "nothing happened".
+  const judged = qa?.phase === 'revealed'
+  const verdict = useVerdictFade(judged)
+
+  /*
+   * The card only scrolls when its content genuinely doesn't fit.
+   *
+   * A plain ScrollView bounces on iOS even when everything fits, which makes a card that isn't
+   * overflowing feel like it is. Leaving it permanently off isn't safe either — a long sentence with
+   * four options can exceed a short screen, and that content would just be unreachable. So it's
+   * measured, the same way the Learn card does it.
+   */
+  const [overflows, setOverflows] = useState(false)
+  const viewportH = useRef(0)
+  const contentH = useRef(0)
+  const syncScrollable = () => setOverflows(contentH.current - viewportH.current > 1)
+
   if (done || !qa) {
-    return <Summary working={workingRef.current} startLevels={startLevelsRef.current} index={index} onExit={onExit} />
+    return (
+      <Summary
+        working={workingRef.current}
+        startLevels={startLevelsRef.current}
+        index={index}
+        onExit={onExit}
+        onRestart={onRestart}
+      />
+    )
   }
 
   const ui = getTaskUI(qa.task.kind, pack)
@@ -249,76 +292,109 @@ export function PracticeSession({ onExit }: { onExit: () => void }) {
   const canPrev = pos > 0
   const canNext = pos < history.length - 1 || revealed
 
+  const verdictTint = judged ? (correct ? colors.correctSoft : colors.incorrectSoft) : colors.panel
+  const verdictEdge = judged ? (correct ? colors.correct : colors.incorrect) : colors.border
+
   return (
-    <View style={styles.panel}>
+    <>
+    <Animated.View
+      style={[
+        styles.panel,
+        {
+          backgroundColor: fadeColor(verdict, colors.panel, verdictTint),
+          borderColor: fadeColor(verdict, colors.border, verdictEdge),
+        },
+      ]}
+    >
       <RevealContextProvider value={revealApi}>
+        {/* Outside the scroller: the chip labels the card, so it stays put while the task scrolls. */}
+        <TaskChip kind={qa.task.kind} />
         <ScrollView
           style={styles.taskScroll}
           contentContainerStyle={styles.taskScrollContent}
           keyboardShouldPersistTaps="handled"
-          scrollEnabled={ui?.scrollable !== false} // a task (draw) may disable scroll to own its gestures
+          // A task (draw) may disable scrolling outright to own its gestures; otherwise it turns on
+          // only once the content has been measured as taller than the card.
+          scrollEnabled={ui?.scrollable !== false && overflows}
+          bounces={false}
+          overScrollMode="never"
+          onLayout={(e) => {
+            viewportH.current = e.nativeEvent.layout.height
+            syncScrollable()
+          }}
+          onContentSizeChange={(_w, h) => {
+            contentH.current = h
+            syncScrollable()
+          }}
         >
-          {/* key on pos fades each question in and gives a clean mount; back-nav replays answers. */}
-          <FadeView key={pos}>
+          {/*
+            key on pos fades each question in and gives a clean mount; back-nav replays answers.
+
+            A task that owns its vertical space (draw) needs the wrapper to stretch, or its flexing
+            canvas has no bounded parent to fill and collapses to its minimum. The scrolling tasks
+            stay auto-height so the content container keeps centring them.
+          */}
+          <FadeView key={pos} style={ui?.scrollable === false ? styles.taskFill : undefined}>
             <TaskRunner qa={qa} setAnswer={setAnswer} onLock={lockIn} onGiveUp={giveUp} />
           </FadeView>
-          {/* A task's verdict override (draw) sits right under the answer — either direction. */}
-          {ui?.overrideLabel && revealed && !correct && !overridden && (
-            <Pressable style={styles.keepLink} onPress={override} hitSlop={8}>
-              <Text style={styles.keepText}>{ui.overrideLabel}</Text>
-            </Pressable>
-          )}
-          {ui?.overrideWrongLabel && revealed && correct && !overridden && (
-            <Pressable style={styles.keepLink} onPress={override} hitSlop={8}>
-              <Text style={styles.keepText}>{ui.overrideWrongLabel}</Text>
-            </Pressable>
+          {/*
+            A task's verdict override (draw) sits right under the answer — either direction.
+
+            The slot is reserved for the whole question, not just while the link is up: the scroll
+            content is centred, so a link appearing at reveal used to lift the canvas by its height
+            just as the learner looked at their strokes.
+          */}
+          {(ui?.overrideLabel || ui?.overrideWrongLabel) && (
+            <View style={styles.keepSlot}>
+              {ui?.overrideLabel && revealed && !correct && !overridden && (
+                <TapScale style={styles.keepLink} onPress={override} hitSlop={8}>
+                  <Text style={styles.keepText}>{ui.overrideLabel}</Text>
+                </TapScale>
+              )}
+              {ui?.overrideWrongLabel && revealed && correct && !overridden && (
+                <TapScale style={styles.keepLink} onPress={override} hitSlop={8}>
+                  <Text style={styles.keepText}>{ui.overrideWrongLabel}</Text>
+                </TapScale>
+              )}
+            </View>
           )}
         </ScrollView>
       </RevealContextProvider>
 
-      {/* Bottom reveal strip: hold a word to see its reading/meaning. Tasks that own their space (draw) omit it. */}
-      {ui?.revealHint && <RevealStrip text={reveal} hint={ui.revealHint(qa.phase, pack)} />}
-
       <View style={styles.pager}>
-        <Pressable
-          style={[styles.chevron, styles.chevSide, !canPrev && styles.disabled]}
-          onPress={prev}
-          disabled={!canPrev}
-          accessibilityLabel="Previous question"
-        >
-          <Icon name="chevron-left" size={18} color={colors.muted} />
-        </Pressable>
+        <PagerChevron dir="prev" onPress={prev} disabled={!canPrev} label="Previous question" />
 
         {revealed ? (
-          <View style={[styles.verdict, overridden ? styles.verdictKept : correct ? styles.verdictCorrect : styles.verdictWrong]}>
-            <Text style={[styles.verdictText, { color: overridden ? colors.muted : correct ? colors.correct : colors.incorrect }]}>
-              {overridden ? 'Kept' : correct ? 'Correct' : 'Incorrect'}
+          <View style={[styles.verdict, correct ? styles.verdictCorrect : styles.verdictWrong]}>
+            <Text style={[styles.verdictText, { color: correct ? colors.correct : colors.incorrect }]}>
+              {correct ? 'Correct' : 'Incorrect'}
             </Text>
           </View>
         ) : pagerLock ? (
-          <Pressable
+          <TapScale
             style={[styles.lockBtn, styles.lockActive, !canLock && styles.disabled]}
             onPress={lockIn}
             disabled={!canLock}
             accessibilityLabel="Lock in your answer"
           >
             <Icon name="lock" size={15} color={colors.onAccent} />
+            {/* Dark ink on the accent: light ink measured 1.9:1 on this fill, dark is 6.3:1. */}
             <Text style={[styles.lockText, { color: colors.onAccent }]}>Lock in answer</Text>
-          </Pressable>
+          </TapScale>
         ) : (
           <View style={styles.lockSlot} />
         )}
 
-        <Pressable
-          style={[styles.chevron, styles.chevNext, !canNext && styles.disabled]}
-          onPress={next}
-          disabled={!canNext}
-          accessibilityLabel="Next question"
-        >
-          <Icon name="chevron-right" size={18} color={colors.onAccent} />
-        </Pressable>
+        <PagerChevron dir="next" onPress={next} disabled={!canNext} label="Next question" />
       </View>
-    </View>
+    </Animated.View>
+
+    {/* Below the card and full-bleed: hold a word to see its reading/meaning. Tasks that own their
+        space (draw) omit it. */}
+    {ui?.revealHint && (
+      <RevealStrip text={reveal} hint={ui.revealHint(qa.phase, pack)} />
+    )}
+    </>
   )
 }
 
@@ -327,9 +403,10 @@ interface SummaryProps {
   startLevels: Record<number, number>
   index: ReturnType<typeof useContent>
   onExit: () => void
+  onRestart?: () => void
 }
 
-function Summary({ working, startLevels, index, onExit }: SummaryProps) {
+function Summary({ working, startLevels, index, onExit, onRestart }: SummaryProps) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const { ui } = useLanguage()
@@ -408,10 +485,23 @@ function Summary({ working, startLevels, index, onExit }: SummaryProps) {
         </>
       )}
 
-      <Pressable style={styles.doneBtn} onPress={onExit}>
-        <Icon name="check" size={15} color={colors.onAccent} />
-        <Text style={styles.doneText}>Done</Text>
-      </Pressable>
+      {/* Carrying on is the likelier next step, so it takes the accent; leaving is the quiet one. */}
+      <View style={styles.summaryActions}>
+        <TapScale style={styles.backBtn} onPress={onExit}>
+          <Icon name="chevron-left" size={12} color={colors.ink} />
+          <Text style={styles.backText} numberOfLines={1}>
+            Back to studying
+          </Text>
+        </TapScale>
+        {onRestart && (
+          <TapScale style={styles.doneBtn} onPress={onRestart}>
+            <Icon name="rotate-left" size={12} color={colors.ink} />
+            <Text style={styles.doneText} numberOfLines={1}>
+              Keep practising
+            </Text>
+          </TapScale>
+        )}
+      </View>
     </View>
   )
 }
@@ -427,11 +517,11 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     padding: spacing.lg,
   },
   taskScroll: { flex: 1 },
+  taskFill: { flex: 1 },
   taskScrollContent: { flexGrow: 1, justifyContent: 'center' },
   pager: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: spacing.lg },
-  chevron: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  chevSide: { borderWidth: 1.5, borderColor: colors.border },
-  chevNext: { backgroundColor: colors.accent, borderWidth: 1.5, borderColor: colors.accent },
+  // Bare glyphs, matching the system back chevron in the navigation bar: no circle, no fill,
+  // no border. The 46pt box is the tap target, not a visible button.
   lockSlot: { flex: 1 },
   lockBtn: {
     flex: 1,
@@ -448,8 +538,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   verdict: { flex: 1, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   verdictCorrect: { backgroundColor: colors.correctSoft },
   verdictWrong: { backgroundColor: colors.incorrectSoft },
-  verdictKept: { backgroundColor: colors.border },
   verdictText: { fontFamily: fonts.semibold, fontSize: 14 },
+  keepSlot: { height: 24, justifyContent: 'center' },
   keepLink: { alignItems: 'center', paddingVertical: 2, marginTop: -6 },
   keepText: { color: colors.accentInk, fontFamily: fonts.medium, fontSize: 13, textDecorationLine: 'underline' },
   disabled: { opacity: 0.35 },
@@ -471,16 +561,35 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   bar: { height: 9, borderRadius: 999 },
   num: { fontSize: 12, fontWeight: '600', fontVariant: ['tabular-nums'] },
   tag: { color: colors.incorrect, fontFamily: fonts.body, fontSize: 11, textAlign: 'center', marginTop: 4 },
-  doneBtn: {
+  // Full card width, split between the two buttons (each flex: 1 below).
+  summaryActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-end',
+    alignSelf: 'stretch',
+    gap: spacing.sm,
     marginTop: spacing.md,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    paddingVertical: 11,
-    paddingHorizontal: 20,
   },
-  doneText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 15 },
+  /*
+   * Matched shells — same outline, padding and leading icon; only the fill separates them, so the
+   * pair reads as two choices rather than a button next to a link.
+   *
+   * Both `flex: 1` rather than sized by their labels: content-width buttons overflowed the card,
+   * and splitting the row means they fit whatever the wording or the screen.
+   */
+  // Rounded rather than the app's 14pt corner, and a size down on the label: two of them share a
+  // row, and at 17pt the longer wording ran out of width.
+  doneBtn: {
+    ...btnPrimary(colors),
+    flex: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+  },
+  doneText: { ...btnLabel(colors), fontSize: 14 },
+  backBtn: {
+    ...btnSecondary(colors),
+    flex: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+  },
+  backText: { ...btnLabelQuiet(colors), fontSize: 14 },
 })

@@ -12,7 +12,7 @@ import {
 import type { Progress } from '../../../shared/types'
 import { pick, shuffle } from '../random'
 import { streakOf, tracedChars } from './engine'
-import { CONFUSABLE, kanaOf, sameSound, soundOf, soundOfSequence } from './table'
+import { CONFUSABLE, kanaOf, sameSound, scriptOf, soundOf, soundOfSequence } from './table'
 
 /** How a question is answered. */
 export type DrillFormat = 'pick' | 'draw'
@@ -148,6 +148,41 @@ function formatFor(progress: Progress, chars: string[]): DrillFormat {
 }
 
 /**
+ * The traced characters of each script that has enough of them to be practised, keyed by script.
+ *
+ * A script below {@link KANA_PICK_OPTIONS} traced characters is left out entirely rather than asked
+ * about with a short option list: the whole question is "which of these did you hear", and it stops
+ * being a question once there is nothing to choose between.
+ */
+function scriptPools(progress: Progress, only?: (char: string) => boolean): Map<string, string[]> {
+  const byScript = new Map<string, string[]>()
+  for (const c of tracedChars(progress)) {
+    if (only && !only(c)) continue
+    const script = scriptOf(c)
+    byScript.set(script, [...(byScript.get(script) ?? []), c])
+  }
+  for (const [script, chars] of byScript) {
+    if (chars.length < KANA_PICK_OPTIONS) byScript.delete(script)
+  }
+  return byScript
+}
+
+/** Whether any script has enough traced characters to build a run. Gates the practice entry point. */
+export function canDrill(progress: Progress): boolean {
+  return scriptPools(progress).size > 0
+}
+
+/** How many more characters of one script are needed before practice opens. */
+export function tracedToPractise(progress: Progress): number {
+  const counts = new Map<string, number>()
+  for (const c of tracedChars(progress)) {
+    counts.set(scriptOf(c), (counts.get(scriptOf(c)) ?? 0) + 1)
+  }
+  const best = Math.max(0, ...counts.values())
+  return Math.max(0, KANA_PICK_OPTIONS - best)
+}
+
+/**
  * Build one practice run.
  *
  * The pool is every character the learner has traced in the chart — never the whole script — so
@@ -156,16 +191,28 @@ function formatFor(progress: Progress, chars: string[]): DrillFormat {
  * Sequences are random strings of traced characters. They're not built from a word list: any real
  * word that falls out is a bonus, not the goal, and generating them means they work from the moment
  * two characters have been traced.
+ *
+ * **A script needs {@link KANA_PICK_OPTIONS} traced characters before it is practised at all.**
+ * Below that a multiple-choice question can't be filled — with one character studied every question
+ * would offer that one character as its only option, which asks nothing.
+ *
+ * **One script per question.** A run freely mixes hiragana and katakana questions, but within a
+ * single question every character — the answer, the other characters of a sequence, and every
+ * distractor — comes from the same script. Mixing them inside one question asks the learner to
+ * switch alphabet mid-sound, and it makes the options look arbitrary rather than confusable.
  */
 export function buildDrill(
   progress: Progress,
   { count = KANA_DRILL_ITEMS, only }: DrillOptions = {},
 ): DrillItem[] {
-  const pool = tracedChars(progress).filter((c) => (only ? only(c) : true))
+  // Each question draws from one script's pool, never from everything traced — see the note above.
+  const byScript = scriptPools(progress, only)
+  const pool = [...byScript.values()].flat()
   if (pool.length === 0) return []
 
   const weights = new Map(pool.map((c) => [c, weightOf(progress, c)]))
-  const canSequence = pool.length >= KANA_SEQUENCE_MIN_POOL
+  const scriptPool = (char: string) => byScript.get(scriptOf(char)) ?? pool
+  const canSequence = [...byScript.values()].some((p) => p.length >= KANA_SEQUENCE_MIN_POOL)
 
   const items: DrillItem[] = []
   const usedSingles = new Set<string>()
@@ -173,20 +220,25 @@ export function buildDrill(
   for (let n = 0; n < count; n++) {
     const asSequence = canSequence && Math.random() < KANA_SEQUENCE_SHARE
 
-    if (asSequence) {
+    // The script is settled before the first character, so the rest of the sequence can follow it.
+    const seqPool = asSequence
+      ? shuffle([...byScript.values()].filter((p) => p.length >= KANA_SEQUENCE_MIN_POOL))[0]
+      : undefined
+
+    if (seqPool) {
       const len = 2 + Math.floor(Math.random() * (KANA_SEQUENCE_MAX - 1))
       const chars: string[] = []
       for (let i = 0; i < len; i++) {
         // Avoid an immediate repeat (ここ is fine, but ここ from a 2-character pool gets tedious).
-        const candidates = pool.filter((c) => c !== chars[chars.length - 1])
-        chars.push(weightedPick(candidates.length ? candidates : pool, weights))
+        const candidates = seqPool.filter((c) => c !== chars[chars.length - 1])
+        chars.push(weightedPick(candidates.length ? candidates : seqPool, weights))
       }
       const format = formatFor(progress, chars)
       items.push({
         chars,
         target: chars.join(''),
         format,
-        options: format === 'pick' ? buildSequenceOptions(chars, pool) : [],
+        options: format === 'pick' ? buildSequenceOptions(chars, seqPool) : [],
       })
       continue
     }
@@ -202,7 +254,7 @@ export function buildDrill(
       chars: [char],
       target: char,
       format,
-      options: format === 'pick' ? buildOptions(char, pool) : [],
+      options: format === 'pick' ? buildOptions(char, scriptPool(char)) : [],
     })
   }
 

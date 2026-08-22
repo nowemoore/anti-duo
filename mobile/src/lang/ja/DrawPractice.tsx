@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
+import { TapScale } from '../../components/TapScale'
 import type { Unit } from '@shared/types'
 import { DrawCanvas } from '../../components/DrawCanvas'
 import { Icon } from '../../components/Icon'
@@ -8,7 +9,7 @@ import { scoreWord, drawable, traceable, type RawStroke } from './handwriting'
 import { useLearned } from '../../hooks/useLearned'
 import { useAuth } from '../../context/AuthContext'
 import { logTracedAttempt, toTarget } from './drawTarget'
-import { colors, fonts, spacing } from '../../theme'
+import { colors, fonts, btnPrimary, spacing, btnLabel } from '../../theme'
 
 /**
  * Single-unit write practice — the "write" page of the browse-detail view. Freely repeatable:
@@ -97,15 +98,15 @@ export function DrawPractice({ unit }: { unit: Unit }) {
         )}
       </View>
 
-      <Pressable
+      <TapScale
         style={[styles.btn, !revealed && !hasDrawn && styles.disabled]}
         onPress={revealed ? tryAgain : lockIn}
         disabled={!revealed && !hasDrawn}
         accessibilityLabel={revealed ? 'Try again' : 'Lock in your answer'}
       >
-        <Icon name={revealed ? 'rotate-left' : 'lock'} size={15} color={colors.onAccent} />
+        <Icon name={revealed ? 'rotate-left' : 'lock'} size={15} color={colors.ink} />
         <Text style={styles.btnText}>{revealed ? 'Try again' : 'Lock in answer'}</Text>
-      </Pressable>
+      </TapScale>
     </View>
   )
 }
@@ -124,15 +125,9 @@ const styles = StyleSheet.create({
   answerWord: { color: colors.ink, fontSize: 30 },
   answerMeaning: { color: colors.muted, fontFamily: fonts.body, fontSize: 12 },
   btn: {
-    height: 46,
-    borderRadius: 23,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.accent,
+    ...btnPrimary(colors),
     marginTop: spacing.sm,
   },
-  btnText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 14 },
+  btnText: btnLabel(colors),
   disabled: { opacity: 0.35 },
 })

@@ -1,7 +1,8 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
+import { TapScale } from '../TapScale'
 import type { ExplanationExample, ExampleSpan, GrammarTopic, SpanRole } from '@lib/grammar'
 import { Icon } from '../Icon'
-import { fonts, radius, spacing, type Palette } from '../../theme'
+import { fonts, btnPrimary, type Palette, radius, spacing, btnLabel } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 /**
@@ -139,10 +140,10 @@ export function ExplanationLocked({
           : `${attempts} attempt${attempts === 1 ? '' : 's'} so far. Retries are unlimited and reshuffle the items — only your best attempt counts.`}
       </Text>
 
-      <Pressable style={styles.retryBtn} onPress={onRetry}>
-        <Icon name="rotate-left" size={13} color={colors.onAccent} />
+      <TapScale style={styles.retryBtn} onPress={onRetry}>
+        <Icon name="rotate-left" size={13} color={colors.ink} />
         <Text style={styles.retryText}>{attempts === 0 ? 'Go to the game' : 'Try again'}</Text>
-      </Pressable>
+      </TapScale>
     </View>
   )
 }
@@ -208,13 +209,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginBottom: spacing.sm,
   },
   retryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    paddingVertical: 11,
-    paddingHorizontal: spacing.xl,
+    ...btnPrimary(colors),
   },
-  retryText: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 13 },
+  retryText: btnLabel(colors),
 })
