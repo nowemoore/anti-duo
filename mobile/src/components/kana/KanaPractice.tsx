@@ -427,8 +427,18 @@ function Summary({
               <Text style={styles.missedLabel}>Worth another look</Text>
               <View style={styles.missedRow}>
                 {missed.map((char) => (
-                  <TapScale key={char} style={styles.missedChip} onPress={() => play(char)}>
-                    <Text style={styles.missedChar}>{char}</Text>
+                  /* The whole chip plays; the icon is a label, not a nested button. */
+                  <TapScale
+                    key={char}
+                    style={styles.missedChip}
+                    onPress={() => play(char)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Pronounce ${char}`}
+                  >
+                    <View style={styles.missedTop}>
+                      <Text style={styles.missedChar}>{char}</Text>
+                      <Icon name="volume-high" size={11} color={colors.muted} />
+                    </View>
                     <Text style={styles.missedRomaji}>{kanaOf(char)?.romaji ?? ''}</Text>
                   </TapScale>
                 ))}
@@ -597,6 +607,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.accentSoft,
     borderRadius: radius.md,
   },
+  missedTop: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   missedChar: { color: colors.ink, fontSize: 22, lineHeight: 28 },
   missedRomaji: { color: colors.muted, fontFamily: fonts.body, fontSize: 10 },
 })

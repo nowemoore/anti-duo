@@ -8,11 +8,12 @@ import { useProgress } from '../../context/ProgressContext'
 import { useScreenHeader } from '../../context/HeaderContext'
 import { Bilingual } from '../Bilingual'
 import { Icon } from '../Icon'
+import { SpeakButton } from '../SpeakButton'
 import { KanaWordChip } from '../TaskChip'
 import { PagerChevron } from '../PagerChevron'
 import { RevealSpacer } from '../RevealStrip'
 import { Tally } from '../Tally'
-import { useKanaAudio } from './audio'
+import { useWordAudio } from './audio'
 import { fonts, radius, shadow, spacing, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
@@ -43,7 +44,7 @@ export function KanaWordPractice({ onBack }: { onBack: () => void }) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const { progress, update } = useProgress()
-  const play = useKanaAudio()
+  const play = useWordAudio()
   const kanaWords = useContent().content.kanaWords ?? []
 
   const [runId, setRunId] = useState(0)
@@ -158,7 +159,12 @@ export function KanaWordPractice({ onBack }: { onBack: () => void }) {
               <Text style={styles.prompt}>{item.word.gloss[0] ?? ''}</Text>
             </>
           ) : (
-            <Text style={styles.word}>{item.word.word}</Text>
+            /* The word is on screen, so hearing it gives nothing away — and a learner who can read
+               it but has never heard it has only half of it. */
+            <View style={styles.wordRow}>
+              <Text style={styles.word}>{item.word.word}</Text>
+              <SpeakButton text={item.word.word} label={`Pronounce ${item.word.word}`} />
+            </View>
           )}
 
           <Options item={item} answered={answered} onAnswer={resolve} />
@@ -229,15 +235,23 @@ function Options({
             onPress={() => onAnswer(opt.correct, opt.label)}
             accessibilityRole="button"
           >
-            <Text
-              style={[
-                item.format === 'spell' ? styles.optionKanaText : styles.optionLabel,
-                state === 'right' && { color: colors.correct },
-                state === 'wrong' && { color: colors.incorrect },
-              ]}
-            >
-              {opt.label}
-            </Text>
+            <View style={styles.optionRow}>
+              <Text
+                style={[
+                  item.format === 'spell' ? styles.optionKanaText : styles.optionLabel,
+                  state === 'right' && { color: colors.correct },
+                  state === 'wrong' && { color: colors.incorrect },
+                ]}
+              >
+                {opt.label}
+              </Text>
+              {/* Once the answer is out, the word you just placed is the thing you most want to hear
+                  said back. Only on the revealed spelling: before that it would read every option
+                  aloud, and on a meaning question the option is English. */}
+              {state === 'right' && item.format === 'spell' && (
+                <SpeakButton text={opt.label} label={`Pronounce ${opt.label}`} small />
+              )}
+            </View>
           </AnimatedPressable>
         )
       })}
@@ -256,7 +270,7 @@ function Summary({
 }) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
-  const play = useKanaAudio()
+  const play = useWordAudio()
   const right = answers.filter((a) => a.correct).length
 
   /**
@@ -287,8 +301,19 @@ function Summary({
               <Text style={styles.missedLabel}>Worth another look</Text>
               <View style={styles.missedRow}>
                 {missed.map((w: KanaWord) => (
-                  <TapScale key={w.idx} style={styles.missedChip} onPress={() => play(w.word)}>
-                    <Text style={styles.missedWord}>{w.word}</Text>
+                  /* The whole chip plays, so the icon is a label rather than a nested button —
+                     two tap targets one inside the other is worse than none. */
+                  <TapScale
+                    key={w.idx}
+                    style={styles.missedChip}
+                    onPress={() => play(w.word)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Pronounce ${w.word}`}
+                  >
+                    <View style={styles.missedTop}>
+                      <Text style={styles.missedWord}>{w.word}</Text>
+                      <Icon name="volume-high" size={11} color={colors.muted} />
+                    </View>
                     <Text style={styles.missedGloss}>{w.gloss[0] ?? ''}</Text>
                   </TapScale>
                 ))}
@@ -347,6 +372,9 @@ const makeStyles = (colors: Palette) =>
     },
     /** The English cue for a spelling question. */
     prompt: { color: colors.ink, fontFamily: fonts.medium, fontSize: 20, textAlign: 'center' },
+    wordRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+    optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+    missedTop: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     /** The word itself, for a meaning question. */
     word: { color: colors.ink, fontFamily: fonts.medium, fontSize: 40, textAlign: 'center' },
 

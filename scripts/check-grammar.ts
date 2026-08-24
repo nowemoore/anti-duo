@@ -213,9 +213,15 @@ async function main() {
     'no run repeats a (reading, correct) pair',
     new Set(run.map((p) => `${p.item.reading}|${p.item.correct}`)).size === run.length,
   ])
+  // Asserted as a property rather than against a named word: 間に合う used to be the example, then 合
+  // joined the curriculum and the check silently started proving nothing.
+  const isKanjiChar = (c: string) => /[㐀-䶿一-鿿]/.test(c)
+  const offCurriculum = run
+    .flatMap((p) => [...p.item.form].filter(isKanjiChar))
+    .filter((c) => !index.byForm.has(c))
   checks.push([
-    'a word whose kanji are outside the curriculum never appears',
-    !run.some((p) => p.item.form === '間に合う'),
+    `a word whose kanji are outside the curriculum never appears${offCurriculum.length ? ` (saw ${[...new Set(offCurriculum)].join(' ')})` : ''}`,
+    offCurriculum.length === 0,
   ])
 
   // Bank size grows with what the learner knows, and gates below the minimum.

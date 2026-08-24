@@ -22,3 +22,23 @@ export function useKanaAudio(): (char: string) => void {
     [ttsLang],
   )
 }
+
+/**
+ * Plays a whole kana word.
+ *
+ * Separate from {@link useKanaAudio} only in rate: an isolated mora needs slowing down to register,
+ * but a word read at 0.8 sounds laboured and stops matching how it is actually said. 0.95 is the
+ * same rate `SpeakButton` uses everywhere else, so a word sounds the same wherever it is played.
+ *
+ * Shares the swap point: if bundled clips ever replace TTS, both hooks change here.
+ */
+export function useWordAudio(): (word: string) => void {
+  const { ttsLang } = useLanguage()
+  return useCallback(
+    (word: string) => {
+      Speech.stop()
+      Speech.speak(word, { language: ttsLang, rate: 0.95 })
+    },
+    [ttsLang],
+  )
+}
