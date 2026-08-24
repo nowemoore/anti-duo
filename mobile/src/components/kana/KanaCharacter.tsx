@@ -17,7 +17,17 @@ import { DrawCanvas } from '../DrawCanvas'
 import { SpeakButton } from '../SpeakButton'
 import { Icon } from '../Icon'
 import { useKanaAudio } from './audio'
-import { fonts, btnPrimary, type Palette, spacing, btnLabel } from '../../theme'
+import {
+  fonts,
+  btnPrimary,
+  btnSecondary,
+  btnLabel,
+  btnLabelQuiet,
+  radius,
+  shadow,
+  spacing,
+  type Palette,
+} from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 /** Meet it, copy it, then produce it unaided. */
@@ -244,8 +254,30 @@ export function KanaCharacter({
           ? { label: 'Happy with it', icon: 'chevron-right', dim: false, press: check }
           : slide === 'trace'
             ? { label: 'Next', icon: 'chevron-right', dim: false, press: () => goToSlide('own') }
-            : // Back to the trace page for another go; the intro is only listening.
-              { label: 'Try again', icon: 'rotate-left', dim: false, press: () => goToSlide('trace') }
+            : next
+              ? // The character is already recorded by the time this page is answered, so the flow
+                // ends by moving on rather than by stopping. Swiping did this already; it just was
+                // never visible as an option.
+                {
+                  label: 'Next character',
+                  icon: 'chevron-right',
+                  dim: false,
+                  press: () => switchTo(next, 'intro'),
+                }
+              : // Last character of the script — nowhere forward to go, so another go it is.
+                { label: 'Try again', icon: 'rotate-left', dim: false, press: () => goToSlide('trace') }
+
+  /**
+   * The quiet second action, on the finished page of the character you are actually on.
+   *
+   * Retrying used to be the only thing offered at the end, which read as "that didn't count" when in
+   * fact the character was already recorded. Demoting it and putting moving-on in the primary slot
+   * says the opposite without taking the retry away.
+   */
+  const secondary: Action | null =
+    slide === 'own' && hasInk && !(canGrade && !verdict) && next
+      ? { label: 'Try again', icon: 'rotate-left', dim: false, press: () => goToSlide('trace') }
+      : null
 
   /**
    * Every page draws a button, not just the one you're on — otherwise the incoming page carries a
@@ -289,70 +321,89 @@ export function KanaCharacter({
           >
             {pages.map((p) => (
               <View key={`${p.char}-${p.slide}`} style={[pageStyle, styles.page]}>
-                {/* Equal flex above and below the label put it exactly halfway between the progress
-                    dots and the content. A centred flex:1 content area can't do this: growing the
-                    label's own height pushes the content down just as fast, so the two gaps never
-                    even out. */}
+                {/* Free space above the card and twice as much below, which sits it a little above
+                    centre — where the canvas wants to be for a thumb. */}
                 <View style={styles.gap} />
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>{LABEL[p.slide]}</Text>
-                  <SpeakButton text={p.char} label="Play the sound again" small />
-                </View>
-                <View style={styles.gap} />
+                {/* The card, as on every other study screen. One per page rather than one behind
+                    the pager, so the cards slide with the characters instead of the content
+                    sliding inside a fixed frame. */}
+                <View style={styles.card}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>{LABEL[p.slide]}</Text>
+                    <SpeakButton text={p.char} label="Play the sound again" small />
+                  </View>
 
-                <View style={styles.contentArea}>
-                  {p.slide === 'intro' ? (
-                    // Same box the canvas occupies on the other two pages, so every page has
-                    // identical geometry and the instruction above never shifts as you swipe.
-                    <View style={styles.introBox}>
-                      <Text style={styles.glyph}>{p.char}</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.canvas}>
-                      {/* Sentinel pages get no canvas: you're only passing through them. */}
-                      {!p.sentinel && (
-                        <DrawCanvas
-                          key={`${p.char}-${p.slide}`}
-                          guide={p.slide === 'trace' ? p.char : undefined}
-                          status={p.slide === slide ? (verdict ?? undefined) : undefined}
-                          onChange={onCanvasChange}
-                          onDrawingChange={setDrawing}
-                          onStrokes={(s) => {
-                            strokesRef.current = s
-                          }}
+                  <View style={styles.contentArea}>
+                    {p.slide === 'intro' ? (
+                      // Same box the canvas occupies on the other two pages, so every page has
+                      // identical geometry and the instruction above never shifts as you swipe.
+                      <View style={styles.introBox}>
+                        <Text style={styles.glyph}>{p.char}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.canvas}>
+                        {/* Sentinel pages get no canvas: you're only passing through them. */}
+                        {!p.sentinel && (
+                          <DrawCanvas
+                            key={`${p.char}-${p.slide}`}
+                            guide={p.slide === 'trace' ? p.char : undefined}
+                            status={p.slide === slide ? (verdict ?? undefined) : undefined}
+                            onChange={onCanvasChange}
+                            onDrawingChange={setDrawing}
+                            onStrokes={(s) => {
+                              strokesRef.current = s
+                            }}
+                          />
+                        )}
+                      </View>
+                    )}
+
+                    {/* Fixed-height slot directly under the canvas, so the mark appearing doesn't
+                        shift anything. The colour of the surface carries the message; this is just
+                        the confirmation. */}
+                    <View style={styles.markRow}>
+                      {!p.sentinel && p.slide === slide && verdict && (
+                        <Icon
+                          name={verdict === 'right' ? 'check' : 'xmark'}
+                          size={16}
+                          color={verdict === 'right' ? colors.correct : colors.incorrect}
                         />
                       )}
                     </View>
-                  )}
 
-                  {/* Fixed-height slot directly under the canvas, so the mark appearing doesn't
-                      shift anything. The colour of the surface carries the message; this is just
-                      the confirmation. */}
-                  <View style={styles.markRow}>
-                    {!p.sentinel && p.slide === slide && verdict && (
-                      <Icon
-                        name={verdict === 'right' ? 'check' : 'xmark'}
-                        size={16}
-                        color={verdict === 'right' ? colors.correct : colors.incorrect}
-                      />
-                    )}
+                    {/* The action lives inside the page, directly beneath the mark. */}
+                    {(() => {
+                      const action = actionFor(p)
+                      const second = !p.sentinel && p.slide === slide ? secondary : null
+                      return (
+                        <View style={styles.actionRow}>
+                          {second && (
+                            <TapScale
+                              style={styles.secondaryBtn}
+                              onPress={second.press ?? undefined}
+                              accessibilityRole="button"
+                            >
+                              <Icon name={second.icon} size={13} color={colors.ink} />
+                              <Text style={styles.secondaryText}>{second.label}</Text>
+                            </TapScale>
+                          )}
+                          <TapScale
+                            style={[
+                              styles.primaryBtn,
+                              second && styles.primaryShared,
+                              action.dim && styles.primaryOff,
+                            ]}
+                            disabled={!action.press}
+                            onPress={action.press ?? undefined}
+                            accessibilityRole="button"
+                          >
+                            <Text style={styles.primaryText}>{action.label}</Text>
+                            {!action.dim && <Icon name={action.icon} size={13} color={colors.ink} />}
+                          </TapScale>
+                        </View>
+                      )
+                    })()}
                   </View>
-
-                  {/* The action lives inside the page, directly beneath the mark. */}
-                  {(() => {
-                    const action = actionFor(p)
-                    return (
-                      <TapScale
-                        style={[styles.primaryBtn, action.dim && styles.primaryOff]}
-                        disabled={!action.press}
-                        onPress={action.press ?? undefined}
-                        accessibilityRole="button"
-                      >
-                        <Text style={styles.primaryText}>{action.label}</Text>
-                        {!action.dim && <Icon name={action.icon} size={13} color={colors.ink} />}
-                      </TapScale>
-                    )
-                  })()}
                 </View>
 
                 {/* Balances the two gaps above, leaving the canvas around the middle of the page. */}
@@ -378,6 +429,25 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   pager: { flex: 1 },
   page: {},
   /**
+   * Matches the practice cards: same shell, same corner, same shadow.
+   *
+   * Its horizontal padding stays small and the canvas keeps most of its own margin, because those
+   * side strips are load-bearing — see {@link canvas}. Card inset plus canvas margin comes to what
+   * the canvas had on its own before, so the area a swipe can start in is unchanged.
+   */
+  card: {
+    marginHorizontal: spacing.sm,
+    paddingVertical: spacing.lg,
+    // Owns the space between the instruction and the canvas: a flex spacer would collapse here,
+    // since the card is sized by its content rather than filling the page.
+    gap: spacing.lg,
+    backgroundColor: colors.panel,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow,
+  },
+  /**
    * Free space is split above the instruction, between it and the content, and below the button —
    * which leaves the canvas around the middle of the page with its button tucked underneath, and
    * keeps the two gaps around the instruction equal to each other.
@@ -395,17 +465,26 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
    * gesture (it has to — こ, に and ー are horizontal strokes a pager would otherwise eat), so these
    * strips, plus the label row above and the space around the canvas, are where a swipe can begin.
    */
-  canvas: { height: 230, marginHorizontal: spacing.xl },
+  canvas: { height: 230, marginHorizontal: spacing.lg },
   introBox: { height: 230, justifyContent: 'center' },
   glyph: { color: colors.ink, fontSize: 104, lineHeight: 120, textAlign: 'center' },
 
   markRow: { alignItems: 'center', justifyContent: 'center', minHeight: 24 },
 
-  // Directly under the check mark, inside the page — not pinned to the foot of the screen.
-  primaryBtn: {
-    ...btnPrimary(colors),
-    marginHorizontal: spacing.xl,
+  // Directly under the check mark, inside the card — not pinned to the foot of the screen.
+  actionRow: { flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg },
+  primaryBtn: { ...btnPrimary(colors), marginHorizontal: spacing.xl, flex: 1 },
+  /** Sharing the row with a retry: the outer margin belongs to the row, not to each button. */
+  primaryShared: { marginHorizontal: 0 },
+  secondaryBtn: {
+    ...btnSecondary(colors),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    flex: 1,
   },
+  secondaryText: btnLabelQuiet(colors),
   primaryOff: { opacity: 0.3 },
   primaryText: btnLabel(colors),
 })
