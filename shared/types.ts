@@ -11,6 +11,14 @@
 
 /** A dictionary word: surface form, reading, meaning. */
 export interface Word {
+  /**
+   * Registry id (ja_words.csv `idx`), stable across edits. Absent for languages with no word
+   * registry — Arabic still builds its Words inline.
+   *
+   * A surface is not an identity: 木 is two entries (き "tree", もく "wood"), as are 十分, 中, 国 and
+   * 家. Referring to a word by its written form would silently merge those pairs.
+   */
+  idx?: number
   word: string
   reading: string
   meaning: string
@@ -27,6 +35,12 @@ export interface Word {
    * feeds the Learn card and the task builders, so releasing a word reveals it in both at once.
    */
   batch?: number
+  /**
+   * Other readings of the same written form, accepted when the learner types one. Populated by the
+   * loader from the registry's sibling entries: 木 is either き or もく, and a learner who writes the
+   * one this card didn't happen to pick has not made a mistake.
+   */
+  accept?: string[]
   /** Language-specific fields (e.g. Arabic `voweled`, `plural`) — read only by the language pack. */
   extra?: Record<string, unknown>
 }
@@ -49,6 +63,37 @@ export interface Unit {
   distractors: Word[]
   /** Language-specific fields (e.g. Arabic `batchesReleased`) — read only by the language pack. */
   extra?: Record<string, unknown>
+}
+
+/**
+ * A vocabulary item written in kana rather than kanji — パン, りんご, ある.
+ *
+ * Kept separate from {@link Unit} because the thing being learned is different in kind: a Unit is a
+ * *character* with a reading and a stroke order, while this is a *word* whose characters the learner
+ * already knows individually. It has no level and no place in the kanji teaching order; it becomes
+ * available the moment every character in it has been traced.
+ */
+export interface KanaWord {
+  idx: number
+  /** The word as written. */
+  word: string
+  /** The script it is written in — a word is never mixed. */
+  script: 'hiragana' | 'katakana'
+  /** Author-defined release tier, as for units. */
+  batch: number
+  category: string
+  /** English meanings. */
+  gloss: string[]
+  /** Usage examples: the word in a short phrase. */
+  examples: Word[]
+  /**
+   * Near-miss *spellings* of this word (パーン for パン), not other words. That makes them exactly
+   * the right options for a "which spelling is right" question, where the mistake being tested is
+   * long vowels, small kana and voicing marks.
+   */
+  distractors: Word[]
+  /** A kanji spelling that exists but isn't normally used (有る for ある). Absent when there is none. */
+  rareKanji?: string
 }
 
 /** A particle/scaffold token — standalone grammar; always rendered verbatim, never blanked. */
@@ -90,6 +135,8 @@ export interface Content {
   lang?: string
   units: Unit[]
   sentences: Sentence[]
+  /** Words written in kana. Absent for languages with no kana course. */
+  kanaWords?: KanaWord[]
   /** Per-character English meaning, for every char used by the curriculum, its example words,
    *  radical, or components. Powers per-character look-up glosses. (JA breakdown data.) */
   kanjiMeanings: Record<string, string>
@@ -128,6 +175,15 @@ export interface UnitProgress {
    * by opening the unit's card again, so it reads as a prompt rather than a permanent label.
    */
   seenBatches?: number
+  /**
+   * ISO timestamp of the last answered question targeting this unit. Absent until the unit is first
+   * practised.
+   *
+   * Lives here rather than only in the server-side answer log because it is needed synchronously and
+   * offline: it stamps `prev_seen_at` on each logged answer (so the gap between reviews is on the row
+   * itself), and it is what a review scheduler would read to decide what is due.
+   */
+  lastSeenAt?: string
 }
 
 /**

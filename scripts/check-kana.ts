@@ -6,7 +6,10 @@ import {
   KANA_PICK_OPTIONS,
   KANA_SEQUENCE_MAX,
   KANA_RECALL_STREAK,
+  KANA_WORD_OPTIONS,
+  KANA_WORD_SPELL_STREAK,
 } from '../shared/constants'
+import { loadContent } from '../server/content'
 import { normalizeProgress } from '../shared/progress'
 import type { Progress } from '../shared/types'
 import {
@@ -14,6 +17,11 @@ import {
   allKana,
   buildDrill,
   buildOptions,
+  buildWordDrill,
+  canPractiseWords,
+  formatForWord,
+  charsOf as wordCharsOf,
+  readableWords,
   buildSequenceOptions,
   canDrill,
   charsOfScript,
@@ -335,6 +343,88 @@ checks.push([
 checks.push([
   'a traced character this build does not know is preserved',
   dirty.kana?.traced['𠮷'] !== undefined,
+])
+
+// --- word practice --------------------------------------------------------
+// The load-bearing rule: a word is only ever served once every chart entry in it has been traced.
+
+const kanaWords = (await loadContent()).kanaWords
+const NOW = '2026-01-01T00:00:00.000Z'
+
+// Nothing traced: no word is readable and practice stays shut.
+const blank = defaultProgress()
+checks.push(['no traced characters → no readable words', readableWords(blank, kanaWords).length === 0])
+checks.push(['no traced characters → word practice is closed', !canPractiseWords(blank, kanaWords)])
+checks.push(['no traced characters → an empty run', buildWordDrill(blank, kanaWords).length === 0])
+
+// Trace one script fully; every word offered must be made only of traced characters.
+let hira: Progress = defaultProgress()
+for (const c of charsOfScript(hiragana)) hira = markTraced(hira, c, NOW)
+const hiraReadable = readableWords(hira, kanaWords)
+checks.push([
+  `hiragana traced → only readable words offered (${hiraReadable.length})`,
+  hiraReadable.length > 0 &&
+    hiraReadable.every((w) => wordCharsOf(w.word).every((c) => isTraced(hira, c))),
+])
+checks.push([
+  'a katakana word is never offered to a hiragana-only learner',
+  hiraReadable.every((w) => w.script === 'hiragana'),
+])
+
+// The strong claim: across a full run, every character of every question is one the learner traced.
+const run = buildWordDrill(hira, kanaWords, { count: 40 })
+checks.push([`a run fills to the requested length (${run.length})`, run.length === 40])
+checks.push([
+  'every character of every question was traced',
+  run.every((it) => wordCharsOf(it.word.word).every((c) => isTraced(hira, c))),
+])
+checks.push([
+  'every question has exactly one correct option',
+  run.every((it) => it.options.filter((o) => o.correct).length === 1),
+])
+checks.push([
+  'no question repeats an option',
+  run.every((it) => new Set(it.options.map((o) => o.label)).size === it.options.length),
+])
+checks.push([
+  'options are filled to the option count',
+  run.every((it) => it.options.length === KANA_WORD_OPTIONS),
+])
+
+// Format flips with the weakest character, not the strongest — a word is as weak as its worst glyph.
+const oneWord = hiraReadable[0]
+let weak: Progress = hira
+for (const c of wordCharsOf(oneWord.word)) weak = recordResult(weak, [c], true)
+const strong = (() => {
+  let p: Progress = hira
+  for (let i = 0; i < KANA_WORD_SPELL_STREAK + 2; i++) {
+    for (const c of wordCharsOf(oneWord.word)) p = recordResult(p, [c], true)
+  }
+  return p
+})()
+const fmt = (p: Progress) => formatForWord(p, oneWord)
+checks.push(['a new word is asked meaning-first', fmt(hira) === 'meaning'])
+checks.push(['a well-known word is asked spelling-first', fmt(strong) === 'spell'])
+checks.push(['one correct answer is not enough to flip to spelling', fmt(weak) === 'meaning'])
+
+// Yōon are single chart entries: キャベツ is キャ·ベ·ツ, and ー / small kana are skipped.
+checks.push(['yōon tokenise as one entry', wordCharsOf('キャベツ').join('|') === 'キャ|ベ|ツ'])
+checks.push(['the long mark is not required', wordCharsOf('コーヒー').join('|') === 'コ|ヒ'])
+checks.push(['the small tsu is not required', !wordCharsOf('ショッピングモール').includes('ッ')])
+checks.push([
+  'every authored word tokenises to at least one chart entry',
+  kanaWords.every((w) => wordCharsOf(w.word).length > 0),
+])
+
+// A tiny pool must not produce a question that offers its own answer as the only option.
+const tinyPool = kanaWords.slice(0, KANA_WORD_OPTIONS - 1)
+let tinyProgress: Progress = defaultProgress()
+for (const w of tinyPool) {
+  for (const c of wordCharsOf(w.word)) tinyProgress = markTraced(tinyProgress, c, NOW)
+}
+checks.push([
+  'a pool below the option count does not open practice',
+  buildWordDrill(tinyProgress, tinyPool).length === 0,
 ])
 
 // --- report -----------------------------------------------------------------

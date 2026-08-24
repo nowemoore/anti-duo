@@ -12,8 +12,9 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true })
 
   // Japanese — the web app + server share this exact payload (content.json, no lang field → defaults to ja).
-  const { units, sentences, kanjiMeanings, kanjiRadicals, kanjiComponents } = await getContent()
-  const ja = { units, sentences, kanjiMeanings, kanjiRadicals, kanjiComponents }
+  const { units, sentences, kanaWords, kanjiMeanings, kanjiRadicals, kanjiComponents } =
+    await getContent()
+  const ja = { units, sentences, kanaWords, kanjiMeanings, kanjiRadicals, kanjiComponents }
   await writeFile(new URL('content.json', OUT_DIR), JSON.stringify(ja), 'utf8')
 
   // Arabic — mobile-only for now (content.ar.json).
@@ -21,7 +22,7 @@ async function main() {
   await writeFile(new URL('content.ar.json', OUT_DIR), JSON.stringify(ar), 'utf8')
 
   console.log(
-    `[gen:content] wrote ja: ${units.length} units, ${sentences.length} sentences → public/content.json`,
+    `[gen:content] wrote ja: ${units.length} units, ${sentences.length} sentences, ${kanaWords.length} kana words → public/content.json`,
   )
   console.log(
     `[gen:content] wrote ar: ${ar.units.length} units, ${ar.sentences.length} sentences → public/content.ar.json`,

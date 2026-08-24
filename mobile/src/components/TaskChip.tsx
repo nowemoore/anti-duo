@@ -1,6 +1,6 @@
 import { Alert, Text, StyleSheet } from 'react-native'
 import type { IconName } from '@fortawesome/fontawesome-svg-core'
-import type { DrillFormat } from '@lib/kana'
+import type { DrillFormat, WordFormat } from '@lib/kana'
 import type { TaskType } from '@lib/tasks'
 import { Icon } from './Icon'
 import { TapScale } from './TapScale'
@@ -98,6 +98,25 @@ const KANA_TASKS: Record<DrillFormat, { icon: IconName; label: string; blurb: st
 /** The kana drill's chip. Same control as {@link TaskChip}, keyed by question shape rather than task. */
 export function KanaChip({ format }: { format: DrillFormat }) {
   return <Chip {...KANA_TASKS[format]} />
+}
+
+/** The same, for kana *word* practice — reading whole words rather than single characters. */
+const KANA_WORD_TASKS: Record<WordFormat, { icon: IconName; label: string; blurb: string }> = {
+  spell: {
+    icon: 'ear-listen',
+    label: 'Pick the spelling',
+    blurb:
+      'A word plays and its meaning is shown. Pick the option that spells it correctly — the wrong ones differ only in long vowels, small kana or voicing marks.',
+  },
+  meaning: {
+    icon: 'bullseye',
+    label: 'Pick the meaning',
+    blurb: 'A word written in kana is shown. Choose what it means.',
+  },
+}
+
+export function KanaWordChip({ format }: { format: WordFormat }) {
+  return <Chip {...KANA_WORD_TASKS[format]} />
 }
 
 /**

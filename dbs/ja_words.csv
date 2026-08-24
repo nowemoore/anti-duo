@@ -1,0 +1,854 @@
+idx,word,reading,meaning,tags,kanji_idxs,retired
+1,一,いち,one,[],[1],false
+2,一つ,ひとつ,one thing,[],[1],false
+3,一人,ひとり,one person,[],"[1, 30]",false
+4,一月,いちがつ,January,[],"[1, 15]",false
+5,一日,ついたち,1st of month,[],[1],false
+6,一年,いちねん,one year,[],[1],false
+7,一時,いちじ,1 o'clock,[],"[1, 22]",false
+8,二,に,two,[],[2],false
+9,二つ,ふたつ,two things,[],[2],false
+10,二人,ふたり,two people,[],"[2, 30]",false
+11,二月,にがつ,February,[],[2],false
+12,二日,ふつか,2nd of month,[],[2],false
+13,二時,にじ,2 o'clock,[],[2],false
+14,二年,にねん,two years,[],[2],false
+15,三,さん,three,[],[3],false
+16,三つ,みっつ,three things,[],[3],false
+17,三人,さんにん,three people,[],[3],false
+18,三月,さんがつ,March,[],[3],false
+19,三日,みっか,3rd of month,[],[3],false
+20,三時,さんじ,3 o'clock,[],[3],false
+21,四,し,four,[],[4],false
+22,四つ,よっつ,four things,[],[4],false
+23,四人,よにん,four people,[],[4],false
+24,四月,しがつ,April,[],[4],false
+25,四日,よっか,4th of month,[],[4],false
+26,四時,よじ,4 o'clock,[],[4],false
+27,五,ご,five,[],[5],false
+28,五つ,いつつ,five things,[],[5],false
+29,五人,ごにん,five people,[],[5],false
+30,五月,ごがつ,May,[],[5],false
+31,五日,いつか,5th of month,[],[5],false
+32,五時,ごじ,5 o'clock,[],[5],false
+33,五年,ごねん,five years,[],[5],false
+34,六,ろく,six,[],[6],false
+35,六つ,むっつ,six things,[],[6],false
+36,六人,ろくにん,six people,[],[6],false
+37,六月,ろくがつ,June,[],[6],false
+38,六日,むいか,6th of month,[],[6],false
+39,六時,ろくじ,6 o'clock,[],[6],false
+40,七,なな,seven,[],[7],false
+41,七つ,ななつ,seven things,[],[7],false
+42,七人,しちにん,seven people,[],[7],false
+43,七月,しちがつ,July,[],[7],false
+44,七日,なのか,7th of month,[],[7],false
+45,七時,しちじ,7 o'clock,[],[7],false
+46,八,はち,eight,[],[8],false
+47,八つ,やっつ,eight things,[],[8],false
+48,八人,はちにん,eight people,[],[8],false
+49,八月,はちがつ,August,[],[8],false
+50,八日,ようか,8th of month,[],[8],false
+51,八時,はちじ,8 o'clock,[],[8],false
+52,九,きゅう,nine,[],[9],false
+53,九つ,ここのつ,nine things,[],[9],false
+54,九人,きゅうにん,nine people,[],[9],false
+55,九月,くがつ,September,[],[9],false
+56,九日,ここのか,9th of month,[],[9],false
+57,九時,くじ,9 o'clock,[],[9],false
+58,十,じゅう,ten,[],[10],false
+59,十人,じゅうにん,ten people,[],[10],false
+60,十月,じゅうがつ,October,[],[10],false
+61,十日,とおか,10th of month,[],[10],false
+62,十時,じゅうじ,10 o'clock,[],[10],false
+63,十分,じゅっぷん,ten minutes,[],[10],false
+64,百,ひゃく,hundred,[],[11],false
+65,百円,ひゃくえん,100 yen,[],"[11, 72]",false
+66,百年,ひゃくねん,100 years,[],[11],false
+67,百人,ひゃくにん,100 people,[],[11],false
+68,三百,さんびゃく,300,[],[11],false
+69,八百,はっぴゃく,800,[],[11],false
+70,千,せん,thousand,[],[12],false
+71,千円,せんえん,1000 yen,[],"[12, 72]",false
+72,千年,せんねん,1000 years,[],[12],false
+73,千人,せんにん,1000 people,[],[12],false
+74,三千,さんぜん,3000,[],[12],false
+75,千葉,ちば,Chiba,[],[12],false
+76,万,まん,ten thousand,[],[13],false
+77,一万,いちまん,10000,[],[13],false
+78,百万,ひゃくまん,million,[],[13],false
+79,万人,ばんにん,all people,[],[13],false
+80,日,ひ,day/sun,[],[14],false
+81,日本,にほん,Japan,[],"[14, 71]",false
+82,毎日,まいにち,every day,[],"[14, 28]",false
+83,日曜日,にちようび,Sunday,[],[14],false
+84,今日,きょう,today,[],"[14, 24]",false
+85,休日,きゅうじつ,holiday,[],"[14, 151]",false
+86,月,つき,moon/month,[],[15],false
+87,月曜日,げつようび,Monday,[],[15],false
+88,今月,こんげつ,this month,[],"[15, 24]",false
+89,毎月,まいつき,every month,[],"[15, 28]",false
+90,月見,つきみ,moon viewing,[],[15],false
+91,火,ひ,fire,[],[16],false
+92,火曜日,かようび,Tuesday,[],"[16, 29]",false
+93,花火,はなび,fireworks,[],"[16, 284]",false
+94,火山,かざん,volcano,[],"[16, 45]",false
+95,火事,かじ,fire/blaze,[],[16],false
+96,水,みず,water,[],[17],false
+97,水曜日,すいようび,Wednesday,[],[17],false
+98,水道,すいどう,water supply,[],"[17, 49]",false
+99,お水,おみず,water (polite),[],[17],false
+100,水中,すいちゅう,underwater,[],[17],false
+101,木,き,tree,[],[18],false
+102,木,もく,wood,[],[18],false
+103,木曜日,もくようび,Thursday,[],[18],false
+104,大木,たいぼく,big tree,[],[18],false
+105,金,かね,money,[],[19],false
+106,金曜日,きんようび,Friday,[],[19],false
+107,お金,おかね,money,[],[19],false
+108,金魚,きんぎょ,goldfish,[],"[19, 81]",false
+109,料金,りょうきん,fee,[],"[19, 254]",false
+110,土,つち,soil,[],[20],false
+111,土曜日,どようび,Saturday,[],"[20, 29]",false
+112,土地,とち,land,[],"[20, 226]",false
+113,土曜,どよう,Saturday,[],[20],false
+114,年,とし,year/age,[],[21],false
+115,今年,ことし,this year,[],"[21, 24]",false
+116,毎年,まいとし,every year,[],"[21, 28]",false
+117,年間,ねんかん,yearly,[],[21],false
+118,少年,しょうねん,boy,[],"[21, 76]",false
+119,時,とき,time,[],[22],false
+120,時間,じかん,time/hour,[],"[22, 26]",false
+121,時計,とけい,clock,[],"[22, 291]",false
+122,時々,ときどき,sometimes,[],[22],false
+123,自分,じぶん,oneself,[],"[23, 264]",false
+124,半分,はんぶん,half,[],"[23, 25]",false
+125,十分,じゅうぶん,enough,[],[23],false
+126,分かる,わかる,to understand,"[""u-verb""]",[23],false
+127,気分,きぶん,mood,[],"[23, 148]",false
+128,今,いま,now,[],[24],false
+129,今週,こんしゅう,this week,[],"[24, 27]",false
+130,半年,はんとし,half year,[],[25],false
+131,一時半,いちじはん,1:30,[],[25],false
+132,半日,はんにち,half day,[],[25],false
+133,間,あいだ,interval,[],[26],false
+134,人間,にんげん,human,[],[26],false
+135,週間,しゅうかん,week,[],[26],false
+136,間に合う,まにあう,to be in time,"[""u-verb""]",[26],false
+137,来週,らいしゅう,next week,[],"[27, 55]",false
+138,毎週,まいしゅう,every week,[],"[27, 28]",false
+139,先週,せんしゅう,last week,[],"[27, 146]",false
+140,毎朝,まいあさ,every morning,[],"[28, 162]",false
+141,曜日,ようび,day of week,[],[29],false
+142,月曜,げつよう,Monday,[],[29],false
+143,日曜,にちよう,Sunday,[],[29],false
+144,人,ひと,person,[],[30],false
+145,日本人,にほんじん,Japanese person,[],[30],false
+146,大人,おとな,adult,[],"[30, 42]",false
+147,人気,にんき,popularity,[],"[30, 148]",false
+148,私,わたし,I/me,[],[31],false
+149,私立,しりつ,private (school),[],"[31, 67]",false
+150,私たち,わたしたち,we,[],[31],false
+151,私服,しふく,plain clothes,[],[31],false
+152,男,おとこ,man,[],[32],false
+153,男の子,おとこのこ,boy,[],"[32, 34]",false
+154,長男,ちょうなん,eldest son,[],"[32, 77]",false
+155,男女,だんじょ,men and women,[],[32],false
+156,女,おんな,woman,[],[33],false
+157,女の子,おんなのこ,girl,[],"[33, 34]",false
+158,彼女,かのじょ,she/girlfriend,[],"[33, 273]",false
+159,少女,しょうじょ,young girl,[],"[33, 76]",false
+160,子,こ,child,[],[34],false
+161,子供,こども,child,[],"[34, 267]",false
+162,名前,なまえ,name,[],"[35, 144]",false
+163,有名,ゆうめい,famous,[],"[35, 221]",false
+164,名人,めいじん,master/expert,[],[35],false
+165,名古屋,なごや,Nagoya,[],[35],false
+166,友,とも,friend,[],[36],false
+167,友達,ともだち,friend,[],"[36, 256]",false
+168,親友,しんゆう,best friend,[],[36],false
+169,友人,ゆうじん,friend,[],[36],false
+170,学友,がくゆう,schoolmate,[],[36],false
+171,父,ちち,father,[],[37],false
+172,お父さん,おとうさん,dad,[],[37],false
+173,父親,ちちおや,father,[],[37],false
+174,祖父,そふ,grandfather,[],"[37, 281]",false
+175,母,はは,mother,[],[38],false
+176,お母さん,おかあさん,mom,[],[38],false
+177,母親,ははおや,mother,[],"[38, 270]",false
+178,祖母,そぼ,grandmother,[],"[38, 281]",false
+179,上,うえ,up/above,[],[39],false
+180,上手,じょうず,skillful,[],"[39, 100]",false
+181,上着,うわぎ,jacket,[],"[39, 186]",false
+182,以上,いじょう,more than,[],"[39, 216]",false
+183,上がる,あがる,to rise,"[""u-verb""]",[39],false
+184,下,した,below,[],[40],false
+185,下手,へた,unskillful,[],"[40, 100]",false
+186,地下,ちか,underground,[],[40],false
+187,以下,いか,less than,[],"[40, 216]",false
+188,下がる,さがる,to go down,"[""u-verb""]",[40],false
+189,中,なか,inside,[],[41],false
+190,中,ちゅう,middle,[],[41],false
+191,中学,ちゅうがく,middle school,[],[41],false
+192,中国,ちゅうごく,China,[],"[41, 44]",false
+193,一日中,いちにちじゅう,all day,[],[41],false
+194,真ん中,まんなか,center,[],"[41, 220]",false
+195,大きい,おおきい,big,[],[42],false
+196,大学,だいがく,university,[],"[42, 96]",false
+197,大好き,だいすき,love,[],"[42, 78]",false
+198,小さい,ちいさい,small,[],[43],false
+199,小学校,しょうがっこう,elementary,[],[43],false
+200,小学生,しょうがくせい,elem. student,[],[43],false
+201,小川,おがわ,stream,[],"[43, 46]",false
+202,小説,しょうせつ,novel,[],"[43, 287]",false
+203,国,くに,country,[],[44],false
+204,国,こく,nation,[],[44],false
+205,外国,がいこく,foreign country,[],"[44, 52]",false
+206,国語,こくご,national language,[],[44],false
+207,山,やま,mountain,[],[45],false
+208,山田,やまだ,Yamada (name),[],"[45, 240]",false
+209,川,かわ,river,[],[46],false
+210,川口,かわぐち,Kawaguchi,[],[46],false
+211,駅,えき,station,[],[47],false
+212,駅前,えきまえ,front of station,[],"[47, 144]",false
+213,東京駅,とうきょうえき,Tokyo Station,[],[47],false
+214,駅員,えきいん,station staff,[],"[47, 260]",false
+215,町,まち,town,[],[48],false
+216,町長,ちょうちょう,town mayor,[],[48],false
+217,下町,したまち,downtown,[],[48],false
+218,町内,ちょうない,neighborhood,[],[48],false
+219,道,みち,road,[],[49],false
+220,北海道,ほっかいどう,Hokkaido,[],"[49, 143, 245]",false
+221,店,みせ,shop,[],[50],false
+222,お店,おみせ,store,[],[50],false
+223,店員,てんいん,clerk,[],"[50, 260]",false
+224,書店,しょてん,bookstore,[],[50],false
+225,店長,てんちょう,store manager,[],[50],false
+226,家,いえ,house,[],[51],false
+227,家,うち,home,[],[51],false
+228,家族,かぞく,family,[],"[51, 274]",false
+229,作家,さっか,author,[],"[51, 174]",false
+230,外,そと,outside,[],[52],false
+231,外国人,がいこくじん,foreigner,[],[52],false
+232,海外,かいがい,overseas,[],"[52, 245]",false
+233,以外,いがい,except,[],"[52, 216]",false
+234,内,うち,inside,[],[53],false
+235,国内,こくない,domestic,[],[53],false
+236,以内,いない,within,[],[53],false
+237,行く,いく,to go,"[""u-verb""]",[54],false
+238,旅行,りょこう,travel,[],"[54, 262]",false
+239,銀行,ぎんこう,bank,[],"[54, 120]",false
+240,行う,おこなう,to carry out,"[""u-verb""]",[54],false
+241,行動,こうどう,action,[],[54],false
+242,来る,くる,to come,"[""irregular-verb""]",[55],false
+243,来年,らいねん,next year,[],[55],false
+244,来月,らいげつ,next month,[],[55],false
+245,見る,みる,to see,"[""ru-verb""]",[56],false
+246,見せる,みせる,to show,"[""ru-verb""]",[56],false
+247,意見,いけん,opinion,[],"[56, 218]",false
+248,花見,はなみ,flower viewing,[],"[56, 284]",false
+249,発見,はっけん,discovery,[],[56],false
+250,食べる,たべる,to eat,"[""ru-verb""]",[57],false
+251,食事,しょくじ,meal,[],"[57, 122]",false
+252,食堂,しょくどう,cafeteria,[],"[57, 241]",false
+253,朝食,ちょうしょく,breakfast,[],[57],false
+254,飲む,のむ,to drink,"[""u-verb""]",[58],false
+255,飲み物,のみもの,beverage,[],[58],false
+256,飲料,いんりょう,beverage,[],[58],false
+257,飲食,いんしょく,food and drink,[],[58],false
+258,言う,いう,to say,"[""u-verb""]",[59],false
+259,言葉,ことば,word,[],"[59, 265]",false
+260,方言,ほうげん,dialect,[],[59],false
+261,言語,げんご,language,[],[59],false
+262,出る,でる,to exit,"[""ru-verb""]",[60],false
+263,出す,だす,to take out,"[""u-verb""]",[60],false
+264,出口,でぐち,exit,[],"[60, 157]",false
+265,外出,がいしゅつ,going out,[],[60],false
+266,出発,しゅっぱつ,departure,[],"[60, 251]",false
+267,入る,はいる,to enter,"[""u-verb""]",[61],false
+268,入れる,いれる,to put in,"[""ru-verb""]",[61],false
+269,入口,いりぐち,entrance,[],"[61, 157]",false
+270,入学,にゅうがく,school entrance,[],[61],false
+271,買う,かう,to buy,"[""u-verb""]",[62],false
+272,買い物,かいもの,shopping,[],"[62, 88]",false
+273,売買,ばいばい,trading,[],[62],false
+274,読む,よむ,to read,"[""u-verb""]",[63],false
+275,読書,どくしょ,reading,[],[63],false
+276,読み方,よみかた,how to read,[],[63],false
+277,書く,かく,to write,"[""u-verb""]",[64],false
+278,図書館,としょかん,library,[],"[64, 227, 228]",false
+279,書道,しょどう,calligraphy,[],[64],false
+280,聞く,きく,to hear,"[""u-verb""]",[65],false
+281,新聞,しんぶん,newspaper,[],"[65, 70]",false
+282,聞こえる,きこえる,to be audible,"[""ru-verb""]",[65],false
+283,話す,はなす,to speak,"[""u-verb""]",[66],false
+284,話,はなし,story,[],[66],false
+285,電話,でんわ,telephone,[],"[66, 95]",false
+286,会話,かいわ,conversation,[],"[66, 172]",false
+287,世話,せわ,care,[],"[66, 224]",false
+288,立つ,たつ,to stand,"[""u-verb""]",[67],false
+289,立てる,たてる,to set up,"[""ru-verb""]",[67],false
+290,国立,こくりつ,national,[],[67],false
+291,待つ,まつ,to wait,"[""u-verb""]",[68],false
+292,待合室,まちあいしつ,waiting room,[],[68],false
+293,待ち合わせ,まちあわせ,meeting up,[],[68],false
+294,高い,たかい,tall/expensive,[],[69],false
+295,高校,こうこう,high school,[],"[69, 97]",false
+296,最高,さいこう,the best,[],"[69, 263]",false
+297,高校生,こうこうせい,high schooler,[],[69],false
+298,新しい,あたらしい,new,[],[70],false
+299,新年,しんねん,new year,[],[70],false
+300,最新,さいしん,latest,[],[70],false
+301,本,ほん,book,[],[71],false
+302,本当,ほんとう,truth,[],"[71, 272]",false
+303,本屋,ほんや,bookstore,[],"[71, 121]",false
+304,一本,いっぽん,one (long obj),[],[71],false
+305,円,えん,yen/circle,[],[72],false
+306,円い,まるい,round,[],[72],false
+307,何,なに,what,[],[73],false
+308,何時,なんじ,what time,[],[73],false
+309,何人,なんにん,how many people,[],[73],false
+310,何曜日,なんようび,what day,[],[73],false
+311,安い,やすい,cheap,[],[74],false
+312,安心,あんしん,relief,[],"[74, 161]",false
+313,安全,あんぜん,safety,[],"[74, 127]",false
+314,不安,ふあん,anxiety,[],"[74, 212]",false
+315,多い,おおい,many,[],[75],false
+316,多分,たぶん,probably,[],[75],false
+317,多数,たすう,majority,[],"[75, 134]",false
+318,少ない,すくない,few,[],[76],false
+319,少し,すこし,a little,[],[76],false
+320,多少,たしょう,more or less,[],[76],false
+321,長い,ながい,long,[],[77],false
+322,社長,しゃちょう,company president,[],"[77, 268]",false
+323,校長,こうちょう,principal,[],"[77, 97]",false
+324,好き,すき,like,[],[78],false
+325,好む,このむ,to prefer,"[""u-verb""]",[78],false
+326,好物,こうぶつ,favorite food,[],[78],false
+327,米,こめ,rice,[],[79],false
+328,お米,おこめ,rice,[],[79],false
+329,米国,べいこく,USA,[],[79],false
+330,新米,しんまい,new rice/rookie,[],[79],false
+331,肉,にく,meat,[],[80],false
+332,牛肉,ぎゅうにく,beef,[],"[80, 102]",false
+333,肉屋,にくや,butcher,[],[80],false
+334,焼肉,やきにく,grilled meat,[],"[80, 106]",false
+335,魚,さかな,fish,[],[81],false
+336,魚屋,さかなや,fish shop,[],[81],false
+337,人魚,にんぎょ,mermaid,[],[81],false
+338,茶,ちゃ,tea,[],[82],false
+339,お茶,おちゃ,tea,[],[82],false
+340,酒,さけ,alcohol,[],[83],false
+341,お酒,おさけ,alcohol,[],[83],false
+342,日本酒,にほんしゅ,sake,[],[83],false
+343,酒屋,さかや,liquor store,[],[83],false
+344,卵,たまご,egg,[],[84],false
+345,生卵,なまたまご,raw egg,[],[84],false
+346,卵焼き,たまごやき,rolled omelet,[],"[84, 106]",false
+347,ゆで卵,ゆでたまご,boiled egg,[],[84],false
+348,野菜,やさい,vegetable,[],"[85, 86]",false
+349,分野,ぶんや,field/area,[],[85],false
+350,長野,ながの,Nagano,[],[85],false
+351,白菜,はくさい,Chinese cabbage,[],"[86, 99]",false
+352,果物,くだもの,fruit,[],[87],false
+353,結果,けっか,result,[],"[87, 302]",false
+354,果実,かじつ,fruit,[],"[87, 303]",false
+355,果物屋,くだものや,fruit shop,[],[87],false
+356,物,もの,thing,[],[88],false
+357,食べ物,たべもの,food,[],[88],false
+358,動物,どうぶつ,animal,[],"[88, 258]",false
+359,ご飯,ごはん,rice/meal,[],[89],false
+360,飯,めし,meal,[],[89],false
+361,朝ご飯,あさごはん,breakfast,[],"[89, 162]",false
+362,夕飯,ゆうはん,dinner,[],[89],false
+363,昼飯,ひるめし,lunch,[],[89],false
+364,麺,めん,noodles,[],[90],false
+365,冷麺,れいめん,cold noodles,[],"[90, 305]",false
+366,油,あぶら,oil,[],[91],false
+367,油田,ゆでん,oil field,[],[91],false
+368,塩,しお,salt,[],[92],false
+369,塩水,しおみず,salt water,[],[92],false
+370,食塩,しょくえん,table salt,[],[92],false
+371,塩分,えんぶん,salt content,[],[92],false
+372,砂糖,さとう,sugar,[],"[93, 261]",false
+373,糖分,とうぶん,sugar content,[],[93],false
+374,車,くるま,car,[],[94],false
+375,電車,でんしゃ,train,[],"[94, 95]",false
+376,自動車,じどうしゃ,automobile,[],"[94, 264]",false
+377,自転車,じてんしゃ,bicycle,[],"[94, 194, 264]",false
+378,電気,でんき,electricity,[],[95],false
+379,学校,がっこう,school,[],"[96, 97]",false
+380,学生,がくせい,student,[],"[96, 98]",false
+381,学ぶ,まなぶ,to learn,"[""u-verb""]",[96],false
+382,数学,すうがく,math,[],"[96, 134]",false
+383,母校,ぼこう,alma mater,[],[97],false
+384,生まれる,うまれる,to be born,"[""ru-verb""]",[98],false
+385,先生,せんせい,teacher,[],"[98, 146]",false
+386,一生,いっしょう,whole life,[],[98],false
+387,白い,しろい,white,[],[99],false
+388,白,しろ,white,[],[99],false
+389,面白い,おもしろい,interesting,[],"[99, 288]",false
+390,白紙,はくし,blank paper,[],[99],false
+391,手,て,hand,[],[100],false
+392,手紙,てがみ,letter,[],"[100, 255]",false
+393,切手,きって,stamp,[],"[100, 113]",false
+394,美しい,うつくしい,beautiful,[],[101],false
+395,美味しい,おいしい,delicious,[],"[101, 104]",false
+396,美人,びじん,beautiful person,[],[101],false
+397,美術,びじゅつ,art,[],"[101, 285]",false
+398,牛,うし,cow,[],[102],false
+399,牛乳,ぎゅうにゅう,milk,[],"[102, 257]",false
+400,子牛,こうし,calf,[],[102],false
+401,鳥,とり,bird,[],[103],false
+402,焼き鳥,やきとり,grilled chicken,[],[103],false
+403,小鳥,ことり,small bird,[],[103],false
+404,白鳥,はくちょう,swan,[],[103],false
+405,味,あじ,taste,[],[104],false
+406,意味,いみ,meaning,[],"[104, 218]",false
+407,味方,みかた,ally,[],[104],false
+408,味見,あじみ,tasting,[],[104],false
+409,甘い,あまい,sweet,[],[105],false
+410,甘酒,あまざけ,sweet sake,[],[105],false
+411,甘味,かんみ,sweetness,[],[105],false
+412,焼く,やく,to grill,"[""u-verb""]",[106],false
+413,焼き魚,やきざかな,grilled fish,[],[106],false
+414,豆,まめ,bean,[],[107],false
+415,大豆,だいず,soybean,[],[107],false
+416,鉄,てつ,iron,[],[108],false
+417,地下鉄,ちかてつ,subway,[],"[108, 226]",false
+418,鉄道,てつどう,railway,[],[108],false
+419,私鉄,してつ,private railway,[],[108],false
+420,船,ふね,ship,[],[109],false
+421,風船,ふうせん,balloon,[],"[109, 295]",false
+422,船長,せんちょう,captain,[],[109],false
+423,飛ぶ,とぶ,to fly,"[""u-verb""]",[110],false
+424,飛行機,ひこうき,airplane,[],"[110, 111]",false
+425,飛行場,ひこうじょう,airfield,[],[110],false
+426,機械,きかい,machine,[],"[111, 277]",false
+427,機会,きかい,opportunity,[],[111],false
+428,橋,はし,bridge,[],[112],false
+429,歩道橋,ほどうきょう,footbridge,[],[112],false
+430,切る,きる,to cut,"[""u-verb""]",[113],false
+431,切符,きっぷ,ticket,[],"[113, 282]",false
+432,大切,たいせつ,important,[],[113],false
+433,市,し,city,[],[114],false
+434,市場,いちば,market,[],"[114, 117]",false
+435,市民,しみん,citizen,[],"[114, 278]",false
+436,公園,こうえん,park,[],"[115, 116]",false
+437,公立,こうりつ,public,[],[115],false
+438,動物園,どうぶつえん,zoo,[],[116],false
+439,場所,ばしょ,place,[],"[117, 124]",false
+440,会場,かいじょう,venue,[],[117],false
+441,病気,びょうき,illness,[],[118],false
+442,病院,びょういん,hospital,[],"[118, 119]",false
+443,病人,びょうにん,sick person,[],[118],false
+444,大学院,だいがくいん,grad school,[],[119],false
+445,銀,ぎん,silver,[],[120],false
+446,部屋,へや,room,[],"[121, 252]",false
+447,八百屋,やおや,greengrocer,[],[121],false
+448,屋上,おくじょう,rooftop,[],[121],false
+449,事,こと,thing/matter,[],[122],false
+450,仕事,しごと,job/work,[],"[122, 253]",false
+451,大事,だいじ,important,[],[122],false
+452,用事,ようじ,errand,[],"[122, 214]",false
+453,方,かた,person (polite),[],[123],false
+454,方法,ほうほう,method,[],"[123, 279]",false
+455,両方,りょうほう,both,[],"[123, 133]",false
+456,夕方,ゆうがた,evening,[],"[123, 165]",false
+457,所,ところ,place,[],[124],false
+458,台所,だいどころ,kitchen,[],"[124, 292]",false
+459,近所,きんじょ,neighborhood,[],"[124, 207]",false
+460,住所,じゅうしょ,address,[],"[124, 187]",false
+461,名所,めいしょ,famous spot,[],[124],false
+462,訳,わけ,reason/meaning,[],[125],false
+463,通訳,つうやく,interpreter,[],[125],false
+464,言い訳,いいわけ,excuse,[],[125],false
+465,程,ほど,extent,[],[126],false
+466,程度,ていど,degree,[],[126],false
+467,日程,にってい,schedule,[],[126],false
+468,全部,ぜんぶ,all,[],"[127, 252]",false
+469,全員,ぜんいん,everyone,[],[127],false
+470,全国,ぜんこく,nationwide,[],[127],false
+471,全体,ぜんたい,the whole,[],"[127, 159]",false
+472,皆,みな,everyone,[],[128],false
+473,皆さん,みなさん,everyone (polite),[],[128],false
+474,他,ほか,other,[],[129],false
+475,他人,たにん,stranger,[],[129],false
+476,その他,そのた,et cetera,[],[129],false
+477,他国,たこく,foreign country,[],[129],false
+478,別,べつ,separate,[],[130],false
+479,別々,べつべつ,separately,[],[130],false
+480,特別,とくべつ,special,[],"[130, 210]",false
+481,別れる,わかれる,to part,"[""ru-verb""]",[130],false
+482,同じ,おなじ,same,[],[131],false
+483,同時,どうじ,simultaneous,[],[131],false
+484,同年,どうねん,same year,[],[131],false
+485,同意,どうい,agreement,[],[131],false
+486,各自,かくじ,each person,[],[132],false
+487,各国,かっこく,each country,[],[132],false
+488,各地,かくち,various places,[],[132],false
+489,各々,おのおの,each,[],[132],false
+490,両親,りょうしん,parents,[],"[133, 270]",false
+491,両手,りょうて,both hands,[],[133],false
+492,両国,りょうこく,both countries,[],[133],false
+493,数,かず,number,[],[134],false
+494,数字,すうじ,numeral,[],[134],false
+495,人数,にんずう,number of people,[],[134],false
+496,数日,すうじつ,several days,[],[134],false
+497,約,やく,approximately,[],[135],false
+498,約束,やくそく,promise,[],"[135, 276]",false
+499,予約,よやく,reservation,[],"[135, 271]",false
+500,誰,だれ,who,[],[136],false
+501,誰か,だれか,someone,[],[136],false
+502,誰も,だれも,everyone/no one,[],[136],false
+503,誰でも,だれでも,anyone,[],[136],false
+504,誰の,だれの,whose,[],[136],false
+505,幾つ,いくつ,how many,[],[137],false
+506,幾ら,いくら,how much,[],[137],false
+507,幾何,きか,geometry,[],[137],false
+508,幾度,いくど,how many times,[],[137],false
+509,右,みぎ,right,[],[138],false
+510,右手,みぎて,right hand,[],[138],false
+511,左右,さゆう,left and right,[],[138],false
+512,左,ひだり,left,[],[139],false
+513,左手,ひだりて,left hand,[],[139],false
+514,東,ひがし,east,[],[140],false
+515,東京,とうきょう,Tokyo,[],"[140, 239]",false
+516,東口,ひがしぐち,east exit,[],[140],false
+517,東洋,とうよう,the East; Orient,[],"[140, 246]",false
+518,西,にし,west,[],[141],false
+519,西口,にしぐち,west exit,[],[141],false
+520,西洋,せいよう,the West,[],"[141, 246]",false
+521,北西,ほくせい,northwest,[],[141],false
+522,南,みなみ,south,[],[142],false
+523,南口,みなみぐち,south exit,[],[142],false
+524,東南,とうなん,southeast,[],[142],false
+525,南米,なんべい,South America,[],[142],false
+526,北,きた,north,[],[143],false
+527,北口,きたぐち,north exit,[],[143],false
+528,東北,とうほく,northeast; Tohoku,[],[143],false
+529,北米,ほくべい,North America,[],[143],false
+530,前,まえ,front; before,[],[144],false
+531,午前,ごぜん,a.m.,[],"[144, 150]",false
+532,前日,ぜんじつ,previous day,[],[144],false
+533,後,あと,after; later,[],[145],false
+534,後ろ,うしろ,behind,[],[145],false
+535,午後,ごご,p.m.,[],"[145, 150]",false
+536,後半,こうはん,second half,[],[145],false
+537,最後,さいご,last,[],"[145, 263]",false
+538,先,さき,ahead; previous,[],[146],false
+539,先月,せんげつ,last month,[],[146],false
+540,先日,せんじつ,the other day,[],[146],false
+541,天気,てんき,weather,[],"[147, 148]",false
+542,天国,てんごく,heaven,[],[147],false
+543,雨天,うてん,rainy weather,[],"[147, 149]",false
+544,気,き,spirit; mind,[],[148],false
+545,元気,げんき,healthy; energetic,[],"[148, 222]",false
+546,気持ち,きもち,feeling,[],"[148, 175]",false
+547,雨,あめ,rain,[],[149],false
+548,大雨,おおあめ,heavy rain,[],[149],false
+549,正午,しょうご,noon,[],"[150, 208]",false
+550,休む,やすむ,to rest,"[""u-verb""]",[151],false
+551,休み,やすみ,break; holiday,[],[151],false
+552,夏休み,なつやすみ,summer vacation,[],"[151, 167]",false
+553,昼休み,ひるやすみ,lunch break,[],"[151, 163]",false
+554,日本語,にほんご,Japanese language,[],[152],false
+555,英語,えいご,English,[],"[152, 248]",false
+556,語学,ごがく,language study,[],[152],false
+557,物語,ものがたり,tale; story,[],[152],false
+558,兄,あに,older brother (my),[],[153],false
+559,お兄さん,おにいさん,older brother,[],[153],false
+560,兄弟,きょうだい,siblings,[],"[153, 154]",false
+561,弟,おとうと,younger brother,[],[154],false
+562,弟子,でし,pupil; apprentice,[],[154],false
+563,姉,あね,older sister (my),[],[155],false
+564,お姉さん,おねえさん,older sister,[],[155],false
+565,姉妹,しまい,sisters,[],"[155, 156]",false
+566,妹,いもうと,younger sister,[],[156],false
+567,妹さん,いもうとさん,(someone's) younger sister,[],[156],false
+568,口,くち,mouth,[],[157],false
+569,人口,じんこう,population,[],[157],false
+570,早口,はやくち,fast talking,[],"[157, 170]",false
+571,目,め,eye,[],[158],false
+572,一つ目,ひとつめ,the first,[],[158],false
+573,目立つ,めだつ,to stand out,"[""u-verb""]",[158],false
+574,二日目,ふつかめ,the second day,[],[158],false
+575,体,からだ,body,[],[159],false
+576,体重,たいじゅう,body weight,[],"[159, 206]",false
+577,体力,たいりょく,physical strength,[],"[159, 290]",false
+578,足,あし,foot; leg,[],[160],false
+579,足りる,たりる,to be enough,"[""ru-verb""]",[160],false
+580,足音,あしおと,footsteps,[],[160],false
+581,心,こころ,heart; mind,[],[161],false
+582,中心,ちゅうしん,center,[],[161],false
+583,朝,あさ,morning,[],[162],false
+584,今朝,けさ,this morning,[],[162],false
+585,朝日,あさひ,morning sun,[],[162],false
+586,昼,ひる,noon; daytime,[],[163],false
+587,昼ご飯,ひるごはん,lunch,[],[163],false
+588,昼間,ひるま,daytime,[],[163],false
+589,夜,よる,night,[],[164],false
+590,今夜,こんや,tonight,[],[164],false
+591,夜中,よなか,middle of the night,[],[164],false
+592,夜間,やかん,nighttime,[],[164],false
+593,夕食,ゆうしょく,dinner,[],[165],false
+594,夕日,ゆうひ,setting sun,[],[165],false
+595,夕べ,ゆうべ,last evening,[],[165],false
+596,春,はる,spring,[],[166],false
+597,春休み,はるやすみ,spring break,[],[166],false
+598,夏,なつ,summer,[],[167],false
+599,真夏,まなつ,midsummer,[],"[167, 220]",false
+600,秋,あき,autumn,[],[168],false
+601,立秋,りっしゅう,start of autumn,[],[168],false
+602,冬,ふゆ,winter,[],[169],false
+603,冬休み,ふゆやすみ,winter break,[],[169],false
+604,真冬,まふゆ,midwinter,[],[169],false
+605,早い,はやい,early,[],[170],false
+606,早く,はやく,early; quickly,[],[170],false
+607,早朝,そうちょう,early morning,[],[170],false
+608,早起き,はやおき,early rising,[],"[170, 185]",false
+609,古い,ふるい,old (things),[],[171],false
+610,古本,ふるほん,used book,[],[171],false
+611,中古,ちゅうこ,secondhand,[],[171],false
+612,会う,あう,to meet,"[""u-verb""]",[172],false
+613,会社,かいしゃ,company,[],"[172, 268]",false
+614,社会,しゃかい,society,[],[172],false
+615,使う,つかう,to use,"[""u-verb""]",[173],false
+616,使い方,つかいかた,how to use,[],[173],false
+617,大使,たいし,ambassador,[],[173],false
+618,作る,つくる,to make,"[""u-verb""]",[174],false
+619,作文,さくぶん,composition; essay,[],"[174, 230]",false
+620,持つ,もつ,to hold; to have,"[""u-verb""]",[175],false
+621,金持ち,かねもち,rich person,[],[175],false
+622,持って行く,もっていく,to take along,"[""u-verb""]",[175],false
+623,思う,おもう,to think,"[""u-verb""]",[176],false
+624,思い出,おもいで,memory,[],[176],false
+625,知る,しる,to know,"[""u-verb""]",[177],false
+626,知り合い,しりあい,acquaintance,[],[177],false
+627,送る,おくる,to send,"[""u-verb""]",[178],false
+628,見送る,みおくる,to see off,"[""u-verb""]",[178],false
+629,帰る,かえる,to return home,"[""u-verb""]",[179],false
+630,帰り,かえり,the way back,[],[179],false
+631,帰国,きこく,returning to one's country,[],[179],false
+632,始まる,はじまる,to begin (intr.),"[""u-verb""]",[180],false
+633,始める,はじめる,to begin (tr.),"[""ru-verb""]",[180],false
+634,開始,かいし,start,[],"[180, 195]",false
+635,終わる,おわる,to end,"[""u-verb""]",[181],false
+636,終わり,おわり,the end,[],[181],false
+637,終電,しゅうでん,last train,[],[181],false
+638,最終,さいしゅう,last; final,[],[181],false
+639,走る,はしる,to run,"[""u-verb""]",[182],false
+640,走り出す,はしりだす,to start running,"[""u-verb""]",[182],false
+641,歩く,あるく,to walk,"[""u-verb""]",[183],false
+642,歩道,ほどう,sidewalk,[],[183],false
+643,止まる,とまる,to stop (intr.),"[""u-verb""]",[184],false
+644,止める,とめる,to stop (tr.),"[""ru-verb""]",[184],false
+645,中止,ちゅうし,cancellation,[],[184],false
+646,起きる,おきる,to get up,"[""ru-verb""]",[185],false
+647,起こす,おこす,to wake (someone),"[""u-verb""]",[185],false
+648,着る,きる,to wear,"[""ru-verb""]",[186],false
+649,着く,つく,to arrive,"[""u-verb""]",[186],false
+650,住む,すむ,to live; reside,"[""u-verb""]",[187],false
+651,住民,じゅうみん,resident,[],[187],false
+652,売る,うる,to sell,"[""u-verb""]",[188],false
+653,売り場,うりば,sales floor,[],[188],false
+654,売店,ばいてん,kiosk; stand,[],[188],false
+655,借りる,かりる,to borrow,"[""ru-verb""]",[189],false
+656,借金,しゃっきん,debt,[],[189],false
+657,貸す,かす,to lend,"[""u-verb""]",[190],false
+658,貸し出し,かしだし,lending; rental,[],[190],false
+659,習う,ならう,to learn (from someone),"[""u-verb""]",[191],false
+660,予習,よしゅう,preparation for a lesson,[],"[191, 271]",false
+661,通う,かよう,to commute,"[""u-verb""]",[192],false
+662,通る,とおる,to pass through,"[""u-verb""]",[192],false
+663,通り,とおり,street,[],[192],false
+664,運ぶ,はこぶ,to carry,"[""u-verb""]",[193],false
+665,運転,うんてん,driving,[],"[193, 194]",false
+666,運動,うんどう,exercise,[],"[193, 258]",false
+667,運,うん,luck,[],[193],false
+668,転ぶ,ころぶ,to fall down,"[""u-verb""]",[194],false
+669,開く,あく,to open (intr.),"[""u-verb""]",[195],false
+670,開ける,あける,to open (tr.),"[""ru-verb""]",[195],false
+671,開店,かいてん,shop opening,[],[195],false
+672,集まる,あつまる,to gather (intr.),"[""u-verb""]",[196],false
+673,集める,あつめる,to collect,"[""ru-verb""]",[196],false
+674,集合,しゅうごう,assembly; meeting up,[],[196],false
+675,写真,しゃしん,photograph,[],"[197, 220]",false
+676,写す,うつす,to copy; to photograph,"[""u-verb""]",[197],false
+677,考える,かんがえる,to think; consider,"[""ru-verb""]",[198],false
+678,考え,かんがえ,idea; thought,[],[198],false
+679,答える,こたえる,to answer,"[""ru-verb""]",[199],false
+680,答え,こたえ,answer,[],[199],false
+681,注意,ちゅうい,caution; attention,[],"[200, 218]",false
+682,注文,ちゅうもん,order (e.g. food),[],"[200, 230]",false
+683,注ぐ,そそぐ,to pour,"[""u-verb""]",[200],false
+684,死ぬ,しぬ,to die,"[""u-verb""]",[201],false
+685,勉強,べんきょう,study,[],"[202, 203]",false
+686,強い,つよい,strong,[],[203],false
+687,強力,きょうりょく,powerful,[],[203],false
+688,広い,ひろい,wide; spacious,[],[204],false
+689,広場,ひろば,plaza,[],[204],false
+690,悪い,わるい,bad,[],[205],false
+691,最悪,さいあく,the worst,[],[205],false
+692,悪口,わるぐち,speaking ill of someone,[],[205],false
+693,重い,おもい,heavy,[],[206],false
+694,近い,ちかい,near,[],[207],false
+695,近く,ちかく,vicinity,[],[207],false
+696,最近,さいきん,recently,[],"[207, 263]",false
+697,正しい,ただしい,correct,[],[208],false
+698,正月,しょうがつ,New Year,[],[208],false
+699,正解,せいかい,correct answer,[],[208],false
+700,明るい,あかるい,bright,[],[209],false
+701,明日,あした,tomorrow,[],[209],false
+702,説明,せつめい,explanation,[],"[209, 287]",false
+703,明らか,あきらか,clear; obvious,[],[209],false
+704,特に,とくに,especially,[],[210],false
+705,特急,とっきゅう,limited express,[],"[210, 211]",false
+706,急ぐ,いそぐ,to hurry,"[""u-verb""]",[211],false
+707,急に,きゅうに,suddenly,[],[211],false
+708,急行,きゅうこう,express (train),[],[211],false
+709,不足,ふそく,shortage,[],[212],false
+710,無理,むり,impossible; unreasonable,[],"[213, 219]",false
+711,無料,むりょう,free of charge,[],"[213, 254]",false
+712,無事,ぶじ,safe; without incident,[],[213],false
+713,使用,しよう,use,[],[214],false
+714,用意,ようい,preparation,[],"[214, 218]",false
+715,一度,いちど,once,[],[215],false
+716,今度,こんど,next time; this time,[],[215],false
+717,何度,なんど,how many times,[],[215],false
+718,以前,いぜん,before; formerly,[],[216],false
+719,時代,じだい,era; period,[],[217],false
+720,代わり,かわり,substitute; replacement,[],[217],false
+721,十代,じゅうだい,teens,[],[217],false
+722,電気代,でんきだい,electricity bill,[],[217],false
+723,料理,りょうり,cooking; dish,[],"[219, 254]",false
+724,理解,りかい,understanding,[],"[219, 286]",false
+725,真面目,まじめ,serious; earnest,[],[220],false
+726,有料,ゆうりょう,paid; fee-charging,[],[221],false
+727,元,もと,origin; former,[],[222],false
+728,地元,じもと,local area; hometown,[],"[222, 226]",false
+729,質問,しつもん,question,[],"[223, 234]",false
+730,世界,せかい,world,[],"[224, 225]",false
+731,世の中,よのなか,society; the world,[],[224],false
+732,業界,ぎょうかい,industry; business world,[],[225],false
+733,地図,ちず,map,[],"[226, 227]",false
+734,図,ず,diagram; figure,[],[227],false
+735,映画館,えいがかん,movie theater,[],"[228, 293]",false
+736,旅館,りょかん,Japanese inn,[],"[228, 262]",false
+737,大使館,たいしかん,embassy,[],[228],false
+738,教室,きょうしつ,classroom,[],"[229, 232]",false
+739,室内,しつない,indoors,[],[229],false
+740,文,ぶん,sentence,[],[230],false
+741,文学,ぶんがく,literature,[],[230],false
+742,字,じ,character; handwriting,[],[231],false
+743,漢字,かんじ,kanji,[],"[231, 249]",false
+744,文字,もじ,letter; character,[],[231],false
+745,教える,おしえる,to teach,"[""ru-verb""]",[232],false
+746,教会,きょうかい,church,[],[232],false
+747,問題,もんだい,problem; question,[],"[233, 234]",false
+748,宿題,しゅくだい,homework,[],"[233, 301]",false
+749,話題,わだい,topic,[],[233],false
+750,題名,だいめい,title,[],[233],false
+751,問う,とう,to ask; to question,"[""u-verb""]",[234],false
+752,試験,しけん,exam,[],"[235, 236]",false
+753,試す,ためす,to try; to test,"[""u-verb""]",[235],false
+754,試合,しあい,match; game,[],"[235, 259]",false
+755,実験,じっけん,experiment,[],"[236, 303]",false
+756,研究,けんきゅう,research,[],"[237, 238]",false
+757,研ぐ,とぐ,to sharpen,"[""u-verb""]",[237],false
+758,研究者,けんきゅうしゃ,researcher,[],[238],false
+759,上京,じょうきょう,moving to Tokyo,[],[239],false
+760,田んぼ,たんぼ,rice paddy,[],[240],false
+761,田舎,いなか,countryside,[],"[240, 283]",false
+762,本堂,ほんどう,temple main hall,[],[241],false
+763,工場,こうじょう,factory,[],[242],false
+764,工事,こうじ,construction work,[],[242],false
+765,大工,だいく,carpenter,[],[242],false
+766,建物,たてもの,building,[],[243],false
+767,建てる,たてる,to build,"[""ru-verb""]",[243],false
+768,空,そら,sky,[],[244],false
+769,空気,くうき,air,[],[244],false
+770,空港,くうこう,airport,[],"[244, 280]",false
+771,空く,あく,to become empty,"[""u-verb""]",[244],false
+772,海,うみ,sea,[],[245],false
+773,洋服,ようふく,Western clothes,[],"[246, 297]",false
+774,洋食,ようしょく,Western food,[],[246],false
+775,医者,いしゃ,doctor,[],"[247, 269]",false
+776,医学,いがく,medicine (field),[],[247],false
+777,英国,えいこく,Britain,[],[248],false
+778,英会話,えいかいわ,English conversation,[],[248],false
+779,漢方,かんぽう,Chinese medicine,[],[249],false
+780,工業,こうぎょう,industry,[],[250],false
+781,授業,じゅぎょう,class; lesson,[],"[250, 304]",false
+782,卒業,そつぎょう,graduation,[],"[250, 306]",false
+783,発音,はつおん,pronunciation,[],"[251, 289]",false
+784,部分,ぶぶん,part; section,[],[252],false
+785,仕方,しかた,way; method,[],[253],false
+786,紙,かみ,paper,[],[255],false
+787,葉書,はがき,postcard,[],"[255, 265]",false
+788,私達,わたしたち,we,[],[256],false
+789,達人,たつじん,expert; master,[],[256],false
+790,動く,うごく,to move,"[""u-verb""]",[258],false
+791,自動,じどう,automatic,[],[258],false
+792,合う,あう,to fit; to match,"[""u-verb""]",[259],false
+793,場合,ばあい,case; situation,[],[259],false
+794,会社員,かいしゃいん,company employee,[],[260],false
+795,砂,すな,sand,[],[261],false
+796,旅,たび,journey,[],[262],false
+797,葉,は,leaf,[],[265],false
+798,乗る,のる,to ride; to get on,"[""u-verb""]",[266],false
+799,乗り物,のりもの,vehicle,[],[266],false
+800,乗車,じょうしゃ,boarding,[],[266],false
+801,学者,がくしゃ,scholar,[],[269],false
+802,親,おや,parent,[],[270],false
+803,親切,しんせつ,kind,[],[270],false
+804,当たる,あたる,to hit; to win,"[""u-verb""]",[272],false
+805,彼,かれ,he; boyfriend,[],[273],false
+806,彼ら,かれら,they,[],[273],false
+807,民族,みんぞく,ethnic group,[],[274],false
+808,昨日,きのう,yesterday,[],[275],false
+809,昨年,さくねん,last year,[],[275],false
+810,昨夜,さくや,last night,[],[275],false
+811,花束,はなたば,bouquet,[],[276],false
+812,国民,こくみん,the people; citizens,[],[278],false
+813,民宿,みんしゅく,guesthouse,[],"[278, 301]",false
+814,文法,ぶんぽう,grammar,[],[279],false
+815,港,みなと,harbor; port,[],[280],false
+816,先祖,せんぞ,ancestor,[],[281],false
+817,音符,おんぷ,musical note,[],[282],false
+818,校舎,こうしゃ,school building,[],[283],false
+819,花,はな,flower,[],[284],false
+820,手術,しゅじゅつ,surgery,[],[285],false
+821,解く,とく,to solve,"[""u-verb""]",[286],false
+822,解説,かいせつ,commentary,[],[286],false
+823,場面,ばめん,scene,[],[288],false
+824,音,おと,sound,[],[289],false
+825,力,ちから,strength; power,[],[290],false
+826,力持ち,ちからもち,strong person,[],[290],false
+827,計画,けいかく,plan,[],"[291, 294]",false
+828,合計,ごうけい,total,[],[291],false
+829,台風,たいふう,typhoon,[],"[292, 295]",false
+830,映画,えいが,movie,[],"[293, 294]",false
+831,映る,うつる,to be reflected,"[""u-verb""]",[293],false
+832,画家,がか,painter,[],[294],false
+833,風,かぜ,wind,[],[295],false
+834,黒,くろ,black,[],[296],false
+835,黒い,くろい,black,"[""i-adjective""]",[296],false
+836,白黒,しろくろ,black and white,[],[296],false
+837,服,ふく,clothes,[],[297],false
+838,働く,はたらく,to work,"[""u-verb""]",[298],false
+839,働き者,はたらきもの,hard worker,[],[298],false
+840,一番,いちばん,number one; the most,[],[299],false
+841,二番,にばん,second,[],[299],false
+842,当番,とうばん,being on duty,[],[299],false
+843,決める,きめる,to decide,"[""ru-verb""]",[300],false
+844,決まる,きまる,to be decided,"[""u-verb""]",[300],false
+845,解決,かいけつ,solution,[],[300],false
+846,宿,やど,inn; lodging,[],[301],false
+847,結ぶ,むすぶ,to tie; to connect,"[""u-verb""]",[302],false
+848,実は,じつは,actually; to tell the truth,[],[303],false
+849,事実,じじつ,fact,[],[303],false
+850,教授,きょうじゅ,professor,[],[304],false
+851,冷たい,つめたい,cold (to the touch),"[""i-adjective""]",[305],false
+852,冷える,ひえる,to get cold,"[""ru-verb""]",[305],false
+853,卒業する,そつぎょうする,to graduate,[],[306],false

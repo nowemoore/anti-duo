@@ -1,4 +1,4 @@
-import { LEVEL_FLOOR, WARMUP_LEVEL, WARMUP_MAX_LOSS } from '../../shared/constants'
+import { EXPLORE_RATE, LEVEL_FLOOR, WARMUP_LEVEL, WARMUP_MAX_LOSS } from '../../shared/constants'
 import type { Progress } from '../../shared/types'
 import type { ContentIndex } from './content'
 import { introducedUnits } from './study'
@@ -11,24 +11,46 @@ const WEIGHT_EXPONENT = 2
 
 interface PickOpts {
   avoidIdx?: number
+  /**
+   * Overrides {@link EXPLORE_RATE}. Set to 0 to make a pick fully deterministic in its weighting —
+   * used by the checks, which assert the levelling behaviour and would otherwise see noise.
+   */
+  exploreRate?: number
+}
+
+/** A chosen target, and whether it was chosen by the weighting or by the exploration slice.
+ *  Named TargetPick rather than Pick so it cannot shadow the built-in `Pick<T, K>` utility type. */
+export interface TargetPick {
+  idx: number
+  /**
+   * True when this target was drawn uniformly rather than by level weight. Recorded on the answer so
+   * retention analysis can restrict itself to gaps the scheduler didn't choose. See
+   * {@link EXPLORE_RATE}.
+   */
+  random: boolean
 }
 
 /**
  * Pick the next target kanji from the introduced set, weighted toward the **lowest level**
  * so practice keeps every kanji at a similar level. Avoids repeating the previous target
  * when alternatives exist. Returns null if nothing is practisable.
+ *
+ * A small {@link EXPLORE_RATE} fraction of picks ignore the weighting entirely and draw uniformly.
+ * Those are flagged `random` so the answer log can tell an unbiased review gap from one the
+ * scheduler manufactured.
  */
-export function pickTarget(
-  index: ContentIndex,
-  progress: Progress,
-  opts: PickOpts = {},
-): number | null {
+export function pickTarget(index: ContentIndex, progress: Progress, opts: PickOpts = {}): TargetPick | null {
   const pool = introducedUnits(index, progress).filter((k) => hasAnyTask(index, k.idx))
   if (pool.length === 0) return null
 
   let candidates = pool
   if (opts.avoidIdx != null && pool.length > 1) {
     candidates = pool.filter((k) => k.idx !== opts.avoidIdx)
+  }
+
+  const rate = opts.exploreRate ?? EXPLORE_RATE
+  if (rate > 0 && Math.random() < rate) {
+    return { idx: candidates[Math.floor(Math.random() * candidates.length)].idx, random: true }
   }
 
   const maxLvl = Math.max(...candidates.map((k) => lvlOf(progress, k.idx)))
@@ -40,9 +62,9 @@ export function pickTarget(
   let r = Math.random() * total
   for (let i = 0; i < candidates.length; i++) {
     r -= weights[i]
-    if (r <= 0) return candidates[i].idx
+    if (r <= 0) return { idx: candidates[i].idx, random: false }
   }
-  return candidates[candidates.length - 1].idx
+  return { idx: candidates[candidates.length - 1].idx, random: false }
 }
 
 /**
@@ -71,9 +93,25 @@ export function levelDeltaFor(kind: TaskType, score: number, currentLvl: number)
  */
 export function awardDelta(progress: Progress, targetIdx: number, delta: number): Progress {
   const next = Math.max(LEVEL_FLOOR, lvlOf(progress, targetIdx) + delta)
+  // Spread the existing record: this used to write `{ lvl }` alone, which silently dropped
+  // `seenBatches` on every answer — so the "new words waiting" marker reappeared after any practice.
   return {
     ...progress,
-    units: { ...progress.units, [targetIdx]: { lvl: next } },
+    units: { ...progress.units, [targetIdx]: { ...progress.units[targetIdx], lvl: next } },
+  }
+}
+
+/**
+ * Stamp when a unit was last practised. Called for **every** answered question, including the ones
+ * that earn no level change, because the gap between reviews is a fact about exposure rather than
+ * about scoring.
+ *
+ * Read before the update to fill `prev_seen_at` on the logged answer; see {@link UnitProgress}.
+ */
+export function markSeen(progress: Progress, targetIdx: number, at: string): Progress {
+  return {
+    ...progress,
+    units: { ...progress.units, [targetIdx]: { ...progress.units[targetIdx], lvl: lvlOf(progress, targetIdx), lastSeenAt: at } },
   }
 }
 

@@ -145,11 +145,16 @@ function WordListModal({
 
   // Sorted by run, so what you're closest to knowing is at the top and untouched words sink.
   const rows = useMemo(() => {
-    const out = [...words].map((word) => ({
-      word,
-      reading: index.wordReadings.get(word) ?? word,
-      streak: progress.words?.[word] ?? 0,
-    }))
+    // `words` holds Progress keys, which for a form with two readings carry the reading too
+    // (木|き). wordEntries is what turns one back into something displayable.
+    const out = [...words].map((key) => {
+      const entry = index.wordEntries.get(key)
+      return {
+        word: entry?.surface ?? key,
+        reading: entry?.reading ?? index.wordReadings.get(key) ?? key,
+        streak: progress.words?.[key] ?? 0,
+      }
+    })
     out.sort((a, b) => b.streak - a.streak || a.reading.localeCompare(b.reading, 'ja'))
     return out
   }, [words, index, progress])

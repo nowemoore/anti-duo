@@ -5,7 +5,7 @@ import {
   MASTERY_LEARNT,
 } from '../../shared/constants'
 import type { Unit, Progress } from '../../shared/types'
-import type { ContentIndex } from './content'
+import { wordKey, type ContentIndex } from './content'
 import { isUnitEnabled } from './categories'
 import { batchesUnlocked } from './tasks'
 import { shuffle } from './random'
@@ -132,7 +132,7 @@ export function enabledWords(index: ContentIndex, progress: Progress): Set<strin
   const out = new Set<string>()
   for (const k of index.content.units) {
     if (!isUnitEnabled(progress.settings, k)) continue
-    for (const ex of k.examples) out.add(ex.word)
+    for (const ex of k.examples) out.add(wordKey(index.readingsOf, ex.word, ex.reading))
   }
   return out
 }
@@ -152,7 +152,7 @@ export function enabledWords(index: ContentIndex, progress: Progress): Set<strin
 export function introducedWords(index: ContentIndex, progress: Progress): Set<string> {
   const out = new Set<string>()
   for (const k of introducedUnits(index, progress)) {
-    for (const ex of k.examples) out.add(ex.word)
+    for (const ex of k.examples) out.add(wordKey(index.readingsOf, ex.word, ex.reading))
   }
   return out
 }

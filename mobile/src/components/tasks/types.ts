@@ -28,6 +28,14 @@ export interface QA {
    * award a point that was never taken away.
    */
   prevWordStreak?: number
+  /**
+   * True when `pickTarget` chose this question's target from the uniform exploration slice rather
+   * than by level weight. Carried onto the logged answer, where it marks the rows whose review gap
+   * the scheduler didn't choose — the only ones retention can honestly be fitted on.
+   */
+  randomPick?: boolean
+  /** `Date.now()` when the question was built, for the answer log's latency. */
+  shownAt?: number
 }
 
 /** Result of locking in an answer: revealed with a score, or bounced back to retry. */

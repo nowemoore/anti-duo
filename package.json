@@ -26,6 +26,8 @@
     "check:grammar": "tsx scripts/check-grammar.ts",
     "check:kana": "tsx scripts/check-kana.ts",
     "check:handwriting": "tsx scripts/check-handwriting.ts",
+    "check:invariants": "tsx scripts/check-invariants.ts",
+    "lock:content": "tsx scripts/lock-content.ts",
     "check": "tsx scripts/check-content.ts && tsx scripts/check-render.ts && tsx scripts/check-study.ts && tsx scripts/check-tasks.ts && tsx scripts/check-practice.ts && tsx scripts/check-stats.ts && tsx scripts/check-grammar.ts && tsx scripts/check-kana.ts",
     "reset": "tsx scripts/reset-progress.ts",
     "drawings:svg": "tsx scripts/drawings-to-svg.ts",

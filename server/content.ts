@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import Papa from 'papaparse'
-import type { ParticleToken, Sentence, Token, Unit, Word, WordToken } from '../shared/types'
+import type { KanaWord, ParticleToken, Sentence, Token, Unit, Word, WordToken } from '../shared/types'
 
 /** Project root (this file lives in server/, one level down). */
 const ROOT = new URL('../', import.meta.url)
@@ -8,6 +8,8 @@ const ROOT = new URL('../', import.meta.url)
 export interface ContentStore {
   units: Unit[]
   sentences: Sentence[]
+  /** Words written in kana (ja_kana.csv). Their own curriculum, keyed by their own idx. */
+  kanaWords: KanaWord[]
   byIdx: Map<number, Unit>
   byForm: Map<string, Unit>
   /** unit idx -> sentences that contain it. */
@@ -34,7 +36,90 @@ function parseJsonField<T>(raw: string | undefined, where: string): T {
   }
 }
 
-function parseUnitRow(row: Record<string, string>): Unit {
+/**
+ * Whether a db row has been retired.
+ *
+ * Retiring is how content is removed: the row stays, marked, rather than being deleted. `idx` is an
+ * identity in persisted user data (`Progress.units`, `Settings.disabledUnits`, `drawings.unit_idx`),
+ * so a deleted row leaves a hole that must never be refilled — keeping the row makes that visible in
+ * the file itself rather than only in dbs/content.lock.json. Retired rows are skipped at load, so
+ * their progress lies dormant and returns intact if they are ever un-retired.
+ */
+function isRetired(row: Record<string, string>): boolean {
+  return (row.retired ?? '').trim().toLowerCase() === 'true'
+}
+
+/**
+ * The word registry (ja_words.csv), keyed by its `idx`.
+ *
+ * Words live in their own file because a word is not owned by a kanji: 一人 is taught under both 一
+ * and 人, and before this it was authored twice, which let the two copies disagree — 木 was "tree"
+ * under one kanji and "wood" under another with no way to tell which was meant. A registry entry is
+ * written once and referenced by id.
+ *
+ * `accept` is derived here rather than authored: every other reading of the same written form is
+ * gathered onto each entry, so a learner who types もく for 木 when the card happened to pick き is
+ * graded correct. See {@link Word.accept} and `checkTypeWord`.
+ */
+function buildWordRegistry(rows: Record<string, string>[]): Map<number, Word> {
+  const parsed: { idx: number; word: Word }[] = []
+  for (const row of rows) {
+    if (isRetired(row)) continue
+    const idx = Number(row.idx)
+    if (!Number.isInteger(idx)) throw new ContentError(`Bad word idx "${row.idx}"`)
+    const where = `word idx=${idx}`
+    const surface = row.word?.trim()
+    if (!surface) throw new ContentError(`Empty word at ${where}`)
+    const tags = parseJsonField<string[]>(row.tags || '[]', `${where}.tags`)
+    parsed.push({
+      idx,
+      word: {
+        idx,
+        word: surface,
+        reading: row.reading?.trim() ?? '',
+        meaning: row.meaning?.trim() ?? '',
+        ...(tags.length ? { tags } : {}),
+      },
+    })
+  }
+
+  // Sibling readings of the same written form become each other's accepted answers.
+  const bySurface = new Map<string, string[]>()
+  for (const { word } of parsed) {
+    const list = bySurface.get(word.word)
+    if (list) list.push(word.reading)
+    else bySurface.set(word.word, [word.reading])
+  }
+
+  const registry = new Map<number, Word>()
+  for (const { idx, word } of parsed) {
+    const others = (bySurface.get(word.word) ?? []).filter((r) => r && r !== word.reading)
+    registry.set(idx, others.length ? { ...word, accept: [...new Set(others)] } : word)
+  }
+  return registry
+}
+
+/**
+ * Resolve a kanji's `examples` — `[{idx, batch?}]` references into the registry — into full Words.
+ *
+ * `batch` rides on the *reference*, not the word, because staged release is a fact about this word
+ * under this kanji: 一時 is a first-batch example of 一 and a second-batch example of 時.
+ */
+function resolveExamples(
+  raw: { idx: number; batch?: number }[],
+  registry: Map<number, Word>,
+  where: string,
+): Word[] {
+  return raw.map((ref) => {
+    const word = registry.get(ref.idx)
+    // Also fires when the word exists but is retired: a live kanji teaching a withdrawn word would
+    // put it back in front of the learner through the side door.
+    if (!word) throw new ContentError(`${where} references unknown or retired word idx ${ref.idx}`)
+    return ref.batch && ref.batch > 1 ? { ...word, batch: ref.batch } : word
+  })
+}
+
+function parseUnitRow(row: Record<string, string>, registry: Map<number, Word>): Unit {
   const idx = Number(row.idx)
   if (!Number.isInteger(idx)) throw new ContentError(`Bad idx "${row.idx}"`)
   const where = `unit idx=${idx}`
@@ -45,12 +130,46 @@ function parseUnitRow(row: Record<string, string>): Unit {
     batch: Number.isFinite(batch) && batch >= 1 ? batch : 1,
     category: row.category?.trim() || 'Everyday & Misc',
     gloss: splitMeanings(row.meanings ?? ''),
-    examples: parseJsonField<Word[]>(row.examples, `${where}.examples`),
+    examples: resolveExamples(
+      parseJsonField<{ idx: number; batch?: number }[]>(row.examples, `${where}.examples`),
+      registry,
+      where,
+    ),
     distractors: parseJsonField<Word[]>(row.distractors, `${where}.distractors`),
   }
   if (!unit.form) throw new ContentError(`Empty form at ${where}`)
   if (unit.examples.length === 0) throw new ContentError(`No examples at ${where}`)
   return unit
+}
+
+/**
+ * A row of ja_kana.csv. Same ten-column shape as the kanji db with three columns renamed
+ * (`word`/`script`/`rare_kanji` for `char`/`radical`/`components`), so this mirrors
+ * {@link parseUnitRow} rather than sharing it — the two files describe different kinds of thing.
+ */
+function parseKanaWordRow(row: Record<string, string>): KanaWord {
+  const idx = Number(row.idx)
+  if (!Number.isInteger(idx)) throw new ContentError(`Bad kana idx "${row.idx}"`)
+  const where = `kana word idx=${idx}`
+  const batch = Number(row.batch)
+  const script = row.script?.trim()
+  if (script !== 'hiragana' && script !== 'katakana') {
+    throw new ContentError(`Bad script "${row.script}" at ${where}`)
+  }
+  const word = row.word?.trim()
+  if (!word) throw new ContentError(`Empty word at ${where}`)
+  const rareKanji = row.rare_kanji?.trim()
+  return {
+    idx,
+    word,
+    script,
+    batch: Number.isFinite(batch) && batch >= 1 ? batch : 1,
+    category: row.category?.trim() || 'Everyday & Misc',
+    gloss: splitMeanings(row.meanings ?? ''),
+    examples: parseJsonField<Word[]>(row.examples, `${where}.examples`),
+    distractors: parseJsonField<Word[]>(row.distractors, `${where}.distractors`),
+    ...(rareKanji ? { rareKanji } : {}),
+  }
 }
 
 /** The JA sentence db stores tokens with Japanese-flavoured keys (ja/en/kana/kanji); map them to
@@ -252,12 +371,19 @@ export function validateContent(store: ContentStore): ContentReport {
 
 /** Read + parse the CSVs into a typed, indexed in-memory store. */
 export async function loadContent(): Promise<ContentStore> {
-  const [unitRows, sentenceRows, allMeanings] = await Promise.all([
+  const [unitRows, sentenceRows, kanaRows, wordRows, allMeanings] = await Promise.all([
     parseCsv('ja_kanji.csv'),
     parseCsv('ja_sentences.csv'),
+    parseCsv('ja_kana.csv'),
+    parseCsv('ja_words.csv'),
     loadAllkanjiMeanings(),
   ])
-  const units = unitRows.map(parseUnitRow).sort((a, b) => a.idx - b.idx)
+  const wordRegistry = buildWordRegistry(wordRows)
+  const kanaWords = kanaRows.filter((r) => !isRetired(r)).map(parseKanaWordRow).sort((a, b) => a.idx - b.idx)
+  const units = unitRows
+    .filter((r) => !isRetired(r))
+    .map((r) => parseUnitRow(r, wordRegistry))
+    .sort((a, b) => a.idx - b.idx)
   // Gloss + radical + component LISTS come from ja_kanji.csv. Per-character meaning labels start from
   // ja_meanings.csv (covers radicals/components/example chars) but ja_kanji.csv wins for curriculum units.
   const { meanings, radicals, components } = buildDictMaps(unitRows)
@@ -268,7 +394,7 @@ export async function loadContent(): Promise<ContentStore> {
   const kanjiMeanings = buildKanjiMeanings(units, meaningLookup, radicals, components)
   const kanjiRadicals = buildKanjiRadicals(units, radicals)
   const kanjiComponents = buildKanjiComponents(units, radicals, components)
-  return { units, sentences, ...indexes, kanjiMeanings, kanjiRadicals, kanjiComponents }
+  return { units, sentences, kanaWords, ...indexes, kanjiMeanings, kanjiRadicals, kanjiComponents }
 }
 
 let cached: ContentStore | null = null

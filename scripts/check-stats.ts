@@ -1,7 +1,7 @@
 // Verifies task success-rate tracking — `npm run check:stats`.
 // Each answered task earns (delta+1)/2 of 1 possible point; the rate is earned ÷ attempts.
 import { loadContent } from '../server/content'
-import { buildContentIndex } from '../src/lib/content'
+import { buildContentIndex, wordKey } from '../src/lib/content'
 import {
   earnedPoints,
   isWordKnown,
@@ -13,7 +13,7 @@ import {
   restoreWordStreak,
 } from '../src/lib/stats'
 import { enabledWords, introducedWords } from '../src/lib/study'
-import { ALL_TASK_TYPES, generateTask, testedWord } from '../src/lib/tasks'
+import { ALL_TASK_TYPES, generateTask, testedWord, testedWordKey } from '../src/lib/tasks'
 import { normalizeProgress } from '../shared/progress'
 import { WORD_KNOWN_STREAK, WORD_STREAK_MAX, defaultProgress } from '../shared/constants'
 import type { Progress } from '../shared/types'
@@ -139,9 +139,8 @@ async function main() {
     for (const type of ALL_TASK_TYPES) {
       const task = generateTask(index, unit.idx, type)
       if (!task) continue
-      const word = testedWord(task)
-      if (word === null) continue
-      if (index.words.has(word)) named++
+      if (testedWord(task) === null) continue
+      if (testedWordKey(task, index) !== null) named++
       else filteredOut++
     }
   }
@@ -184,6 +183,28 @@ async function main() {
     !('empty' in cleanedWords) &&
     !('' in cleanedWords)
 
+  // --- a written form with two readings is two words ------------------------
+  // 木 is き "tree" and もく "wood". Keyed by surface alone they shared one run, so missing one
+  // walked the other backwards and getting one right credited the other.
+  const kiKey = wordKey(index.readingsOf, '木', 'き')
+  const mokuKey = wordKey(index.readingsOf, '木', 'もく')
+  const distinctKeys = kiKey !== mokuKey
+
+  let two: Progress = defaultProgress()
+  for (let n = 0; n < 3; n++) two = recordWordResult(two, mokuKey, true)
+  const mokuBefore = two.words?.[mokuKey] ?? 0
+  two = recordWordResult(two, kiKey, false) // miss き
+  const mokuUnharmed = (two.words?.[mokuKey] ?? 0) === mokuBefore
+  const kiFloored = (two.words?.[kiKey] ?? 0) === 0
+
+  let three: Progress = defaultProgress()
+  three = recordWordResult(three, kiKey, true)
+  const mokuUncredited = (three.words?.[mokuKey] ?? 0) === 0
+
+  // The 843 unambiguous words must keep the key they already had, or every existing run resets.
+  const plainUnchanged = wordKey(index.readingsOf, '食べる', 'たべる') === '食べる'
+  const bothInScope = index.words.has(kiKey) && index.words.has(mokuKey)
+
   const checks: [string, boolean][] = [
     ['earnedPoints maps/clamps the delta scale', pointsOk],
     [`a word is known only at ${WORD_KNOWN_STREAK} correct in a row`, knownOnlyAtThreshold],
@@ -203,6 +224,11 @@ async function main() {
     ['the credited vocabulary is a subset of the Stats denominator', vocabIsSubset],
     ['the Stats scope is the words of introduced kanji, and grows', scopeGrows],
     ['which-words credits no single word', whichWordsAbstains],
+    ['two readings of one form are two vocabulary entries', distinctKeys],
+    ['missing 木/き does not walk 木/もく backwards', mokuUnharmed && kiFloored],
+    ['getting 木/き right does not credit 木/もく', mokuUncredited],
+    ['both readings are in the Stats scope', bothInScope],
+    ['a single-reading word keeps its bare-surface key', plainUnchanged],
     ['word runs survive the normalizeProgress round-trip', wordsSurvive],
     ['malformed word entries are dropped or clamped', wordsNormalized],
     ['untouched progress gains no words key', !('words' in normalizeProgress(defaultProgress()))],

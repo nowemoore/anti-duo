@@ -5,10 +5,10 @@ import { PRACTICE_ITERATIONS } from '../../shared/constants'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { introducedUnits, isForgottenLevel } from '../lib/study'
-import { awardDelta, levelDeltaFor, pickTarget } from '../lib/practice'
+import { awardDelta, levelDeltaFor, markSeen, pickTarget } from '../lib/practice'
 import { recordTaskResult, recordWordResult } from '../lib/stats'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR } from '../../shared/constants'
-import { generateAnyTask, testedWord, type Task } from '../lib/tasks'
+import { generateAnyTask, testedWordKey, type Task } from '../lib/tasks'
 import { TaskRunner } from './tasks/TaskRunner'
 import { Bilingual } from './Bilingual'
 
@@ -55,8 +55,9 @@ export function PracticeSession({ onExit }: Props) {
 
   const makeTask = useCallback((): Current | null => {
     const synthetic: Progress = { ...progress, units: workingRef.current }
-    const targetIdx = pickTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
-    if (targetIdx == null) return null
+    const pick = pickTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
+    if (pick == null) return null
+    const targetIdx = pick.idx
     const studySet = Object.keys(workingRef.current).map(Number)
     const task = generateAnyTask(index, targetIdx, {
       studySet,
@@ -94,10 +95,13 @@ export function PracticeSession({ onExit }: Props) {
     // word also move that word's "known" run (which-words tests four at once, so it doesn't count).
     // Checked against the curated vocabulary: a cloze can focus an inflection (食べた), which
     // shouldn't be tracked separately from its dictionary form.
-    const tested = testedWord(task)
-    const word = tested && index.words.has(tested) ? tested : null
+    // Keyed by surface *and* reading where a form has more than one: missing 木/き must not walk
+    // 木/もく backwards, and getting もく right must not credit き.
+    const word = testedWordKey(task, index)
     update((p) => {
       let next = levelDelta !== 0 ? awardDelta(p, targetIdx, levelDelta) : p
+      // Every answered question stamps recency, including the ones worth no level change.
+      next = markSeen(next, targetIdx, new Date().toISOString())
       next = recordTaskResult(next, task.kind, delta)
       return word ? recordWordResult(next, word, delta > 0) : next
     })

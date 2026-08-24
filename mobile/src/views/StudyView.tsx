@@ -25,6 +25,7 @@ import { GrammarSection } from '../components/grammar/GrammarSection'
 import { KanaMenu } from '../components/kana/KanaMenu'
 import { KanaCharacter } from '../components/kana/KanaCharacter'
 import { KanaPractice } from '../components/kana/KanaPractice'
+import { KanaWordPractice } from '../components/kana/KanaWordPractice'
 import { HeaderProvider, useHeaderConfig, useScreenHeader } from '../context/HeaderContext'
 import { useTabBarHeight } from '../context/TabBarContext'
 import { useLanguage } from '../context/LanguageContext'
@@ -54,6 +55,7 @@ type Route =
   | 'kana'
   | 'kanaChar'
   | 'kanaPractice'
+  | 'kanaWords'
 
 export function StudyView() {
   const index = useContent()
@@ -267,6 +269,7 @@ export function StudyView() {
                   go('kanaChar')
                 }}
                 onPractice={() => go('kanaPractice')}
+                onWordPractice={() => go('kanaWords')}
               />
             </ScreenFrame>
           )}
@@ -286,6 +289,14 @@ export function StudyView() {
           {() => (
             <ScreenFrame>
               <KanaPractice onBack={() => go('kana')} />
+            </ScreenFrame>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="kanaWords">
+          {() => (
+            <ScreenFrame>
+              <KanaWordPractice onBack={() => go('kana')} />
             </ScreenFrame>
           )}
         </Stack.Screen>

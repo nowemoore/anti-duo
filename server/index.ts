@@ -37,8 +37,9 @@ app.put('/api/progress', async (req, res) => {
 // Read-only content: parsed kanji + sentences.
 app.get('/api/content', async (_req, res) => {
   try {
-    const { units, sentences, kanjiMeanings, kanjiRadicals, kanjiComponents } = await getContent()
-    res.json({ units, sentences, kanjiMeanings, kanjiRadicals, kanjiComponents })
+    const { units, sentences, kanaWords, kanjiMeanings, kanjiRadicals, kanjiComponents } =
+      await getContent()
+    res.json({ units, sentences, kanaWords, kanjiMeanings, kanjiRadicals, kanjiComponents })
   } catch (e) {
     res.status(500).json({ error: (e as Error).message })
   }

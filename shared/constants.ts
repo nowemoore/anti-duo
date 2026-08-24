@@ -39,6 +39,20 @@ export const WARMUP_LEVEL = 2
 export const WARMUP_MAX_LOSS = 0.34
 
 /**
+ * Fraction of practice questions whose target is picked uniformly at random, ignoring the level
+ * weighting — and flagged as such in the answer log.
+ *
+ * Without this the review gap and the thing we want to measure are the same variable: `pickTarget`
+ * gives weak units short gaps and strong ones long gaps, so a long gap only ever *happens* to a unit
+ * already believed to be strong. Fitting a forgetting curve on that measures the scheduler's beliefs
+ * rather than the learner's memory. These rows are the unbiased sample.
+ *
+ * Deliberately small: it trades a slightly less well-targeted question now for retention data that
+ * can be trusted later, and it cannot be added retroactively to rows already collected.
+ */
+export const EXPLORE_RATE = 0.05
+
+/**
  * Where a kanji stops counting as merely introduced and starts counting as learnt, for the mosaic's
  * shading. Levels are unbounded and move by roughly ±0.5–1 per answer, so this works out at a
  * handful of correct answers past the introduction.
@@ -127,6 +141,24 @@ export const KANA_DRILL_ITEMS = 10
 
 /** Options shown in a listen-and-pick question, including the answer. */
 export const KANA_PICK_OPTIONS = 4
+
+/** Questions in one kana *word* practice run. Matches KANA_DRILL_ITEMS so the two feel alike. */
+export const KANA_WORD_ITEMS = 10
+
+/**
+ * Options in a kana word question — and, because a multiple-choice question cannot be filled from a
+ * shorter list, the number of readable words needed before word practice opens at all.
+ */
+export const KANA_WORD_OPTIONS = 4
+
+/**
+ * Character streak at which a word flips from being asked meaning-first to spelling-first.
+ *
+ * Meaning-first is the gentler direction: the word is on screen and only has to be understood.
+ * Spelling asks the learner to produce the right long vowel and small kana from a sound, which is
+ * only a fair question once the glyphs themselves are no longer in doubt.
+ */
+export const KANA_WORD_SPELL_STREAK = 2
 
 export const DEFAULT_SETTINGS: Settings = {
   name: '',

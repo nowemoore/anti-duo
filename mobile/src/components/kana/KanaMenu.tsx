@@ -4,14 +4,17 @@ import { ActionRow } from '../ActionRow'
 import { ProgressTally } from '../ProgressTally'
 import {
   canDrill,
+  canPractiseWords,
   isTraced,
   masteryOf,
   studiedCount,
   totalKanaCount,
   tracedToPractise,
+  wordsToPractise,
   type KanaScript,
 } from '@lib/kana'
-import { KANA_DRILL_ITEMS } from '@shared/constants'
+import { KANA_DRILL_ITEMS, KANA_WORD_ITEMS } from '@shared/constants'
+import { useContent } from '../../context/ContentContext'
 import { useProgress } from '../../context/ProgressContext'
 import { useScreenHeader } from '../../context/HeaderContext'
 import { useTabBarHeight } from '../../context/TabBarContext'
@@ -35,10 +38,12 @@ export function KanaMenu({
   scripts,
   onSelect,
   onPractice,
+  onWordPractice,
 }: {
   scripts: KanaScript[]
   onSelect: (script: KanaScript, char: string) => void
   onPractice: () => void
+  onWordPractice: () => void
 }) {
   const styles = useStyles(makeStyles)
   const tabBar = useTabBarHeight()
@@ -57,6 +62,11 @@ export function KanaMenu({
   // Practice is multiple choice, so one script needs enough characters to fill the options.
   const ready = canDrill(progress)
   const toGo = tracedToPractise(progress)
+  // Words come from their own list and open on their own terms: enough of them have to be *readable*
+  // — every character traced — before a multiple-choice question can be filled.
+  const kanaWords = useContent().content.kanaWords ?? []
+  const wordsReady = canPractiseWords(progress, kanaWords)
+  const wordsToGo = wordsToPractise(progress, kanaWords)
   const stateOf = (char: string): CellState => (isTraced(progress, char) ? 'studied' : 'new')
 
   return (
@@ -82,6 +92,19 @@ export function KanaMenu({
           }
           disabled={!ready}
           onPress={onPractice}
+        />
+        {/* The second step: the same characters in real words. Secondary rather than primary — the
+            character drill is what a learner needs first, and this is where they go once it's easy. */}
+        <ActionRow
+          icon="book-open"
+          title="Words"
+          sub={
+            wordsReady
+              ? `${KANA_WORD_ITEMS} questions`
+              : `${wordsToGo} more readable ${wordsToGo === 1 ? 'word' : 'words'} needed`
+          }
+          disabled={!wordsReady}
+          onPress={onWordPractice}
         />
         <Text style={styles.scrollNote}>or scroll to continue learning</Text>
       </View>

@@ -18,3 +18,4 @@ export function findScript(lang: string, id: string): KanaScript | undefined {
 export * from './drill'
 export * from './engine'
 export * from './table'
+export * from './words'

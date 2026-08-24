@@ -1,5 +1,5 @@
 import type { Unit, Word, Sentence, WordToken } from '../../shared/types'
-import type { ContentIndex } from './content'
+import { wordKey, type ContentIndex } from './content'
 import { pick, sample, shuffle } from './random'
 
 // ---------------------------------------------------------------------------
@@ -355,9 +355,19 @@ function buildPick(
   const focus = findFocusToken(target, index)
   if (!focus) return null
   const pools = getPools(index)
+  // A written form with more than one reading (木 is き and もく) must not have its *other* reading
+  // offered as a wrong answer — it is a correct reading of the word, just not the one in this
+  // sentence, and no learner could defend marking it wrong.
+  const alternates = new Set(
+    (index.readingsOf.get(focus.token.surface) ?? []).filter((r) => r !== focus.token.reading),
+  )
   const options =
     kind === 'pick-reading'
-      ? index.lang.readingOptions(focus.token.reading, focus.token.surface, pools.readings)
+      ? index.lang.readingOptions(
+          focus.token.reading,
+          focus.token.surface,
+          alternates.size ? pools.readings.filter((r) => !alternates.has(r)) : pools.readings,
+        )
       : makeOptions(focus.token.gloss, pools.meanings)
   if (!options) return null
   return {
@@ -597,6 +607,40 @@ export function checkChoice(task: ChoiceTask, chosenIndex: number): boolean {
  * good result isn't evidence about any particular one. `plural` returns null because `buildPlural`
  * keeps only the reading and drops the surface form entirely.
  */
+/**
+ * The surface *and reading* a task tested, or null when it tested no single word.
+ *
+ * Both halves are needed to identify the word: 木 alone doesn't say whether き or もく was asked.
+ */
+export function testedWordEntry(task: Task): { surface: string; reading: string } | null {
+  switch (task.kind) {
+    case 'type-word':
+    case 'draw':
+      return { surface: task.word, reading: task.reading }
+    case 'cloze':
+    case 'root-cloze':
+    case 'pick-reading':
+    case 'pick-meaning': {
+      const token = task.sentence.tokens[task.tokenIndex]
+      return token?.kind === 'word' ? { surface: token.surface, reading: token.reading } : null
+    }
+    default:
+      return null
+  }
+}
+
+/**
+ * The `Progress.words` key for what a task tested, or null when nothing single-word was tested or
+ * the word isn't curated vocabulary. Callers use this instead of pairing {@link testedWord} with a
+ * membership check, so the key rule lives in exactly one place.
+ */
+export function testedWordKey(task: Task, index: ContentIndex): string | null {
+  const entry = testedWordEntry(task)
+  if (!entry) return null
+  const key = wordKey(index.readingsOf, entry.surface, entry.reading)
+  return index.words.has(key) ? key : null
+}
+
 export function testedWord(task: Task): string | null {
   switch (task.kind) {
     case 'type-word':

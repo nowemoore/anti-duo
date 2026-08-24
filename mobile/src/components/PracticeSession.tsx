@@ -6,9 +6,9 @@ import { TaskChip } from './TaskChip'
 import type { Progress } from '@shared/types'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR, PRACTICE_ITERATIONS } from '@shared/constants'
 import { introducedUnits, isForgottenLevel } from '@lib/study'
-import { awardDelta, levelDeltaFor, pickTarget } from '@lib/practice'
+import { awardDelta, levelDeltaFor, markSeen, pickTarget } from '@lib/practice'
 import { amendTaskResult, recordTaskResult, recordWordResult, restoreWordStreak } from '@lib/stats'
-import { generateAnyTask, testedWord, WHICH_WORDS_OPTIONS, WHICH_WORDS_POINT } from '@lib/tasks'
+import { generateAnyTask, testedWordKey, WHICH_WORDS_OPTIONS, WHICH_WORDS_POINT } from '@lib/tasks'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
@@ -23,6 +23,7 @@ import type { QA } from './tasks/types'
 import { useDrawableWord } from '../hooks/useDrawableWord'
 import { useAuth } from '../context/AuthContext'
 import { saveDrawing, overrideDrawing } from '../lib/drawings'
+import { describeAnswer, saveAnswer } from '../lib/answers'
 import type { DrawStroke } from '../lang/types'
 import { fonts, btnPrimary, btnSecondary, radius, shadow, spacing, type Palette, btnLabel, btnLabelQuiet } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
@@ -75,8 +76,9 @@ export function PracticeSession({
 
   const makeQA = useCallback((): QA | null => {
     const synthetic: Progress = { ...progress, units: workingRef.current }
-    const targetIdx = pickTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
-    if (targetIdx == null) return null
+    const pick = pickTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
+    if (pick == null) return null
+    const targetIdx = pick.idx
     const studySet = Object.keys(workingRef.current).map(Number)
     const task = generateAnyTask(index, targetIdx, {
       studySet,
@@ -88,7 +90,16 @@ export function PracticeSession({
     })
     if (!task) return null
     const ui = getTaskUI(task.kind, pack)
-    return { task, targetIdx, answer: ui ? ui.emptyAnswer() : null, phase: 'first', score: 0, recorded: false }
+    return {
+      task,
+      targetIdx,
+      answer: ui ? ui.emptyAnswer() : null,
+      phase: 'first',
+      score: 0,
+      recorded: false,
+      randomPick: pick.random,
+      shownAt: Date.now(),
+    }
   }, [index, progress, canDrawWord, pack])
 
   const [history, setHistory] = useState<QA[]>(() => {
@@ -126,32 +137,64 @@ export function PracticeSession({
     // which-words shows four at once, so a good score there isn't evidence about any one of them.
     // Sentence-derived words are checked against the curated vocabulary: a cloze can focus an
     // inflection (食べた) which shouldn't be tracked separately from its dictionary form.
-    const tested = testedWord(item.task)
-    const word = tested && index.words.has(tested) ? tested : null
+    // Keyed by surface *and* reading where a form has more than one: missing 木/き must not walk
+    // 木/もく backwards, and getting もく right must not credit き.
+    const word = testedWordKey(item.task, index)
     // Read before the update so an override can put it back exactly. Safe to read from the rendered
     // progress: exactly one answer is recorded per question, and each needs its own tap.
     const prevWordStreak = word ? (progress.words?.[word] ?? 0) : 0
+    // Read before the update: these describe the state the question was answered *from*, which is
+    // what retention has to be conditioned on.
+    const lvlBefore = progress.units[item.targetIdx]?.lvl ?? INTRODUCED_LEVEL
+    const prevSeenAt = progress.units[item.targetIdx]?.lastSeenAt ?? null
+    const answeredAt = new Date().toISOString()
     update((p) => {
       let next = levelDelta !== 0 ? awardDelta(p, item.targetIdx, levelDelta) : p
+      // Every answered question stamps recency, including the ones worth no level change.
+      next = markSeen(next, item.targetIdx, answeredAt)
       next = recordTaskResult(next, item.task.kind, item.score)
       return word ? recordWordResult(next, word, isCorrect(item)) : next
     })
     prevTargetRef.current = item.targetIdx
 
+    // One row per answered question, for distractor quality, per-skill accuracy and retention.
+    // Fire-and-forget, like the drawing below: a logging failure must never disrupt practice.
+    const logAnswer = (drawingId: string | null) => {
+      if (!userId) return
+      void saveAnswer({
+        userId,
+        lang: pack.id,
+        unitIdx: item.targetIdx,
+        taskKind: item.task.kind,
+        correct: isCorrect(item),
+        score: item.score,
+        picked: describeAnswer(item.answer),
+        sentenceId: 'sentence' in item.task ? item.task.sentence.id : null,
+        lvlBefore,
+        wordStreakBefore: word ? prevWordStreak : null,
+        prevSeenAt,
+        latencyMs: item.shownAt ? Date.now() - item.shownAt : null,
+        randomPick: item.randomPick ?? false,
+        drawingId,
+      }).catch(() => {})
+    }
+
     // Persist the drawing (with the recognizer's verdict) to Supabase — a history. Fire-and-forget:
     // a save failure must never disrupt practice. A later override updates the row (via its id).
-    if (item.task.kind === 'draw' && userId) {
-      const strokes = item.answer as DrawStroke[]
-      if (Array.isArray(strokes) && strokes.length) {
-        const at = pos
-        const word = item.task.word
-        // Practice only ever offers recognizer-graded words; tracing lives in the write review.
-        saveDrawing({ userId, lang: pack.id, unitIdx: item.targetIdx, word, strokes, correct: item.score > 0, mode: 'recognized' })
-          .then((id) => {
-            if (id) drawingIdRef.current[at] = id
-          })
-          .catch(() => {})
-      }
+    // The answer row is written after it, so a draw answer can link to its strokes.
+    const strokes = item.answer as DrawStroke[]
+    if (item.task.kind === 'draw' && userId && Array.isArray(strokes) && strokes.length) {
+      const at = pos
+      const drawnWord = item.task.word
+      // Practice only ever offers recognizer-graded words; tracing lives in the write review.
+      saveDrawing({ userId, lang: pack.id, unitIdx: item.targetIdx, word: drawnWord, strokes, correct: item.score > 0, mode: 'recognized' })
+        .then((id) => {
+          if (id) drawingIdRef.current[at] = id
+          logAnswer(id)
+        })
+        .catch(() => logAnswer(null))
+    } else {
+      logAnswer(null)
     }
     return { levelDelta, prevWordStreak }
   }
@@ -231,8 +274,8 @@ export function PracticeSession({
     workingRef.current = { ...workingRef.current, [qa.targetIdx]: { lvl: Math.max(LEVEL_FLOOR, cur + correction) } }
     patch({ ...qa, score: newScore, overridden: true, appliedDelta: newDelta })
 
-    const tested = testedWord(qa.task)
-    const word = tested && index.words.has(tested) ? tested : null
+    // Same key as when it was first recorded, or the rewind would restore the wrong run.
+    const word = testedWordKey(qa.task, index)
     update((p) => {
       let next = correction !== 0 ? awardDelta(p, qa.targetIdx, correction) : p
       // Swap the points the original verdict earned for the learner's, without a second attempt.

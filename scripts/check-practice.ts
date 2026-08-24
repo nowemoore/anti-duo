@@ -1,10 +1,10 @@
 // Verifies the level-evening selection algorithm — `npm run check:practice`.
 import { loadContent } from '../server/content'
 import { buildContentIndex } from '../src/lib/content'
-import { awardDelta, levelDeltaFor, levelSpread, pickTarget } from '../src/lib/practice'
+import { awardDelta, levelDeltaFor, levelSpread, markSeen, pickTarget } from '../src/lib/practice'
 import { applyLearned, introducedUnits, nextLearnChunk, unlearnedUnits } from '../src/lib/study'
 import { ALL_TASK_TYPES } from '../src/lib/tasks'
-import { INTRODUCED_LEVEL, WARMUP_LEVEL, defaultProgress } from '../shared/constants'
+import { EXPLORE_RATE, INTRODUCED_LEVEL, WARMUP_LEVEL, defaultProgress } from '../shared/constants'
 import type { Progress } from '../shared/types'
 
 async function main() {
@@ -22,8 +22,11 @@ async function main() {
   let prev: number | null = null
   let repeats = 0
   for (let i = 0; i < 400; i++) {
-    const target = pickTarget(index, p, { avoidIdx: prev ?? undefined })
-    if (target == null) throw new Error('no target')
+    // exploreRate 0: this asserts the level-weighted behaviour, and the exploration slice would
+    // otherwise inject uniform picks that legitimately repeat the previous target and widen spread.
+    const pick = pickTarget(index, p, { avoidIdx: prev ?? undefined, exploreRate: 0 })
+    if (pick == null) throw new Error('no target')
+    const target = pick.idx
     if (target === prev) repeats++
     counts[target] = (counts[target] ?? 0) + 1
     p = awardDelta(p, target, 1)
@@ -68,6 +71,41 @@ async function main() {
   const gainUndamped =
     levelDeltaFor('cloze', 1, INTRODUCED_LEVEL) === levelDeltaFor('cloze', 1, WARMUP_LEVEL + 5)
 
+  // --- exploration slice --------------------------------------------------
+  // A fraction of picks ignore the level weighting, so retention analysis has review gaps the
+  // scheduler didn't choose. Rate 0 and 1 must be absolute: the checks above rely on 0 disabling it.
+  const neverRandom = Array.from({ length: 200 }, () =>
+    pickTarget(index, p, { exploreRate: 0 })!.random,
+  ).every((r) => r === false)
+  const alwaysRandom = Array.from({ length: 200 }, () =>
+    pickTarget(index, p, { exploreRate: 1 })!.random,
+  ).every((r) => r === true)
+  const N = 20000
+  const observed = Array.from({ length: N }, () => pickTarget(index, p)!.random).filter(Boolean).length / N
+  // Wide band: this is a rate check, not a randomness test.
+  const rateAboutRight = Math.abs(observed - EXPLORE_RATE) < EXPLORE_RATE / 2
+
+  // An explored pick must still be a legal target, not just any index.
+  const poolIdx = new Set(introducedUnits(index, p).map((k) => k.idx))
+  const exploredInPool = Array.from({ length: 500 }, () =>
+    pickTarget(index, p, { exploreRate: 1 })!.idx,
+  ).every((i) => poolIdx.has(i))
+
+  // --- unit record is preserved across writes -------------------------------
+  // awardDelta used to write `{ lvl }` alone, dropping everything else on the record.
+  const seeded: Progress = {
+    ...qBase,
+    units: { ...qBase.units, [victim]: { lvl: 3, seenBatches: 2, lastSeenAt: '2026-01-01T00:00:00.000Z' } },
+  }
+  const afterAward = awardDelta(seeded, victim, 1).units[victim]
+  const keepsBatches = afterAward.seenBatches === 2 && afterAward.lastSeenAt === '2026-01-01T00:00:00.000Z'
+
+  const stamped = markSeen(seeded, victim, '2026-06-01T00:00:00.000Z').units[victim]
+  const marksSeen = stamped.lastSeenAt === '2026-06-01T00:00:00.000Z' && stamped.lvl === 3 && stamped.seenBatches === 2
+
+  // A unit never practised has no timestamp to report as a previous review.
+  const freshHasNoSeen = qBase.units[victim].lastSeenAt === undefined
+
   const checks: [string, boolean][] = [
     ['introduced 20 kanji', introduced === 20],
     ['no immediate repeats', repeats === 0],
@@ -84,6 +122,13 @@ async function main() {
       survivesTwoMisses,
     ],
     ['gains are not damped', gainUndamped],
+    ['exploreRate 0 never explores', neverRandom],
+    ['exploreRate 1 always explores', alwaysRandom],
+    [`explore rate ≈ ${EXPLORE_RATE} (observed ${observed.toFixed(3)})`, rateAboutRight],
+    ['an explored pick is still a legal target', exploredInPool],
+    ['awardDelta preserves seenBatches / lastSeenAt', keepsBatches],
+    ['markSeen stamps recency without touching the rest', marksSeen],
+    ['an unpractised unit has no lastSeenAt', freshHasNoSeen],
   ]
 
   console.log(`  introduced=${introduced}, level min=${spread.min} max=${spread.max}`)
