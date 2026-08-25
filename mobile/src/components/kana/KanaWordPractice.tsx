@@ -170,6 +170,16 @@ export function KanaWordPractice({ onBack }: { onBack: () => void }) {
           <Options item={item} answered={answered} onAnswer={resolve} />
         </ScrollView>
 
+        {/* Between the question and the pager, and only once the answer is in — several notes say
+            what a word is *not* (コンセント is not "consent"), which would hand over the answer if it
+            were on screen while the question was still open. */}
+        {answered && item.word.note && (
+          <View style={styles.note}>
+            <Icon name="circle-info" size={11} color={colors.muted} />
+            <Text style={styles.noteText}>{item.word.note}</Text>
+          </View>
+        )}
+
         <View style={styles.pager}>
           <PagerChevron dir="prev" onPress={prev} disabled={i === 0} label="Previous question" />
           {answered ? (
@@ -392,6 +402,14 @@ const makeStyles = (colors: Palette) =>
     optionKanaText: { color: colors.ink, fontFamily: fonts.medium, fontSize: 26 },
     optionLabel: { color: colors.ink, fontFamily: fonts.body, fontSize: 16, textAlign: 'center' },
 
+    note: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingBottom: spacing.sm,
+    },
+    noteText: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center' },
     pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
     verdictSlot: { flex: 1 },
     verdict: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.pill },

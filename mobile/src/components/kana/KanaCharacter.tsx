@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  Animated,
   View,
   Text,
   ScrollView,
@@ -29,6 +30,7 @@ import {
   type Palette,
 } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
+import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
 /** Meet it, copy it, then produce it unaided. */
 type Slide = 'intro' | 'trace' | 'own'
@@ -133,6 +135,17 @@ export function KanaCharacter({
   const [drawing, setDrawing] = useState(false)
 
   const canGrade = draw?.gradeChar != null && (draw.canGradeChar?.(char) ?? true)
+
+  /**
+   * The whole card eases to the verdict colour, exactly as the practice cards do — the canvas alone
+   * turning green read as "the drawing is green" rather than "you got it right".
+   *
+   * Only the page you are on carries it: the neighbours in the pager are a different character, or a
+   * different step of this one, and neither has been judged.
+   */
+  const cardFade = useVerdictFade(verdict != null)
+  const cardTint = verdict === 'right' ? colors.correctSoft : colors.incorrectSoft
+  const cardEdge = verdict === 'right' ? colors.correct : colors.incorrect
 
   // No help button: a kana reference chart would hand over the very thing this page teaches.
   useScreenHeader()
@@ -327,7 +340,16 @@ export function KanaCharacter({
                 {/* The card, as on every other study screen. One per page rather than one behind
                     the pager, so the cards slide with the characters instead of the content
                     sliding inside a fixed frame. */}
-                <View style={styles.card}>
+                <Animated.View
+                  style={[
+                    styles.card,
+                    !p.sentinel &&
+                      p.slide === slide && {
+                        backgroundColor: fadeColor(cardFade, colors.panel, cardTint),
+                        borderColor: fadeColor(cardFade, colors.border, cardEdge),
+                      },
+                  ]}
+                >
                   <View style={styles.labelRow}>
                     <Text style={styles.label}>{LABEL[p.slide]}</Text>
                     <SpeakButton text={p.char} label="Play the sound again" small />
@@ -404,7 +426,7 @@ export function KanaCharacter({
                       )
                     })()}
                   </View>
-                </View>
+                </Animated.View>
 
                 {/* Balances the two gaps above, leaving the canvas around the middle of the page. */}
                 <View style={styles.gapBottom} />

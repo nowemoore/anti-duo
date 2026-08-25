@@ -94,6 +94,12 @@ export interface KanaWord {
   distractors: Word[]
   /** A kanji spelling that exists but isn't normally used (有る for ある). Absent when there is none. */
   rareKanji?: string
+  /**
+   * A short aside about the word — what it is short for (ビル ← ビルディング), or the English word it
+   * is *not* (コンセント is not "consent"). Shown only after a question has been answered, so it
+   * never gives one away.
+   */
+  note?: string
 }
 
 /** A particle/scaffold token — standalone grammar; always rendered verbatim, never blanked. */

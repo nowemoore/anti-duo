@@ -159,6 +159,7 @@ function parseKanaWordRow(row: Record<string, string>): KanaWord {
   const word = row.word?.trim()
   if (!word) throw new ContentError(`Empty word at ${where}`)
   const rareKanji = row.rare_kanji?.trim()
+  const note = row.note?.trim()
   return {
     idx,
     word,
@@ -169,6 +170,7 @@ function parseKanaWordRow(row: Record<string, string>): KanaWord {
     examples: parseJsonField<Word[]>(row.examples, `${where}.examples`),
     distractors: parseJsonField<Word[]>(row.distractors, `${where}.distractors`),
     ...(rareKanji ? { rareKanji } : {}),
+    ...(note ? { note } : {}),
   }
 }
 
