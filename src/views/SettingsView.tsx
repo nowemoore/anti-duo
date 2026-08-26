@@ -1,5 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useProgress } from '../context/ProgressContext'
+import { AccountSettings } from '../components/AccountSettings'
 import { CategorySettings } from '../components/CategorySettings'
 import { TaskFrequencySettings } from '../components/TaskFrequencySettings'
 
@@ -36,6 +37,9 @@ export default function SettingsView() {
           )}
         </p>
       </section>
+
+      {/* Directly under the profile: signing in is the other half of "who is this progress for". */}
+      <AccountSettings />
 
       <CategorySettings />
 

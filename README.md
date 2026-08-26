@@ -70,8 +70,28 @@ success rate per task type.
 
 ### 設定 Settings
 
-Set your display name, and toggle whole categories (Numbers, Food & Drink, …) or individual kanji
-on/off — a disabled kanji keeps its progress but is paused from Learn and Practice.
+Set your display name, sign in for cloud backup (below), toggle whole categories (Numbers, Food &
+Drink, …) or individual kanji on/off — a disabled kanji keeps its progress but is paused from Learn
+and Practice — and tune how often each practice question type comes up.
+
+#### Cloud backup (optional)
+
+Off unless you configure it, and the app is fully usable without it. With a Supabase project wired
+up, **Settings → Cloud backup** signs you in with a one-time code emailed to you (no password), and
+your progress is backed up and shared with the phone app.
+
+1. Run [`supabase/progress.sql`](supabase/progress.sql) in your project's SQL editor — it creates the
+   `progress` table and the row-level security policies that keep one learner out of another's data.
+2. Copy [`.env.example`](.env.example) to `.env.local` and fill in `VITE_SUPABASE_URL` and
+   `VITE_SUPABASE_ANON_KEY` from Supabase → Project Settings → API. Restart the dev server.
+3. For the deployed demo, the same values come from the repo's `EXPO_PUBLIC_SUPABASE_*` Actions
+   secrets (see [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) — the phone app's
+   PWA build already uses them.
+
+The anon key is *publishable*: it ships inside every client build by design, so RLS is what protects
+your data, not secrecy. Reconciliation is last-write-wins on a client revision number — fine for one
+person across devices, but two devices edited while both were offline will not merge field by field:
+whichever syncs last wins wholesale.
 
 **Tech:** React 18 + TypeScript + Vite front end. Kanji and sentence content lives in CSV files
 under [`dbs/`](dbs/), parsed by a thin Express server behind a swappable storage interface. The

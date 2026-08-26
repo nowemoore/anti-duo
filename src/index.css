@@ -37,6 +37,38 @@ body {
   overflow-x: hidden; /* never scroll sideways; vertical scroll stays normal */
 }
 
+/*
+ * Skyline watermark: pagodas, torii and a city, brushed by an SVG turbulence filter so the edges
+ * aren't machine-straight.
+ *
+ * An overlay, not a backdrop. It spans the whole window and paints *over* the app — panels included
+ * — so the skyline runs across the cards instead of being hidden the moment one covers it. At the
+ * opacity baked into the file that reads as texture on the glass rather than as a picture behind it.
+ * `pointer-events: none` is load-bearing: the layer sits above every control on the page.
+ *
+ * The art is a 1200x340 band carrying `preserveAspectRatio="none"`, and that attribute is the whole
+ * story of this rule. It means the image has *no intrinsic aspect ratio at all*, as far as CSS is
+ * concerned — so `auto` in `background-size` does not mean "3.5x the height", it means "the width of
+ * the box", and the buildings come out stretched to whatever the window is wide. Both dimensions
+ * have to be stated, in the ratio the thing was actually drawn at.
+ *
+ * So the *box* carries the proportions instead of the image: `aspect-ratio` derives the height from
+ * the window's width, and the image is then told to fill that box exactly. Stretching into a box
+ * that is already the right shape is no stretch at all, and it stays right at every window size.
+ *
+ * Full width, bottom-anchored, and about a third of the screen tall on a laptop — the skyline sits
+ * behind the lower half of the page and crosses the foot of the cards.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 20;
+  aspect-ratio: 1200 / 340;
+  background: url('./assets/skyline-watermark.svg') no-repeat bottom center / 100% 100%;
+  pointer-events: none;
+}
+
 button,
 input {
   /* native form controls don't inherit color/font by default */
@@ -4060,4 +4092,107 @@ button.known-words:disabled {
 
 .streak-dot.on {
   background: var(--accent);
+}
+
+/* --- Account: optional cloud backup, signed in with an emailed code ------- */
+
+.account-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.account-email {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.account-status {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.account-status.bad {
+  color: var(--incorrect);
+}
+
+.account-error {
+  margin: 0;
+  color: var(--incorrect);
+  font-size: 0.82rem;
+}
+
+.account-input {
+  width: min(20rem, 100%);
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.account-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.account-input::placeholder {
+  color: var(--muted);
+}
+
+/* The one-time code: spaced out and centred, so it reads as six separate digits. */
+.account-input.code {
+  width: 11rem;
+  font-size: 1.35rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1.1rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.account-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.account-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Signing out is a quiet action, not the thing the card is for. */
+.account-btn.secondary {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.account-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent-ink);
+  font-size: 0.82rem;
+  text-decoration: underline;
+}
+
+.account code {
+  color: var(--accent-ink);
+  font-size: 0.9em;
 }

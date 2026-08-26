@@ -36,6 +36,10 @@ jobs:
         env:
           # Serve under https://<owner>.github.io/<repo>/ — matches the repo name automatically.
           BASE_PATH: /${{ github.event.repository.name }}/
+          # The same Supabase secrets the PWA build uses, under the names Vite inlines. Unset =
+          # the demo deploys with cloud backup switched off and progress kept in the browser.
+          VITE_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       - name: Build Expo PWA into /app
         working-directory: mobile
         run: |

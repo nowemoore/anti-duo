@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { AuthProvider } from './context/AuthContext'
 import { ContentProvider } from './context/ContentContext'
 import { ProgressProvider } from './context/ProgressContext'
+import { SyncProvider } from './context/SyncContext'
 import { HelpButton } from './components/HelpButton'
 import SettingsView from './views/SettingsView'
 import StatsView from './views/StatsView'
@@ -13,7 +15,13 @@ export default function App() {
   return (
     <ContentProvider>
       <ProgressProvider>
-        <Shell />
+        {/* Sync sits inside both: it reconciles the progress store against the signed-in account,
+            and does nothing at all while signed out. */}
+        <AuthProvider>
+          <SyncProvider>
+            <Shell />
+          </SyncProvider>
+        </AuthProvider>
       </ProgressProvider>
     </ContentProvider>
   )
