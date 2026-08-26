@@ -278,22 +278,11 @@ function StudyHome({
       </p>
 
       <div className="study-choices">
-        {/* One door per course. Learn and Practice used to sit here; they belong to the kanji
-            course, so they live on its own page now — over the board of every kanji in it. */}
-        <button type="button" className="study-choice" onClick={onUnits}>
-          <span className="icon-circle">
-            <FontAwesomeIcon icon="graduation-cap" />
-          </span>
-          <Bilingual ja="漢字" en="Kanji" />
-          <span className="study-choice-sub">
-            {introduced} / {enabledTotal} unlocked
-          </span>
-        </button>
-
-        {/* A parallel course rather than a step inside the kanji one, so it's never gated on kanji
-            progress — a learner can start here on day one, which is usually the right order. */}
+        {/* Kana first: it's where a learner with no Japanese at all should start, and the order the
+            cards sit in is the only recommendation the home screen makes. */}
         {onKana && (
           <button type="button" className="study-choice" onClick={onKana}>
+            <GlyphMark text="あア" />
             <span className="icon-circle">
               <FontAwesomeIcon icon="book-open" />
             </span>
@@ -306,10 +295,25 @@ function StudyHome({
           </button>
         )}
 
-        {/* Grammar is a third parallel course: its subsections gate on their own vocabulary, not on
-            a kanji count, so it appears from day one and says what it needs when you open it. */}
+        {/* One door per course. Learn and Practice used to sit here; they belong to the kanji
+            course, so they live on its own page now — over the board of every kanji in it. */}
+        <button type="button" className="study-choice" onClick={onUnits}>
+          <GlyphMark text="漢字" />
+          <span className="icon-circle">
+            <FontAwesomeIcon icon="graduation-cap" />
+          </span>
+          <Bilingual ja="漢字" en="Kanji" />
+          <span className="study-choice-sub">
+            {introduced} / {enabledTotal} unlocked
+          </span>
+        </button>
+
+        {/* Grammar last: its subsections gate on their own vocabulary rather than on a kanji count,
+            so it's open from day one — it's simply the one you get most out of last. */}
         {onGrammar && (
           <button type="button" className="study-choice" onClick={onGrammar}>
+            {/* Three brackets pulled into each other so they nest, rather than sitting in a row. */}
+            <GlyphMark text="《〈【" className="nested" />
             <span className="icon-circle">
               <FontAwesomeIcon icon="book" />
             </span>
@@ -323,6 +327,21 @@ function StudyHome({
         )}
       </div>
     </section>
+  )
+}
+
+/**
+ * A character watermark: oversized, barely-there, and clipped by the card's right edge.
+ *
+ * Deliberately cropped — a whole visible glyph reads as content rather than texture. Set in a
+ * hand-brushed face and coloured from the palette's ink at a low opacity, never the accent and never
+ * a literal colour, so it stays texture under whatever the card is doing.
+ */
+function GlyphMark({ text, className }: { text: string; className?: string }) {
+  return (
+    <span className={className ? `glyph-mark ${className}` : 'glyph-mark'} aria-hidden="true">
+      {text}
+    </span>
   )
 }
 

@@ -16,7 +16,7 @@ The same codebase runs two ways:
 
 ## 1. What the app does
 
-Four tabs:
+Three tabs:
 
 ### 勉強 Study — three courses
 
@@ -72,10 +72,6 @@ success rate per task type.
 
 Set your display name, and toggle whole categories (Numbers, Food & Drink, …) or individual kanji
 on/off — a disabled kanji keeps its progress but is paused from Learn and Practice.
-
-### 使い方 Manual
-
-A built-in usage guide.
 
 **Tech:** React 18 + TypeScript + Vite front end. Kanji and sentence content lives in CSV files
 under [`dbs/`](dbs/), parsed by a thin Express server behind a swappable storage interface. The

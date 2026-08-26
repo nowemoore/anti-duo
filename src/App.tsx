@@ -3,12 +3,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { ContentProvider } from './context/ContentContext'
 import { ProgressProvider } from './context/ProgressContext'
 import { HelpButton } from './components/HelpButton'
-import ManualView from './views/ManualView'
 import SettingsView from './views/SettingsView'
 import StatsView from './views/StatsView'
 import StudyView from './views/StudyView'
 
-type View = 'study' | 'stats' | 'settings' | 'manual'
+type View = 'study' | 'stats' | 'settings'
 
 export default function App() {
   return (
@@ -74,34 +73,19 @@ function Shell() {
                 <span className="en">Settings</span>
               </span>
             </button>
-            <button
-              className={view === 'manual' ? 'active' : ''}
-              onClick={() => setView('manual')}
-              type="button"
-            >
-              <FontAwesomeIcon icon="book" />
-              <span className="nav-labels">
-                <span className="ja">使い方</span>
-                <span className="en">Manual</span>
-              </span>
-            </button>
           </nav>
         </div>
       </header>
       <div
-        className={`scroll-area${
-          view === 'settings' || view === 'manual' || view === 'stats' ? ' no-scrollbar' : ''
-        }`}
+        className={`scroll-area${view === 'settings' || view === 'stats' ? ' no-scrollbar' : ''}`}
       >
         <main className="content">
           {view === 'study' ? (
             <StudyView key={studyKey} />
           ) : view === 'stats' ? (
             <StatsView />
-          ) : view === 'settings' ? (
-            <SettingsView />
           ) : (
-            <ManualView />
+            <SettingsView />
           )}
         </main>
       </div>

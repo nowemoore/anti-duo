@@ -7,6 +7,9 @@
   /* Body: Manrope (clean sans). Headings: Fraunces (warm serif). Japanese falls through to JP fonts. */
   font-family: 'Manrope', system-ui, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
   --font-heading: 'Fraunces', Georgia, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', serif;
+  /* Brush face, used only for the decorative card watermarks. Google Fonts serves it split by
+     unicode-range, so the handful of glyphs on the study home is all that's ever downloaded. */
+  --font-brush: 'Yuji Syuku', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
   line-height: 1.5;
   color: var(--ink);
   background: var(--bg);
@@ -608,6 +611,9 @@ button {
 }
 
 .study-choice {
+  /* Anchors the watermark, which is clipped by the card's own edges. */
+  position: relative;
+  overflow: hidden;
   flex: 1 1 0;
   max-width: 16rem;
   min-width: 11rem;
@@ -643,6 +649,49 @@ button {
 .study-choice-sub {
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+/*
+ * Card watermark: a huge brush glyph bled off the card's right edge.
+ *
+ * Cropping is the point — a whole visible glyph reads as content rather than as texture, and the
+ * right edge is where the crop reads as intentional. Vertically centred by the layout rather than by
+ * a hand-tuned offset, and behind everything (z-index 0 against the content's 1) so it can never
+ * catch a click.
+ */
+.glyph-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -0.8rem;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  font-family: var(--font-brush);
+  font-size: 7.5rem;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--ink);
+  opacity: 0.06;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Negative tracking pulls the brackets into each other so they nest instead of running across. */
+.glyph-mark.nested {
+  right: -0.2rem;
+  font-size: 4.6rem;
+  letter-spacing: -1.1em;
+  opacity: 0.07;
+}
+
+/* Lift the card's real content over the watermark. */
+.study-choice > .icon-circle,
+.study-choice > .bilingual,
+.study-choice > .study-choice-sub {
+  position: relative;
+  z-index: 1;
 }
 
 /* Study intro */
@@ -692,27 +741,25 @@ button {
 }
 
 .known-words h2 {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.1rem;
 }
 
 .known-words-count {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  margin-bottom: 0.75rem;
-}
-
-.known-words-count strong {
-  font-family: var(--font-heading);
-  font-size: 2.5rem;
+  margin: 0 0 0.9rem;
+  font-size: 1.8rem;
+  font-weight: 600;
   line-height: 1;
+}
+
+/* "5/10": no spaces around the slash, both numbers the same size, only colour separating them —
+   the total is what's being counted against, not a footnote. */
+.tally-pair {
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
-.known-words-of {
+.tally-pair-total {
   color: var(--muted);
-  font-size: 0.95rem;
-  font-variant-numeric: tabular-nums;
 }
 
 .known-words-note {
@@ -737,27 +784,45 @@ button {
   color: var(--muted);
 }
 
-/* One shared grid across all rows (rows use display:contents) so every bar is the same length,
-   regardless of how wide each row's percentage / try-count text is. */
+/* Each row is a label line over a full-width bar line, so the bar is the same length in every row
+   whatever the label says — and a long task name can't squeeze it. */
 .stats-list {
   list-style: none;
-  display: grid;
-  grid-template-columns: minmax(0, 11rem) 1fr auto;
-  align-items: center;
-  gap: 1.1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
 }
 
 .stats-row {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
+/* Icon and name on one line, so the bar underneath starts at the row's left edge. */
 .stats-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   color: var(--ink);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+}
+
+.stats-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.stats-bar-row .stats-bar {
+  flex: 1;
 }
 
 .stats-bar {
   height: 0.5rem;
+  display: block;
   border-radius: 999px;
   background: var(--border);
   overflow: hidden;
@@ -771,24 +836,24 @@ button {
   transition: width 0.3s ease;
 }
 
-.stats-value {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.5rem;
+/* Fixed number cells so the % and try-count align down the column, and every bar ends in the same
+   place however wide those numbers get. */
+.stats-pct {
+  flex: none;
+  width: 2.9rem;
+  text-align: right;
   color: var(--ink);
+  font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
 }
 
-/* Fixed number cells so the % and try-count align down the column (and don't alter bar length). */
-.stats-pct {
-  min-width: 3ch;
-  text-align: right;
-}
-
 .stats-count {
-  min-width: 4.75rem;
+  flex: none;
+  width: 3.9rem;
+  text-align: right;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Header (kanji + gloss) is centered; the examples table below is left-aligned. */
@@ -1737,162 +1802,6 @@ ruby rt {
   color: var(--muted);
 }
 
-/* ---------------------------------------------------------------------------
-   Manual — "how to use this tool" guide
-   --------------------------------------------------------------------------- */
-.manual-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-/* Page-level title, above the section cards. */
-.manual-title {
-  font-family: var(--font-heading);
-  font-size: 2.1rem;
-  margin: 0.25rem 0 0;
-  text-align: center;
-}
-
-.manual-about p {
-  line-height: 1.7;
-}
-
-/* Bulleted "personalise" points. */
-.manual-points {
-  margin: 0.5rem 0 0;
-  padding-left: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  line-height: 1.6;
-}
-.manual-points li::marker {
-  color: var(--muted);
-}
-
-.manual-flow {
-  margin: 0.75rem 0 1rem;
-  padding-left: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  line-height: 1.6;
-}
-.manual-flow li::marker {
-  color: var(--muted);
-}
-
-.manual-tasks > .muted {
-  margin-top: 0;
-}
-
-/* A single numbered task, divider above each but the first. */
-.manual-task {
-  border-top: 1px solid var(--border);
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-}
-.manual-task:first-of-type {
-  border-top: none;
-  margin-top: 0.75rem;
-  padding-top: 0;
-}
-
-.manual-task-head {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  margin-bottom: 0.9rem;
-}
-.manual-task-no {
-  flex: none;
-  width: 1.6rem;
-  height: 1.6rem;
-  margin-top: 0.1rem;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--c-900);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.85rem;
-}
-.manual-task-head h3 {
-  margin: 0;
-  font-size: 1.05rem;
-}
-.manual-task-head p {
-  margin: 0.2rem 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-/* The example box — reuses the live-task classes inside, scaled down a touch. */
-.manual-demo {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 1.25rem 1rem 1.4rem;
-}
-.manual-demo .prompt-word {
-  font-size: 2rem;
-}
-.manual-demo .prompt-kanji {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-.manual-demo .task-sentence {
-  margin: 0.25rem 0 1.1rem;
-}
-.manual-demo .feedback {
-  margin-top: 1rem;
-}
-
-.manual-demo-note {
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.82rem;
-  margin: 0.9rem 0 0;
-}
-
-/* Feedback / "help make it better" callout card. */
-.manual-help {
-  background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-}
-.manual-help h2 {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  color: var(--accent-ink);
-}
-.manual-help p {
-  line-height: 1.7;
-  margin-bottom: 0;
-}
-.manual-mail {
-  color: var(--accent-ink);
-  font-weight: 600;
-  text-decoration: underline;
-}
-
-/* In-text icon chip — mirrors the round speaker button shown on tasks. */
-.inline-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5em;
-  height: 1.5em;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--ink);
-  font-size: 0.8em;
-  vertical-align: middle;
-}
-
 /* ===========================================================================
    Mobile / touch layer
    The app is desktop-first: everything is sized in rem off one root clamp that
@@ -1959,11 +1868,7 @@ ruby rt {
   .sentence {
     font-size: 1.45rem;
   }
-  .manual-title {
-    font-size: 1.7rem;
-  }
-
-  /* Top bar: icon-only nav + no version chip so the four tabs fit; reserve room on the left for the
+  /* Top bar: icon-only nav + no version chip so the tabs fit; reserve room on the left for the
      absolutely-positioned help "?" so it stops overlapping the wordmark. */
   .nav-labels {
     display: none;
@@ -4098,7 +4003,8 @@ button.known-words:disabled {
 .word-dialog-head h2 {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: 1.1rem;
+  font-weight: 700;
+  font-size: 1.15rem;
 }
 
 .word-dialog-close {
@@ -4122,21 +4028,18 @@ button.known-words:disabled {
 
 .word-row {
   display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
   border-bottom: 1px solid var(--border);
-}
-
-.word-surface {
-  font-size: 1.2rem;
 }
 
 .word-reading {
   flex: 1;
   min-width: 0;
-  color: var(--muted);
-  font-size: 0.85rem;
+  color: var(--ink);
+  font-size: 1.05rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4144,30 +4047,17 @@ button.known-words:disabled {
 
 .streak-dots {
   display: inline-flex;
-  gap: 0.25rem;
+  gap: 0.3rem;
   flex: none;
 }
 
 .streak-dot {
-  width: 0.4rem;
-  height: 0.4rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
   background: var(--border);
 }
 
 .streak-dot.on {
   background: var(--accent);
-}
-
-/* The manual's writing demo: a still of the canvas in its answered state. */
-.manual-draw-surface {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 7rem;
-}
-
-.manual-draw-word {
-  font-size: 3rem;
-  opacity: 0.85;
 }

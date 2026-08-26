@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { WORD_KNOWN_STREAK } from '../../shared/constants'
 import { Bilingual } from '../components/Bilingual'
+import { Tally } from '../components/Tally'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { introducedWords } from '../lib/study'
@@ -30,17 +31,18 @@ export default function StatsView() {
             const icon = taskIcon(r.type)
             return (
               <li key={r.type} className="stats-row">
+                {/* Icon and name on one line, so the bar underneath starts at the row's left edge. */}
                 <span className="stats-label">
                   {icon && <FontAwesomeIcon icon={icon} className="stats-icon" />}
                   {TASK_LABELS[r.type]}
                 </span>
-                <span className="stats-bar">
-                  <span
-                    className="stats-bar-fill"
-                    style={{ width: `${Math.round((r.rate ?? 0) * 100)}%` }}
-                  />
-                </span>
-                <span className="stats-value">
+                <span className="stats-bar-row">
+                  <span className="stats-bar">
+                    <span
+                      className="stats-bar-fill"
+                      style={{ width: `${Math.round((r.rate ?? 0) * 100)}%` }}
+                    />
+                  </span>
                   <span className="stats-pct">{r.rate === null ? '—' : `${Math.round(r.rate * 100)}%`}</span>
                   <span className="stats-count">{r.attempts === 1 ? '1 try' : `${r.attempts} tries`}</span>
                 </span>
@@ -88,8 +90,7 @@ function KnownWordsCard() {
           <Bilingual ja="覚えた言葉" en="Words you know" />
         </h2>
         <p className="known-words-count">
-          <strong>{known}</strong>
-          <span className="known-words-of">/ {total}</span>
+          <Tally count={known} total={total} />
         </p>
         <span className="stats-bar">
           <span className="stats-bar-fill" style={{ width: `${pct}%` }} />
@@ -134,7 +135,6 @@ function WordListDialog({ onClose, words }: { onClose: () => void; words: Readon
       const entry = index.wordEntries.get(key)
       return {
         key,
-        word: entry?.surface ?? key,
         reading: entry?.reading ?? index.wordReadings.get(key) ?? key,
         streak: progress.words?.[key] ?? 0,
       }
@@ -155,7 +155,8 @@ function WordListDialog({ onClose, words }: { onClose: () => void; words: Readon
       <ul className="word-list">
         {rows.map((r) => (
           <li key={r.key} className="word-row">
-            <span className="word-surface">{r.word}</span>
+            {/* The reading, not the written form: the character is what you're being asked to
+                recall, and the run beside it is what says how close you are. */}
             <span className="word-reading">{r.reading}</span>
             <StreakDots streak={r.streak} />
           </li>
