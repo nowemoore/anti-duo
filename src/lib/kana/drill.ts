@@ -32,6 +32,12 @@ export interface DrillOptions {
   count?: number
   /** Restrict to one script's characters. Omitted = everything met. */
   only?: (char: string) => boolean
+  /**
+   * Allow write-from-memory questions. Set false where there is nothing to write with — the web
+   * build has no canvas, so a run that emitted a draw question there would be unanswerable.
+   * Defaults to true, leaving the mobile build unaffected.
+   */
+  allowDraw?: boolean
 }
 
 /** The vowel a syllable ends on ('kyo' → 'o'), or '' for ん. */
@@ -142,7 +148,9 @@ export function buildSequenceOptions(chars: string[], pool: string[]): DrillItem
  * Sequences stay on recognition however well known their characters are: three characters on one
  * canvas is a handwriting exercise rather than a listening one.
  */
-function formatFor(progress: Progress, chars: string[]): DrillFormat {
+function formatFor(progress: Progress, chars: string[], allowDraw: boolean): DrillFormat {
+  // No canvas on this platform → recognition only, however well known the character is.
+  if (!allowDraw) return 'pick'
   if (chars.length > 1) return 'pick'
   return streakOf(progress, chars[0]) < KANA_RECALL_STREAK ? 'pick' : 'draw'
 }
@@ -203,7 +211,7 @@ export function tracedToPractise(progress: Progress): number {
  */
 export function buildDrill(
   progress: Progress,
-  { count = KANA_DRILL_ITEMS, only }: DrillOptions = {},
+  { count = KANA_DRILL_ITEMS, only, allowDraw = true }: DrillOptions = {},
 ): DrillItem[] {
   // Each question draws from one script's pool, never from everything traced — see the note above.
   const byScript = scriptPools(progress, only)
@@ -233,7 +241,7 @@ export function buildDrill(
         const candidates = seqPool.filter((c) => c !== chars[chars.length - 1])
         chars.push(weightedPick(candidates.length ? candidates : seqPool, weights))
       }
-      const format = formatFor(progress, chars)
+      const format = formatFor(progress, chars, allowDraw)
       items.push({
         chars,
         target: chars.join(''),
@@ -249,7 +257,7 @@ export function buildDrill(
     if (remaining.length) usedSingles.add(char)
     else if (usedSingles.size >= pool.length) usedSingles.clear()
 
-    const format = formatFor(progress, [char])
+    const format = formatFor(progress, [char], allowDraw)
     items.push({
       chars: [char],
       target: char,

@@ -6,6 +6,10 @@ import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { LearnPhase } from '../components/LearnPhase'
 import { PracticeSession } from '../components/PracticeSession'
+import { KanaMenu } from '../components/kana/KanaMenu'
+import { KanaCharacter } from '../components/kana/KanaCharacter'
+import { KanaPractice } from '../components/kana/KanaPractice'
+import { KanaWordPractice } from '../components/kana/KanaWordPractice'
 import {
   applyLearned,
   introducedUnits,
@@ -13,8 +17,9 @@ import {
   nextLearnSession,
   unlearnedUnits,
 } from '../lib/study'
+import { scriptsForLang, studiedCount, totalKanaCount, type KanaScript } from '../lib/kana'
 
-type Phase = 'home' | 'learn' | 'practice'
+type Phase = 'home' | 'learn' | 'practice' | 'kana' | 'kana-char' | 'kana-practice' | 'kana-word'
 
 export default function StudyView() {
   const index = useContent()
@@ -22,6 +27,14 @@ export default function StudyView() {
   const [phase, setPhase] = useState<Phase>('home')
   const [chunk, setChunk] = useState<Unit[]>([])
   const [reserve, setReserve] = useState<Unit[]>([])
+  // Which script's chart is open, and which character within it. Held here rather than in KanaMenu
+  // so returning from a character lands back on the chart it was opened from.
+  const [kanaScript, setKanaScript] = useState<KanaScript | null>(null)
+  const [kanaChar, setKanaChar] = useState<string | null>(null)
+
+  // A language either has a script course or it doesn't — with none, the Learn kana card never
+  // renders, the same mechanism that hides Learn grammar on mobile.
+  const kanaScripts = scriptsForLang('ja')
 
   function startLearn() {
     const { chunk: next, reserve: rest } = nextLearnSession(index, progress)
@@ -41,10 +54,56 @@ export default function StudyView() {
     return <LearnPhase chunk={chunk} reserve={reserve} onComplete={finishLearning} />
   if (phase === 'practice') return <PracticeSession onExit={() => setPhase('home')} />
 
-  return <StudyHome onLearn={startLearn} onPractice={() => setPhase('practice')} />
+  if (phase === 'kana')
+    return (
+      <KanaMenu
+        scripts={kanaScripts}
+        onSelect={(script, char) => {
+          setKanaScript(script)
+          setKanaChar(char)
+          setPhase('kana-char')
+        }}
+        onPractice={() => setPhase('kana-practice')}
+        onWordPractice={() => setPhase('kana-word')}
+        onBack={() => setPhase('home')}
+      />
+    )
+
+  if (phase === 'kana-char' && kanaScript && kanaChar)
+    return (
+      <KanaCharacter
+        char={kanaChar}
+        script={kanaScript}
+        onChange={setKanaChar}
+        onBack={() => setPhase('kana')}
+      />
+    )
+
+  if (phase === 'kana-practice') return <KanaPractice onBack={() => setPhase('kana')} />
+  if (phase === 'kana-word') return <KanaWordPractice onBack={() => setPhase('kana')} />
+
+  return (
+    <StudyHome
+      onLearn={startLearn}
+      onPractice={() => setPhase('practice')}
+      onKana={kanaScripts.length ? () => setPhase('kana') : undefined}
+      kanaScripts={kanaScripts}
+    />
+  )
 }
 
-function StudyHome({ onLearn, onPractice }: { onLearn: () => void; onPractice: () => void }) {
+function StudyHome({
+  onLearn,
+  onPractice,
+  onKana,
+  kanaScripts,
+}: {
+  onLearn: () => void
+  onPractice: () => void
+  /** Absent when the content language has no script course — the card then doesn't render at all. */
+  onKana?: () => void
+  kanaScripts: KanaScript[]
+}) {
   const index = useContent()
   const { progress, update } = useProgress()
 
@@ -56,6 +115,8 @@ function StudyHome({ onLearn, onPractice }: { onLearn: () => void; onPractice: (
 
   const canLearn = remainingToLearn > 0
   const canPractice = introduced > 0
+  const kanaStudied = studiedCount(progress, kanaScripts)
+  const kanaTotal = totalKanaCount(kanaScripts)
 
   // Greeting: first visit (no name AND no saved progress) → はじめまして; otherwise welcome them back,
   // with their name when we have it.
@@ -110,6 +171,22 @@ function StudyHome({ onLearn, onPractice }: { onLearn: () => void; onPractice: (
             {canPractice ? 'practice kanji you already know' : 'learn some first'}
           </span>
         </button>
+
+        {/* A parallel course rather than a step inside the kanji one, so it's never gated on kanji
+            progress — a learner can start here on day one, which is usually the right order. */}
+        {onKana && (
+          <button type="button" className="study-choice" onClick={onKana}>
+            <span className="icon-circle">
+              <FontAwesomeIcon icon="book-open" />
+            </span>
+            <Bilingual ja="かな" en="Kana" />
+            <span className="study-choice-sub">
+              {kanaStudied > 0
+                ? `${kanaStudied} / ${kanaTotal} characters studied`
+                : 'hiragana and katakana from scratch'}
+            </span>
+          </button>
+        )}
       </div>
     </section>
   )

@@ -2124,3 +2124,511 @@ ruby rt {
     color: var(--muted);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Kana course — the Learn kana charts, the character page, and the two runs.
+   The compact reference behind the help button shares .kana-grid/.kana-cell with
+   the large chart here (see components/kana/KanaGrid.tsx), so the two can't drift.
+   --------------------------------------------------------------------------- */
+
+.kana-grid.large {
+  gap: 0.3rem;
+}
+
+/* Untraced: visibly available but clearly not yet started. */
+.kana-cell.new {
+  background: transparent;
+  border-color: var(--border);
+}
+
+button.kana-cell {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+button.kana-cell:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+button.kana-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.kana-grid.large .kana-cell {
+  padding: 0.35rem 0;
+  border-radius: 8px;
+}
+
+.kana-grid.large .kana-cell .kana {
+  font-size: 1.4rem;
+  line-height: 1.25;
+}
+
+.kana-grid.large .kana-cell .romaji {
+  font-size: 0.62rem;
+}
+
+/* --- Learn kana menu --- */
+
+.kana-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.kana-scroll-note {
+  margin: 0;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.kana-tabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.kana-tabs button {
+  padding: 0.3rem 1rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.kana-tabs button.active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.kana-script {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.75rem;
+  width: 100%;
+}
+
+.kana-blurb {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.kana-section-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kana-section-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--accent-ink);
+}
+
+/* --- Character page --- */
+
+.kana-char {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.kana-char-label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.kana-char-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.kana-char-glyph-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 8rem;
+  padding: 1.5rem 2rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+}
+
+.kana-char-glyph {
+  font-size: 5.5rem;
+  line-height: 1.05;
+}
+
+.kana-char-romaji {
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.kana-char-step {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.kana-char-step:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.kana-char-step:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.kana-char-hint {
+  max-width: 30rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.kana-char-done {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: var(--correct-soft);
+  color: var(--correct);
+  font-size: 0.85rem;
+}
+
+/* Centred rather than pushed right, and without `.actions`' top margin: this sits mid-card. */
+.kana-char-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0;
+}
+
+/* --- The two runs --- */
+
+.kana-run.ok {
+  border-color: var(--correct);
+  background: var(--correct-soft);
+}
+
+.kana-run.bad {
+  border-color: var(--incorrect);
+  background: var(--incorrect-soft);
+}
+
+.kana-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.kana-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.kana-dot.on {
+  background: var(--accent);
+  transform: scale(1.25);
+}
+
+.kana-dot.good {
+  background: var(--correct);
+}
+
+.kana-dot.bad {
+  background: var(--incorrect);
+}
+
+.kana-replay {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.kana-replay:hover {
+  border-color: var(--accent);
+}
+
+.kana-word-prompt {
+  margin: 0;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.kana-word-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.kana-word {
+  font-size: 2.6rem;
+  line-height: 1.1;
+}
+
+.kana-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.kana-options.words {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 26rem;
+  margin: 0 auto;
+}
+
+.kana-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 4.5rem;
+  padding: 0.9rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 2rem;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.kana-option.seq {
+  font-size: 1.5rem;
+}
+
+.kana-option.meaning {
+  font-size: 1rem;
+}
+
+.kana-option.spell {
+  font-size: 1.6rem;
+}
+
+.kana-option:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.kana-option:disabled {
+  cursor: default;
+}
+
+.kana-option.right {
+  border-color: var(--correct);
+  background: var(--correct-soft);
+  color: var(--correct);
+}
+
+.kana-option.wrong {
+  border-color: var(--incorrect);
+  background: var(--incorrect-soft);
+  color: var(--incorrect);
+}
+
+/* Not picked and not the answer: recede rather than vanish, so the list keeps its shape. */
+.kana-option.dead {
+  opacity: 0.4;
+}
+
+.kana-note {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.4rem;
+  max-width: 28rem;
+  margin: 0 auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.kana-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+/* Holds the pager's height while a question is open, so answering doesn't shift the row. */
+.kana-verdict,
+.kana-verdict-slot {
+  display: block;
+  min-height: 1.5rem;
+  padding: 0.2rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.kana-verdict.ok {
+  background: var(--correct-soft);
+  color: var(--correct);
+}
+
+.kana-verdict.bad {
+  background: var(--incorrect-soft);
+  color: var(--incorrect);
+}
+
+.kana-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+/* --- Run summary --- */
+
+.kana-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0;
+  font-size: 2.2rem;
+}
+
+.kana-score-sub {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.kana-missed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.kana-missed h3 {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent-ink);
+}
+
+.kana-missed-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.kana-missed-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.kana-missed-chip:hover {
+  border-color: var(--accent);
+}
+
+.kana-missed-top {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.kana-missed-char {
+  font-size: 1.5rem;
+  color: var(--ink);
+}
+
+.kana-missed-char.word {
+  font-size: 1.2rem;
+}
+
+.kana-missed-sub {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* The speak control sits beside its option rather than inside it — see KanaWordPractice. */
+.kana-option-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kana-options.words .kana-option-wrap {
+  width: 100%;
+}
+
+.kana-options.words .kana-option {
+  flex: 1;
+}
+
+/* The quiet half of a two-action row: present, but not competing with the accent button. */
+.actions .pill-btn.quiet {
+  background: transparent;
+  color: var(--muted);
+}
+
+.actions .pill-btn.quiet:hover {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.actions .pill-btn.quiet .icon-circle {
+  background: var(--border);
+  color: var(--ink);
+}
