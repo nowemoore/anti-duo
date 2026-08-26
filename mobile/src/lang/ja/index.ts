@@ -1,7 +1,7 @@
 import { toKana } from 'wanakana'
 import { ALL_TASK_TYPES } from '@lib/tasks'
 import { HiraganaTable } from './HiraganaTable'
-import { drawable, gradeKana, kanaGradable, traceable } from './handwriting'
+import { drawable, gradeKana, kanaGradable, traceable } from '@lib/handwriting'
 import { DrawReview } from './DrawReview'
 import { DrawPractice } from './DrawPractice'
 import { drawTask } from './DrawTask'

@@ -6,7 +6,7 @@
  */
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import KanjiCanvasRaw from '../mobile/src/lang/ja/handwriting/kanjicanvas'
+import KanjiCanvasRaw from '../src/lib/handwriting/kanjicanvas'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Metro unwraps the CJS default export; tsx leaves it nested one level. Accept either so the

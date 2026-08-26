@@ -9,6 +9,7 @@ import { awardDelta, levelDeltaFor, markSeen, pickTarget } from '../lib/practice
 import { recordTaskResult, recordWordResult } from '../lib/stats'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR } from '../../shared/constants'
 import { generateAnyTask, testedWordKey, type Task } from '../lib/tasks'
+import { useDrawableWord } from '../lib/useDrawableWord'
 import { TaskRunner } from './tasks/TaskRunner'
 import { Bilingual } from './Bilingual'
 
@@ -37,6 +38,9 @@ function barFraction(delta: number, maxAbs: number): number {
 export function PracticeSession({ onExit }: Props) {
   const index = useContent()
   const { progress, update } = useProgress()
+  // Gate on the recognizer: passing this is what enables 'draw' generation at all, so a draw task
+  // is only ever produced for a word the canvas can actually grade.
+  const canDrawWord = useDrawableWord()
 
   // Working level copy, seeded once from the introduced set.
   const workingRef = useRef<Levels>(
@@ -65,9 +69,10 @@ export function PracticeSession({ onExit }: Props) {
       // Without this, staged release is a no-op here and the web app would ask about words the
       // learner hasn't been shown yet.
       levelOf: (idx) => workingRef.current[idx]?.lvl ?? 0,
+      canDraw: canDrawWord,
     })
     return task ? { task, targetIdx } : null
-  }, [index, progress])
+  }, [index, progress, canDrawWord])
 
   // First task.
   useEffect(() => {

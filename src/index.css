@@ -2632,3 +2632,1542 @@ button.kana-cell:focus-visible {
   background: var(--border);
   color: var(--ink);
 }
+
+/* ===========================================================================
+   Grammar course — the topic list, and the four-part subsection page.
+   Ported from the phone app's grammar section; the logic behind it lives in
+   src/lib/grammar and is shared with mobile, so only the presentation is here.
+   =========================================================================== */
+
+/* --- Topic list ---------------------------------------------------------- */
+
+.grammar-menu {
+  text-align: center;
+}
+
+.grammar-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+/* Wide cards rather than the home page's side-by-side tiles: a topic carries a
+   sentence of status, which needs the width to stay on one or two lines. */
+.grammar-topic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.75rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 1.15rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.grammar-topic:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.grammar-topic:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.grammar-topic .icon-circle {
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.2rem;
+}
+
+/* Passed = the calm green-ish palette tone; gated = no fill at all, just the padlock. */
+.grammar-topic .icon-circle.done {
+  background: var(--c-400);
+}
+
+.grammar-topic .icon-circle.gated {
+  background: var(--border);
+  color: var(--muted);
+}
+
+/* A gated card says what it needs in plain text, so the lock is a target not a wall. */
+.grammar-topic-hint {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* --- Subsection page ----------------------------------------------------- */
+
+.grammar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.grammar-blurb {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.grammar-credited {
+  margin: 0;
+  padding: 0 1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* --- Part card (one collapsible step) ------------------------------------ */
+
+.part-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.part-card.locked {
+  opacity: 0.55;
+}
+
+.part-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.part-head:disabled {
+  cursor: default;
+}
+
+.part-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.part-badge.done {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.part-badge.badge-locked {
+  background: var(--border);
+  color: var(--muted);
+}
+
+.part-head-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.part-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.part-title-icon {
+  color: var(--accent-ink);
+  font-size: 0.8rem;
+}
+
+.locked .part-title-icon,
+.locked .part-title {
+  color: var(--muted);
+}
+
+.part-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.part-sub {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.part-chevron {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+  transition: transform 0.18s ease;
+}
+
+.part-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Height animation without measuring: a 0fr → 1fr grid row is the CSS way to
+   transition to a content-derived height. Children stay mounted throughout, so
+   collapsing a part mid-run never throws away answers already given.
+   `visibility` keeps the collapsed content out of the tab order and off screen
+   readers, and is delayed on close so it doesn't blink away before the slide. */
+.part-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 0.26s ease, visibility 0s linear 0.26s;
+}
+
+.part-collapse.open {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows 0.26s ease, visibility 0s;
+}
+
+.part-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.part-body {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Nested disclosure inside a part (the missed-items reference). */
+.disclosure {
+  margin-top: 0.5rem;
+}
+
+.disclosure-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0;
+  border: none;
+  background: transparent;
+  color: var(--accent-ink);
+}
+
+.disclosure-head .part-chevron {
+  color: var(--accent-ink);
+}
+
+.disclosure-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.disclosure-body {
+  padding-top: 0.25rem;
+}
+
+/* --- Shared grammar buttons ---------------------------------------------- */
+
+.grammar-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.grammar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 1.2rem;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.grammar-btn:hover {
+  filter: brightness(1.05);
+}
+
+.grammar-btn.ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--accent-ink);
+}
+
+.grammar-btn.ghost:hover {
+  border-color: var(--accent);
+  filter: none;
+}
+
+/* --- Part 1: the vocabulary list ----------------------------------------- */
+
+.vocab-note {
+  margin: 0 0 0.9rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+/* Three aligned columns — form | reading | actions — mirroring the Learn card's example rows. */
+.vocab-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  border-top: 1px solid var(--border);
+}
+
+.vocab-form {
+  flex: 1;
+  font-size: 1.6rem;
+}
+
+.vocab-reading {
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* The held gloss takes the reading's slot; the accent colour marks it as the revealed state. */
+.vocab-reading.revealed {
+  color: var(--accent-ink);
+}
+
+.vocab-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  width: 5rem;
+}
+
+.vocab-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+
+.vocab-eye.on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.vocab-comeback {
+  margin: 1.1rem 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* --- Part 2: the form minigame ------------------------------------------- */
+
+/* One dot per question, spread edge to edge. `flex: 1` on each cell keeps the row
+   to one line whatever the item count, and the current dot scales rather than
+   grows so emphasising it can't reflow the row. */
+.game-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-bottom: 0.9rem;
+}
+
+.game-dot {
+  flex: 1;
+  height: 0.4rem;
+  max-width: 0.5rem;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--border);
+  transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+}
+
+.game-dot.answered {
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+.game-dot.current {
+  background: var(--accent);
+  opacity: 1;
+  transform: scale(1.6);
+}
+
+/* Each page mounts fresh (keyed on the page number), so this runs once per move. */
+.game-slide {
+  animation: game-in 0.24s ease;
+}
+
+.game-slide.prev {
+  animation-name: game-in-prev;
+}
+
+@keyframes game-in {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+}
+
+@keyframes game-in-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-slide {
+    animation: none;
+  }
+}
+
+.game-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  min-height: 11rem;
+  padding: 2rem 1.25rem;
+  border-radius: 12px;
+  background: var(--bg);
+  text-align: center;
+}
+
+.game-intro-icon {
+  color: var(--accent-ink);
+  font-size: 1.4rem;
+}
+
+.game-intro-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.game-intro-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.game-prompt {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.game-frame {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.game-cue {
+  font-size: 1.7rem;
+}
+
+/* The slot: dimmed and bracketed so it reads as a placeholder to be replaced,
+   never as the answer. */
+.game-slot {
+  display: inline-flex;
+  align-items: flex-end;
+  color: var(--c-500);
+}
+
+.game-slot-word {
+  font-size: 1.7rem;
+  color: var(--c-500);
+}
+
+.game-bracket {
+  font-size: 1.7rem;
+  color: var(--c-500);
+}
+
+/* Hold-to-reveal wrapper around a word in the frame. Transparent, so the word
+   below looks like text rather than a control — the pointer is the only hint. */
+.hold-word {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.game-options {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.game-opt {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 3.5rem;
+  padding: 0.9rem;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.game-opt:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.game-opt:disabled {
+  cursor: default;
+}
+
+.game-opt.correct {
+  border-color: var(--correct);
+  background: var(--correct-soft);
+  color: var(--correct);
+}
+
+.game-opt.wrong {
+  border-color: var(--incorrect);
+  background: var(--incorrect-soft);
+  color: var(--incorrect);
+}
+
+.game-opt-label {
+  flex-shrink: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Reserved on both sides from the start, so the ✓/✗ appearing can't nudge the
+   label sideways at the exact moment it is being read. */
+.game-opt-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  font-size: 0.85rem;
+}
+
+.game-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.pager-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+
+.pager-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.pager-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+/* The score card shown after an attempt is recorded. */
+.game-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.game-score {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-ink);
+}
+
+.game-score-of {
+  margin-left: 0.3rem;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+.game-score-pct {
+  margin: 0.2rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+
+.game-score-note {
+  margin: 0.5rem 0 0;
+  max-width: 26rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* --- The hold-to-reveal strip -------------------------------------------- */
+
+/* A band spanning the part card, not a floating pill: the negative margin
+   cancels .part-body's padding, so it has to stay in step with it. */
+.reveal-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 3.4rem;
+  margin: 1rem -1rem 0;
+  padding: 0 0.8rem;
+  background: var(--c-900);
+  text-align: center;
+}
+
+.reveal-eye {
+  flex: none;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.reveal-eye.on {
+  color: var(--accent-ink);
+}
+
+.reveal-text {
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.reveal-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+/* --- Part 3: the reflection ---------------------------------------------- */
+
+.reflection {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.reflection-intro {
+  margin: 0;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.reflection-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reflection-prompt {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.reflection-num {
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+
+.reflection-input {
+  min-height: 5.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.reflection-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.reflection-input::placeholder {
+  color: var(--muted);
+}
+
+.miss-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.15rem 0;
+}
+
+.miss-verb {
+  min-width: 4rem;
+  font-size: 1.15rem;
+}
+
+.miss-picked {
+  font-size: 0.78rem;
+  color: var(--incorrect);
+}
+
+.miss-none {
+  margin: 0;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* --- Part 4: the explanation --------------------------------------------- */
+
+.explanation {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+/* The form's real name, held back until here so the game stays a derivation exercise. */
+.explain-reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+
+.explain-reveal-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.explain-reveal-en {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+
+.explain-reveal-native {
+  font-size: 1rem;
+}
+
+.explain-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 3px;
+}
+
+.legend-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+/* Role colours, shared by the legend swatches and the worked examples. */
+.span-stem {
+  color: var(--accent-ink);
+}
+.legend-swatch.span-stem {
+  background: var(--accent-ink);
+}
+
+.span-ending {
+  color: var(--correct);
+}
+.legend-swatch.span-ending {
+  background: var(--correct);
+}
+
+/* Struck through so "dropped" reads as dropped without relying on colour alone. */
+.span-dropped {
+  color: var(--incorrect);
+  text-decoration: line-through;
+}
+.legend-swatch.span-dropped {
+  background: var(--incorrect);
+  text-decoration: none;
+}
+
+.span-plain {
+  color: var(--ink);
+}
+
+.explain-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.explain-block.footnote {
+  opacity: 0.85;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
+.explain-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.explain-block.footnote .explain-heading,
+.explain-block.footnote .explain-body {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.explain-body {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.explain-example {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.8rem;
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.explain-example-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.explain-arrow {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.explain-jp {
+  font-size: 1.4rem;
+}
+
+.explain-example-note {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.explain-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.explain-locked .stats-bar {
+  align-self: stretch;
+}
+
+.explain-locked-title {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.explain-locked-title strong {
+  color: var(--accent-ink);
+}
+
+.explain-locked-note {
+  margin: 0;
+  max-width: 26rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ===========================================================================
+   The kanji course page: progress tally, the two action rows, and the board of
+   every kanji in the enabled set.
+   =========================================================================== */
+
+.units-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* "80 of 238 kanji unlocked" — both numbers at one size, separated only by colour. */
+.tally {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tally-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.tally-count {
+  color: var(--ink);
+}
+
+.tally-of {
+  color: var(--muted);
+}
+
+/* --- The two "let the app choose" actions -------------------------------- */
+
+.action-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  text-align: left;
+}
+
+.action-row:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.action-row:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The primary action carries the accent wash, so the pair reads as one obvious next step
+   and one alternative rather than as two equal buttons. */
+.action-row.primary {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.action-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.action-title {
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.action-sub {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.action-chevron {
+  flex: none;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* --- The board ----------------------------------------------------------- */
+
+.board-note {
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.board-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.board-empty {
+  margin: 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* The teal prompt above the board when kanji have unlocked words you haven't been shown. */
+.board-prompt {
+  align-self: center;
+  margin: 0;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--ready);
+  border-radius: 10px;
+  background: var(--ready-soft);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+/* `auto-fill` sizes the columns from the available width, so nothing has to be measured in JS;
+   the grid is centred as a block while each row still fills from the left. */
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 2.4rem);
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--border);
+  color: var(--ink);
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: transform 0.12s ease, background 0.2s ease;
+}
+
+.tile:hover {
+  transform: scale(1.12);
+}
+
+/* Tiles between the two ends of the ramp get an interpolated alpha inline (see KanjiBoard);
+   these are the legend's endpoints and the fallback. */
+.tile.unseen,
+.legend-swatch.tile-unseen {
+  background: var(--border);
+}
+
+.tile.introduced,
+.legend-swatch.tile-introduced {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.tile.learnt,
+.legend-swatch.tile-learnt {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Off the ramp entirely — a prompt, not a rung. */
+.tile.more,
+.legend-swatch.tile-more {
+  background: var(--ready);
+}
+
+/* Faded rather than hidden: an off kanji still has to be findable to switch back on. */
+.tile.off,
+.legend-swatch.tile-off {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.board-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.9rem;
+}
+
+/* ===========================================================================
+   Handwriting: the drawing surface, and the practice task built on it.
+   =========================================================================== */
+
+.draw {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.draw-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.draw-tools {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.draw-tool,
+.draw-noclue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.9rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.draw-noclue {
+  background: var(--border);
+  color: var(--ink);
+}
+
+.draw-tool:disabled,
+.draw-noclue:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* `touch-action: none` is what makes a finger draw instead of scrolling the page. */
+.draw-surface {
+  flex: 1;
+  min-height: 13rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.draw-surface.disabled {
+  cursor: default;
+}
+
+/* Verdict tints. The fills stay soft so the learner's own strokes remain the clearest thing on the
+   surface — the border carries most of the signal. */
+.draw-surface.right {
+  border: 2px solid var(--correct);
+  background: var(--correct-soft);
+}
+
+.draw-surface.wrong {
+  border: 2px solid var(--incorrect);
+  background: var(--incorrect-soft);
+}
+
+.draw-ink {
+  display: block;
+}
+
+.draw-guide {
+  fill: var(--ink);
+  opacity: 0.14;
+}
+
+/* --- The practice task --------------------------------------------------- */
+
+.draw-task {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Fixed height: an English meaning can run to ~26 characters where a kana reading is three or
+   four, so left to itself the prompt would wrap and shove the canvas down the card. */
+.draw-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.8rem;
+  margin: 0 0 0.5rem;
+  font-size: 1.7rem;
+  text-align: center;
+}
+
+.draw-prompt.en {
+  font-size: 1.05rem;
+}
+
+/* Per-character marks under a graded word: which characters the recognizer read. */
+.draw-marks {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.3rem 0 0;
+  font-size: 1.2rem;
+}
+
+.draw-mark {
+  color: var(--incorrect);
+  text-decoration: line-through;
+}
+
+.draw-mark.ok {
+  color: var(--correct);
+  text-decoration: none;
+}
+
+.draw-answer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.3rem 0 0;
+}
+
+.draw-answer-word {
+  font-size: 1.6rem;
+}
+
+.draw-answer-meaning {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* --- Write review (post-Learn writing drill) ------------------------------ */
+
+.write-review {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ✓/✗ in the corner, the same place the phone puts it. */
+.write-verdict {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  font-size: 1.4rem;
+  color: var(--incorrect);
+}
+
+.write-verdict.ok {
+  color: var(--correct);
+}
+
+.write-prompt {
+  text-align: center;
+}
+
+.write-trace-hint {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Reserved so the answer appearing can't resize the card mid-review. */
+.write-answer-slot {
+  min-height: 3.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.write-pager {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+/* The lock-in button takes the middle, between the two pager chevrons. */
+.write-lock {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.write-lock:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.write-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  min-height: 14rem;
+}
+
+/* --- Kana writing: the trace/write panel and the drill's draw question ----- */
+
+.kana-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.kana-trace-steps {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.kana-trace-step.on {
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+/* A finished step stays legible rather than vanishing — it's the road just travelled. */
+.kana-trace-step.done {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.kana-trace-foot,
+.kana-draw-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 2.6rem;
+}
+
+.kana-draw {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.kana-draw-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.kana-draw-answer {
+  margin: 0;
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+/* The canvas has to have somewhere to grow into inside a practice card. */
+.kana-draw .draw,
+.kana-trace .draw {
+  min-height: 14rem;
+}
+
+/* --- Stats: the known-words card as a button, and its word list ----------- */
+
+/* The card is a button now (it opens the word list), so it has to be told to look like a panel
+   again — a button brings its own alignment, font and cursor. */
+button.known-words {
+  width: 100%;
+  display: block;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+button.known-words:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button.known-words:disabled {
+  cursor: default;
+}
+
+/* Caption and chevron share the last line: the chevron points at the card, not at the number. */
+.known-words-note {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.stats-icon {
+  margin-right: 0.4rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.word-dialog {
+  width: min(30rem, 92vw);
+  max-height: 80vh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.word-dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.word-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.word-dialog-head h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+}
+
+.word-dialog-close {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.word-dialog-close:hover {
+  color: var(--ink);
+}
+
+.word-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 1.25rem 1.25rem;
+  max-height: calc(80vh - 4rem);
+  overflow-y: auto;
+}
+
+.word-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.word-surface {
+  font-size: 1.2rem;
+}
+
+.word-reading {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.streak-dots {
+  display: inline-flex;
+  gap: 0.25rem;
+  flex: none;
+}
+
+.streak-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.streak-dot.on {
+  background: var(--accent);
+}
+
+/* The manual's writing demo: a still of the canvas in its answered state. */
+.manual-draw-surface {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 7rem;
+}
+
+.manual-draw-word {
+  font-size: 3rem;
+  opacity: 0.85;
+}

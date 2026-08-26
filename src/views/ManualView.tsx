@@ -16,27 +16,45 @@ export default function ManualView() {
       <section className="panel manual-about">
         <h2>About</h2>
         <p>
-          Anti-Duo helps you learn kanji and lock them in with quick practice. Everything happens
-          from the <strong>Study</strong> tab in two moves:
+          Anti-Duo helps you learn Japanese and lock it in with quick practice. The{' '}
+          <strong>Study</strong> tab holds three courses, and none of them gates the others — you can
+          start with any of them on day one:
         </p>
         <ol className="manual-flow">
           <li>
-            <strong>Learn</strong> <UiIcon icon="graduation-cap" />: introduces 5 new kanji at a
-            time. For each one you get its meaning, real example contexts, and a breakdown of its
-            radical + parts (open the magnifying glass <UiIcon icon="magnifying-glass" />).
+            <strong>Kanji</strong> <UiIcon icon="graduation-cap" />: opens the board of every kanji
+            in your enabled set, shaded by how solid each one is. <strong>Learn</strong> introduces
+            5 new kanji at a time, or click any tile to study that one; hold a tile (or right-click
+            it) to pause it. <strong>Practice</strong> then quizzes you on what you&apos;ve
+            unlocked, mixing the question types below. Answer correctly and a kanji levels up; miss
+            it and it comes back around.
           </li>
           <li>
-            <strong>Practice</strong> <UiIcon icon="dumbbell" />: quizzes you on the kanji
-            you&apos;ve already unlocked, mixing the question types below. Answer correctly and a
-            kanji levels up; miss it and it comes back around.
+            <strong>Kana</strong> <UiIcon icon="book-open" />: hiragana and katakana from scratch.
+            The chart <em>is</em> the curriculum — open any character to hear it, write it, and mark
+            it studied, then practise the ones you&apos;ve met by ear.
+          </li>
+          <li>
+            <strong>Grammar</strong> <UiIcon icon="book" />: short subsections, each in four parts —
+            the vocabulary, a game where you work the pattern out for yourself, four questions about
+            what you noticed, and only then the explanation. Passing one unlocks the kanji in its
+            vocabulary.
           </li>
         </ol>
+        <p className="muted">
+          On a touchscreen or with a stylus, each new kanji is followed by writing it: trace or write
+          the word on the canvas and your strokes are matched against the real character. It&apos;s
+          low-stakes — nothing there moves your levels. With only a mouse to hand the app skips it,
+          since a mouse makes that a test of your wrist rather than of the kanji; the kana character
+          pages still offer <strong>Write it</strong> if you want it anyway.
+        </p>
       </section>
 
       <section className="panel manual-tasks">
         <h2>Task Types</h2>
         <p className="muted">
-          Practice rotates through these five question types. After each task, the correct answer
+          Practice rotates through these question types — six on a touchscreen or with a stylus,
+          five with a mouse, which leaves out the handwriting one. After each task, the correct answer
           shows up in green. On some tasks, you can hover or hold different parts of the question (the
           kanji or options) to view the reading, or tap the <UiIcon icon="volume-high" /> to hear it read aloud. On
           others, more information becomes available after you answer. You'll encounter the following tasks:
@@ -165,6 +183,26 @@ export default function ManualView() {
             </ul>
           </div>
         </ManualTask>
+
+        <ManualTask
+          n={6}
+          title="Write the word"
+          desc={
+            <>
+              <strong>Touchscreen and stylus only.</strong> You read the word&apos;s reading and
+              write it by hand on the canvas — no options to choose from. Your strokes are matched
+              against the real character on your own device. The recogniser is good but not perfect,
+              so if it calls a correct answer wrong you can overturn the verdict before moving on.
+            </>
+          }
+        >
+          <div className="task draw-task manual-draw">
+            <p className="draw-prompt">にほん</p>
+            <div className="draw-surface right manual-draw-surface">
+              <span className="manual-draw-word">日本</span>
+            </div>
+          </div>
+        </ManualTask>
       </section>
 
       <section className="panel manual-personalise">
@@ -178,6 +216,11 @@ export default function ManualView() {
           <li>
             <strong>Set your name.</strong> In <strong>Settings</strong> <UiIcon icon="gear" /> →{' '}
             <strong>Profile</strong>, so the home screen can greet you.
+          </li>
+          <li>
+            <strong>Tune the practice mix.</strong> In <strong>Settings</strong>{' '}
+            <UiIcon icon="gear" /> → <strong>Practice mix</strong>, set how often each question type
+            comes up — including how much handwriting you want.
           </li>
           <li>
             <strong>Hiragana chart.</strong> Tap <UiIcon icon="circle-question" /> in the top-left

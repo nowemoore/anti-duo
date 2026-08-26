@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { buildDrill, kanaOf, recordResult, type DrillItem } from '../../lib/kana'
 import { useProgress } from '../../context/ProgressContext'
+import { useHandwriting } from '../../lib/useHandwriting'
+import { useHandwritingInput } from '../../lib/useHandwritingInput'
 import { Bilingual } from '../Bilingual'
+import { DrawCanvas, type Stroke } from '../DrawCanvas'
 import { useKanaAudio } from './audio'
 
 /** What was answered. Doubles as the run's history, so answered questions can be paged back to. */
@@ -17,24 +20,30 @@ interface Answer {
  * Listen and answer. Every question plays a sound — a single character or a short sequence — and the
  * learner picks which one it was.
  *
- * **Recognition only.** The mobile run promotes a well-known character to write-from-memory; there is
- * no canvas here, so the run is built with `allowDraw: false` and stays multiple choice however solid
- * a character gets. See `buildDrill`.
+ * A character the learner has answered right enough times running is promoted from multiple choice
+ * to write-from-memory, on the same canvas the kanji drills use — but only where there's something
+ * to write with. Without a touchscreen or stylus, and until the recognizer has loaded, the run is
+ * built with `allowDraw: false` and stays multiple choice however solid a character gets. See
+ * `buildDrill`.
  */
 export function KanaPractice({ onBack }: { onBack: () => void }) {
   const { progress, update } = useProgress()
   const play = useKanaAudio()
+  const canWrite = useHandwritingInput()
+  const hw = useHandwriting(canWrite)
+  const drawReady = hw != null
 
   const [runId, setRunId] = useState(0)
   const [i, setI] = useState(0)
   const [answers, setAnswers] = useState<Answer[]>([])
 
   const items = useMemo(
-    () => buildDrill(progress, { allowDraw: false }),
+    () => buildDrill(progress, { allowDraw: drawReady }),
     // `runId` is the reshuffle trigger; `progress` is deliberately excluded, or answering a question
-    // would rebuild the list underneath the learner.
+    // would rebuild the list underneath the learner. `drawReady` only ever flips once, on the frame
+    // the recognizer lands, and a run built before that simply stays multiple choice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [runId],
+    [runId, drawReady],
   )
 
   const item = items[i]
@@ -117,7 +126,11 @@ export function KanaPractice({ onBack }: { onBack: () => void }) {
           <FontAwesomeIcon icon="volume-high" />
         </button>
 
-        <Pick item={item} answered={answered} onAnswer={resolve} />
+        {item.format === 'draw' ? (
+          <Draw key={i} item={item} answered={answered} onAnswer={resolve} />
+        ) : (
+          <Pick item={item} answered={answered} onAnswer={resolve} />
+        )}
       </div>
 
       <div className="kana-pager">
@@ -189,6 +202,59 @@ function Pick({
           </button>
         )
       })}
+    </div>
+  )
+}
+
+/**
+ * Listen → write it unaided. The step up from picking: once a character is solid enough, the
+ * question stops offering the answer among four and asks the learner to produce it.
+ *
+ * Graded by the same recognizer the kanji drills use, and appealable for the same reason — a
+ * misread would otherwise walk back a character the learner actually knows.
+ */
+function Draw({
+  item,
+  answered,
+  onAnswer,
+}: {
+  item: DrillItem
+  answered: Answer | null
+  onAnswer: (correct: boolean, picked?: string) => void
+}) {
+  const hw = useHandwriting()
+  const [strokes, setStrokes] = useState<Stroke[]>([])
+  const reveal = answered != null
+
+  const lockIn = () => {
+    if (reveal || strokes.length === 0 || !hw) return
+    onAnswer(hw.gradeKana(item.target, strokes))
+  }
+
+  return (
+    <div className="kana-draw">
+      <p className="kana-draw-hint">
+        {reveal ? 'The answer is below' : 'Write what you heard — no options this time.'}
+      </p>
+
+      {/* No guide: the whole point is recalling the shape unaided. */}
+      <DrawCanvas
+        disabled={reveal}
+        onStrokes={setStrokes}
+        onNoClue={() => !reveal && onAnswer(false)}
+        status={reveal ? (answered.correct ? 'right' : 'wrong') : undefined}
+      />
+
+      <div className="kana-draw-foot">
+        {reveal ? (
+          <p className="kana-draw-answer">{item.target}</p>
+        ) : (
+          <button type="button" className="write-lock" onClick={lockIn} disabled={strokes.length === 0 || !hw}>
+            <FontAwesomeIcon icon="lock" />
+            Lock in answer
+          </button>
+        )}
+      </div>
     </div>
   )
 }

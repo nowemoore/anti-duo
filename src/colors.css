@@ -28,6 +28,13 @@
   --accent-hover: color-mix(in srgb, var(--accent) 28%, transparent);
   --on-accent: #2f2f2f; /* dark text/icons on a (light) pink fill */
 
+  /* "Ready for more" — a teal that sits off the pink mastery ramp on purpose: a kanji with new
+     example words waiting isn't further along the ramp, it's a different kind of state. */
+  --ready: #007678;
+  --ready-soft: color-mix(in srgb, var(--ready) 22%, transparent);
+  /* Light enough to sit on --ready-soft: the teal itself is 2.4:1 as text, this is 6.5:1. */
+  --ready-ink: #a9cec2;
+
   /* Status — correct = mint-green, incorrect = slate. Edit only the solid colours;
      the soft washes update themselves via color-mix. */
   --correct: #d3fbd8;

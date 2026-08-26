@@ -1,5 +1,6 @@
 import type { Task } from '../../lib/tasks'
 import { ChoiceTaskView } from './ChoiceTaskView'
+import { DrawTaskView } from './DrawTaskView'
 import { TypeWordTaskView } from './TypeWordTaskView'
 import { WhichWordsTaskView } from './WhichWordsTaskView'
 
@@ -17,9 +18,10 @@ export function TaskRunner({ task, onResult }: Props) {
     case 'which-words':
       return <WhichWordsTaskView task={task} onResult={onResult} />
     case 'draw':
+      return <DrawTaskView task={task} onResult={onResult} />
     case 'plural':
     case 'root-cloze':
-      // Draw (needs a canvas) + plural/root-cloze (opt-in, no data here) never occur in the web build.
+      // Opt-in, and no language here supplies the data — so neither is ever generated.
       return null
     default:
       return <ChoiceTaskView task={task} onResult={onResult} />

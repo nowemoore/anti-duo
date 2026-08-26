@@ -20,9 +20,9 @@ import { join } from 'node:path'
 import { loadContent } from '../server/content'
 import { allKana } from '../src/lib/kana'
 import { CACHE, featuresFor, mapLimit, strokesOf, svgFor, type Point } from './kanjivg'
-import existing from '../mobile/src/lang/ja/handwriting/draw-patterns.json'
+import existing from '../src/lib/handwriting/draw-patterns.json'
 
-const OUT = join(process.cwd(), 'mobile/src/lang/ja/handwriting/kanjivg-patterns.json')
+const OUT = join(process.cwd(), 'src/lib/handwriting/kanjivg-patterns.json')
 
 /** Two decimals is well below the recognizer's sensitivity and roughly halves the file. */
 const round = (n: number): number => Math.round(n * 100) / 100

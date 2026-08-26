@@ -15,10 +15,16 @@ interface Props {
   reserve: Unit[]
   /** Called with the final set of cards the learner kept (skipped cards excluded). */
   onComplete: (learned: Unit[]) => void
+  /**
+   * Where this card sits in the wider session, when the caller is running one unit at a time (a
+   * learn session alternates each card with writing that character). Without it the header counts
+   * this component's own cards, which is right when it pages a whole chunk itself.
+   */
+  headerCount?: { current: number; total: number }
 }
 
 /** Introduces new kanji one card at a time: char, glosses, and up to 5 example words. */
-export function LearnPhase({ chunk, reserve, onComplete }: Props) {
+export function LearnPhase({ chunk, reserve, onComplete, headerCount }: Props) {
   const [cards, setCards] = useState<Unit[]>(chunk)
   const [pool, setPool] = useState<Unit[]>(reserve)
   const [i, setI] = useState(0)
@@ -29,6 +35,8 @@ export function LearnPhase({ chunk, reserve, onComplete }: Props) {
   // "Not now" swaps in a queued kanji when one is available; otherwise it drops the card. So it's
   // only blocked when dropping would empty the session (the sole remaining card, nothing to swap).
   const canSkip = pool.length > 0 || cards.length > 1
+
+  const step = headerCount ?? { current: i + 1, total: cards.length }
 
   const back = () => setI((n) => Math.max(0, n - 1))
   const next = () => (isLast ? onComplete(cards) : setI((n) => n + 1))
@@ -77,8 +85,8 @@ export function LearnPhase({ chunk, reserve, onComplete }: Props) {
       <div className="learn-head">
         <Bilingual
           className="step"
-          ja={`新しい漢字 ${i + 1} / ${cards.length}`}
-          en={`New kanji ${i + 1} / ${cards.length}`}
+          ja={`新しい漢字 ${step.current} / ${step.total}`}
+          en={`New kanji ${step.current} / ${step.total}`}
         />
         <button
           type="button"

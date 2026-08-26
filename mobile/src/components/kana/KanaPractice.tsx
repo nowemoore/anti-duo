@@ -13,7 +13,7 @@ import { PagerChevron } from '../PagerChevron'
 import { RevealSpacer } from '../RevealStrip'
 import { Tally } from '../Tally'
 import { saveDrawing } from '../../lib/drawings'
-import type { RawStroke } from '../../lang/ja/handwriting'
+import type { RawStroke } from '@lib/handwriting'
 import { useKanaAudio } from './audio'
 import {
   btnLabel,

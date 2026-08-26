@@ -1,4 +1,4 @@
-import { sameShape } from '@lib/kana'
+import { sameShape } from '../kana'
 import KanjiCanvasRaw from './kanjicanvas'
 import patterns from './draw-patterns.json'
 import kanjivgPatterns from './kanjivg-patterns.json'

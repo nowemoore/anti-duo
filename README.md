@@ -1,8 +1,9 @@
 # Anti-Duo — Japanese Kanji Learning App 明
 
-A focused web app for learning and practising kanji — the calm, no-streaks-no-gimmicks answer to
-Duolingo. You **Learn** kanji in small batches with real example words, then **Practice** them in
-context with example sentences. Currently teaches **137 kanji** across **298 example sentences**.
+A focused web app for learning Japanese — the calm, no-streaks-no-gimmicks answer to Duolingo.
+Three courses, none of them gating the others: **kanji** (learn in small batches with real example
+words, then practise them in context), **kana** (hiragana and katakana from the chart up), and
+**grammar** (work the pattern out yourself before you're told the rule).
 
 The same codebase runs two ways:
 
@@ -15,17 +16,26 @@ The same codebase runs two ways:
 
 ## 1. What the app does
 
-Three tabs:
+Four tabs:
 
-### 勉強 Study — the core loop
+### 勉強 Study — three courses
 
-Two independent actions, available any time:
+The Study home is one card per course. Each is independent: a learner can start with any of them on
+day one.
+
+**漢字 Kanji** opens on the board — every kanji in your enabled set as a tile, shaded by how solid it
+is. Click a tile to study that one; hold it (or right-click) to pause it. Above the board sit the two
+"choose for me" actions:
 
 - **Learn** introduces 5 new kanji at a time (random, from your enabled set), showing each
   character's meanings and example words, with a radical/component breakdown. Hold the eye icon to
-  reveal a meaning.
-- **Practice** runs 10 randomly chosen tasks over the kanji you've learned. There are five task
-  types, one per iteration:
+  reveal a meaning. On a touchscreen or with a stylus, each card is followed by **writing** that
+  character on the canvas — traced over a guide where the recogniser has no reference pattern, graded
+  on-device where it has. Low-stakes: writing never moves your levels. Devices with only a mouse skip
+  it, and don't get the handwriting practice task either — see below.
+- **Practice** runs 10 randomly chosen tasks over the kanji you've learned. There are six task
+  types, one per iteration (five on a device with no touchscreen or stylus — handwriting is only
+  ever asked for where there's something to write with):
 
   | Task | You're shown… | …and you |
   | --- | --- | --- |
@@ -34,12 +44,29 @@ Two independent actions, available any time:
   | **Fill the blank** (cloze) | a sentence with one kanji blanked | pick the right kanji from 4 options |
   | **Pick the reading** | a sentence with a word highlighted | choose its correct reading |
   | **Pick the meaning** | a sentence with a word highlighted | choose its correct English meaning |
+  | **Write the word** _(touch/stylus only)_ | a word's reading | write it by hand; the strokes are matched on-device |
+
+**かな Kana** is the script course: the charts *are* the curriculum. Open any character to hear it,
+trace it and write it from memory (available on any device — it's something you choose to open),
+then practise what you've met by ear: multiple choice, promoted to write-from-memory once a
+character is solid and there's a touchscreen or stylus to write with. Words practice comes next, on the same
+characters in real vocabulary.
+
+**文法 Grammar** is a set of short subsections, each in four parts that unlock in order: the
+vocabulary, a binary-choice game where you derive the pattern yourself, four free-writing questions
+about what you noticed, and — only after you've written your own account *and* cleared the accuracy
+bar — the official explanation. Passing a subsection credits the kanji in its vocabulary as learned.
 
 Each kanji has a **level**: `0` = unseen → `1` on introduction → it moves up on correct answers and
 down on misses. If a kanji drops below `1` it becomes "unlearned" again and is re-taught by a future
 Learn round. Practice is weighted toward your lowest-level kanji to keep them even. In sentences, a
 word shows in English until you've learned ≥1 of its kanji, then in Japanese (reading + meaning
 revealed on hover).
+
+### 統計 Stats
+
+Vocabulary you've shown you know (open the card for the full word list and each word's run), plus a
+success rate per task type.
 
 ### 設定 Settings
 
@@ -51,7 +78,11 @@ on/off — a disabled kanji keeps its progress but is paused from Learn and Prac
 A built-in usage guide.
 
 **Tech:** React 18 + TypeScript + Vite front end. Kanji and sentence content lives in CSV files
-under [`dbs/`](dbs/), parsed by a thin Express server behind a swappable storage interface.
+under [`dbs/`](dbs/), parsed by a thin Express server behind a swappable storage interface. The
+handwriting recogniser and its reference patterns live in [`src/lib/handwriting/`](src/lib/handwriting/)
+and are loaded on demand, so they cost nothing until you write something. The phone app in
+[`mobile/`](mobile/) vendors [`src/lib/`](src/lib/) and [`shared/`](shared/), so both clients run the
+same logic.
 
 ---
 

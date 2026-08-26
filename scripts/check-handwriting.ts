@@ -13,8 +13,8 @@
 import { existsSync } from 'node:fs'
 import { CACHE, featuresFor, KC, mapLimit, strokesOf, svgFor, type Point } from './kanjivg'
 import { allKana, sameShape } from '../src/lib/kana'
-import recorded from '../mobile/src/lang/ja/handwriting/draw-patterns.json'
-import generated from '../mobile/src/lang/ja/handwriting/kanjivg-patterns.json'
+import recorded from '../src/lib/handwriting/draw-patterns.json'
+import generated from '../src/lib/handwriting/kanjivg-patterns.json'
 
 type Pattern = [string, number, Point[][]]
 

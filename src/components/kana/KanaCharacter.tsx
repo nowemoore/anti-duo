@@ -1,23 +1,22 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { charsOfScript, isTraced, kanaOf, markTraced, type KanaScript } from '../../lib/kana'
 import { useProgress } from '../../context/ProgressContext'
 import { SpeakButton } from '../SpeakButton'
 import { useKanaAudio } from './audio'
+import { KanaTrace } from './KanaTrace'
 
 /**
  * The character page: hear it, look at it, then say you've met it.
  *
- * **This is the desktop cut of the mobile flow, and the difference is deliberate.** On mobile a
- * character is met by tracing it and then writing it unaided, and completing both is what puts it
- * into the practice pool. There is no drawing on desktop — a mouse is a poor stylus and most desktop
- * displays aren't touch — so the flow would have no way to finish and `buildDrill` would never have
- * a pool to draw from.
+ * Two ways to finish, and both are deliberate. The phone's way is to trace the character and then
+ * write it unaided; that's the "Write it" panel, opened on demand. Alongside it sits the plain
+ * "I've learned this" button — a mouse is a poor stylus and most desktop displays aren't touch, so
+ * on those the button is the sane path rather than a shortcut past a real step.
  *
- * The explicit "I've learned this" below takes that role. It keeps the invariant the course is built
- * on — practice can only ever ask about characters the learner *chose* to meet — without pretending
- * a handwriting step happened. Opening the page is not enough on its own: that would silently fill
- * the practice pool with characters someone merely scrolled past.
+ * Either way the invariant holds: practice can only ever ask about characters the learner *chose*
+ * to meet. Opening the page is not enough on its own — that would silently fill the practice pool
+ * with characters someone merely scrolled past.
  */
 export function KanaCharacter({
   char,
@@ -32,6 +31,8 @@ export function KanaCharacter({
 }) {
   const { progress, update } = useProgress()
   const play = useKanaAudio()
+  /** Whether the writing panel is open. Closed by default: it's a step, not the whole page. */
+  const [writing, setWriting] = useState(false)
 
   const chars = charsOfScript(script)
   const at = chars.indexOf(char)
@@ -44,6 +45,9 @@ export function KanaCharacter({
   useEffect(() => {
     play(char)
   }, [char, play])
+
+  // A character switch closes the panel: the next character starts from listening, not mid-drill.
+  useEffect(() => setWriting(false), [char])
 
   const markStudied = () => {
     update((p) => (isTraced(p, char) ? p : markTraced(p, char, new Date().toISOString())))
@@ -107,8 +111,26 @@ export function KanaCharacter({
         </p>
       )}
 
+      {writing && (
+        <KanaTrace
+          char={char}
+          onMet={() => {
+            markStudied()
+            setWriting(false)
+          }}
+        />
+      )}
+
       {/* `actions` carries the shared button/pill treatment; the kana class only re-centres it. */}
       <div className="actions kana-char-actions">
+        {!writing && (
+          <button type="button" className="pill-btn quiet" onClick={() => setWriting(true)}>
+            <span className="icon-circle">
+              <FontAwesomeIcon icon="pen-nib" />
+            </span>
+            {studied ? 'Write it again' : 'Write it'}
+          </button>
+        )}
         {!studied && (
           <button type="button" className="pill-btn" onClick={markStudied}>
             <span className="icon-circle">
