@@ -55,6 +55,13 @@ export interface Unit {
   batch: number
   /** Topical category — used for learning-set selection. */
   category: string
+  /**
+   * Author-rated writing complexity — stroke count for a kanji. Absent when the db doesn't rate it.
+   *
+   * Ordering material, not teaching order: `idx` and `batch` say what to learn next, this says how
+   * much there is to write. The board sorts on it so the grid runs simple to intricate.
+   */
+  complexity?: number
   /** English meanings. */
   gloss: string[]
   /** Real words built on this unit — Learn-mode intro + correct answers. */

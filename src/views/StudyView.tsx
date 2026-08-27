@@ -236,7 +236,7 @@ function StudyHome({
   grammarTopics: GrammarTopic[]
 }) {
   const index = useContent()
-  const { progress, update } = useProgress()
+  const { progress } = useProgress()
 
   const introduced = introducedUnits(index, progress).length
   const remainingToLearn = unlearnedUnits(index, progress).length
@@ -249,34 +249,18 @@ function StudyHome({
   const grammarDone = grammarTopics.filter((t) => hasPassed(topicProgress(progress, t.id))).length
 
   // Greeting: first visit (no name AND no saved progress) → はじめまして; otherwise welcome them back,
-  // with their name when we have it.
+  // with their name when we have it. Japanese only — it's a greeting, not something to be studied,
+  // and the English under it was a translation nobody needed twice.
   const hasRecord = Object.keys(progress.units).length > 0
   const greeting = name
-    ? { ja: `おかえりなさい、${name}`, en: 'Welcome back' }
+    ? `おかえりなさい、${name}`
     : hasRecord
-      ? { ja: 'おかえりなさい', en: 'Welcome back' }
-      : { ja: 'はじめまして', en: 'Welcome' }
-
-  function resetProgress() {
-    if (!window.confirm('Reset all learning progress? Your introduced kanji and levels will be cleared (your name and dataset selection are kept).')) {
-      return
-    }
-    update((p) => ({ settings: p.settings, units: {} }))
-  }
+      ? 'おかえりなさい'
+      : 'はじめまして'
 
   return (
     <section className="panel intro study-home">
-      <h2>
-        <Bilingual ja={greeting.ja} en={greeting.en} />
-      </h2>
-      <p className="home-status">
-        {introduced} / {enabledTotal} kanji unlocked. Continue learning or{' '}
-        <button type="button" className="reset-btn" onClick={resetProgress}>
-          <FontAwesomeIcon icon="trash-can" />
-          reset progress
-        </button>
-      </p>
-
+      <h2 className="home-greeting">{greeting}</h2>
       <div className="study-choices">
         {/* Kana first: it's where a learner with no Japanese at all should start, and the order the
             cards sit in is the only recommendation the home screen makes. */}
@@ -286,11 +270,13 @@ function StudyHome({
             <span className="icon-circle">
               <FontAwesomeIcon icon="book-open" />
             </span>
-            <Bilingual ja="かな" en="Kana" />
-            <span className="study-choice-sub">
-              {kanaStudied > 0
-                ? `${kanaStudied} / ${kanaTotal} characters studied`
-                : 'hiragana and katakana from scratch'}
+            <span className="study-choice-text">
+              <Bilingual ja="かな" en="Kana" />
+              <span className="study-choice-sub">
+                {kanaStudied > 0
+                  ? `${kanaStudied} / ${kanaTotal} characters studied`
+                  : 'hiragana and katakana from scratch'}
+              </span>
             </span>
           </button>
         )}
@@ -302,9 +288,11 @@ function StudyHome({
           <span className="icon-circle">
             <FontAwesomeIcon icon="graduation-cap" />
           </span>
-          <Bilingual ja="漢字" en="Kanji" />
-          <span className="study-choice-sub">
-            {introduced} / {enabledTotal} unlocked
+          <span className="study-choice-text">
+            <Bilingual ja="漢字" en="Kanji" />
+            <span className="study-choice-sub">
+              {introduced} / {enabledTotal} unlocked
+            </span>
           </span>
         </button>
 
@@ -317,11 +305,13 @@ function StudyHome({
             <span className="icon-circle">
               <FontAwesomeIcon icon="book" />
             </span>
-            <Bilingual ja="文法" en="Grammar" />
-            <span className="study-choice-sub">
-              {grammarDone > 0
-                ? `${grammarDone} / ${grammarTopics.length} subsections completed`
-                : 'how the words fit together'}
+            <span className="study-choice-text">
+              <Bilingual ja="文法" en="Grammar" />
+              <span className="study-choice-sub">
+                {grammarDone > 0
+                  ? `${grammarDone} / ${grammarTopics.length} subsections completed`
+                  : 'how the words fit together'}
+              </span>
             </span>
           </button>
         )}

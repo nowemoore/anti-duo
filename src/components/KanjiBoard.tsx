@@ -1,7 +1,9 @@
-import { useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Unit } from '../../shared/types'
-import { isCategoryEnabled, isUnitEnabled, toggleInList } from '../lib/categories'
+import { boardList, categoryOptions, radicalOptions, type BoardFilters } from '../lib/board'
+import { isUnitEnabled, toggleInList } from '../lib/categories'
 import { masteryProgress, masteryTier, readyForMore, type MasteryTier } from '../lib/study'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 
@@ -34,19 +36,38 @@ const TIERS: { tier: TileState; label: string }[] = [
  * kind of thing — this kanji has levelled far enough to have unlocked example words you haven't been
  * shown. Opening it clears the flag.
  *
+ * Ordered by stroke count, fewest first (see `sortByStrokes`), so the grid runs from 一 to the
+ * intricate end of the curriculum and the shape of the board matches the shape of the work. Two
+ * filters narrow it: a topic and a radical, which compose — each one's options are counted against
+ * the other, so the pair reads as a single query.
+ *
  * Holding a tile (or right-clicking it) drops that kanji out of practice and learning. Disabled
  * tiles stay on the board, faded: filtering them out would leave no way back short of Settings.
  */
 export function KanjiBoard({ onSelect }: { onSelect: (u: Unit) => void }) {
   const index = useContent()
   const { progress, update } = useProgress()
-  // Everything in the enabled *categories*, disabled units included — see the note above.
-  const units = index.content.units.filter((u) => isCategoryEnabled(progress.settings, u.category))
+  const [filters, setFilters] = useState<BoardFilters>({ category: null, radical: null })
+
+  // Rebuilding the list means sorting a few hundred units and walking them twice for the option
+  // counts — cheap, but not on every hover, so it's memoised on what actually changes it.
+  const units = useMemo(() => boardList(index, progress, filters), [index, progress, filters])
+  const categories = useMemo(
+    () => categoryOptions(index, progress, { radical: filters.radical }),
+    [index, progress, filters.radical],
+  )
+  const radicals = useMemo(
+    () => radicalOptions(index, progress, { category: filters.category }),
+    [index, progress, filters.category],
+  )
+  const filtered = filters.category != null || filters.radical != null
 
   const unlockEvery = index.lang.batchUnlockEvery
   const stateOf = (u: Unit): TileState => {
     if (!isUnitEnabled(progress.settings, u)) return 'off'
-    return readyForMore(progress, u, unlockEvery) ? 'more' : masteryTier(progress.units[u.idx]?.lvl ?? 0)
+    return readyForMore(progress, u, unlockEvery)
+      ? 'more'
+      : masteryTier(progress.units[u.idx]?.lvl ?? 0)
   }
   const waiting = units.filter((u) => stateOf(u) === 'more').length
 
@@ -83,62 +104,116 @@ export function KanjiBoard({ onSelect }: { onSelect: (u: Unit) => void }) {
     holdTimer.current = null
   }
 
-  if (units.length === 0) return <p className="board-empty">No kanji in the enabled set.</p>
-
   return (
     <div className="board">
-      {waiting > 0 && (
-        <p className="board-prompt">
-          Ready for more? {waiting} {waiting === 1 ? 'kanji has' : 'kanji have'} new words waiting.
+      <div className="board-filters">
+        <label className="board-filter">
+          <span className="board-filter-label">Topic</span>
+          <select
+            value={filters.category ?? ''}
+            onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value || null }))}
+          >
+            <option value="">All topics</option>
+            {categories.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.value} ({c.count})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="board-filter">
+          <span className="board-filter-label">Radical</span>
+          <select
+            value={filters.radical ?? ''}
+            onChange={(e) => setFilters((f) => ({ ...f, radical: e.target.value || null }))}
+          >
+            <option value="">All radicals</option>
+            {radicals.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.value}
+                {r.label ? ` · ${r.label}` : ''} ({r.count})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/* Only worth offering once something is actually narrowed. */}
+        {filtered && (
+          <button
+            type="button"
+            className="board-filter-clear"
+            onClick={() => setFilters({ category: null, radical: null })}
+          >
+            <FontAwesomeIcon icon="xmark" />
+            Clear
+          </button>
+        )}
+      </div>
+
+      {units.length === 0 ? (
+        <p className="board-empty">
+          {filtered ? 'No kanji match those filters.' : 'No kanji in the enabled set.'}
         </p>
+      ) : (
+        <>
+          {waiting > 0 && (
+            <p className="board-prompt">
+              Ready for more? {waiting} {waiting === 1 ? 'kanji has' : 'kanji have'} new words
+              waiting.
+            </p>
+          )}
+
+          {/* One wrapping grid: `auto-fill` sizes the columns, so nothing here has to measure a width. */}
+          <div className="board-grid">
+            {units.map((u) => {
+              const state = stateOf(u)
+              // The ramp only applies between the two ends; unseen, ready and off are flat.
+              const ramped = state !== 'off' && state !== 'more' && state !== 'unseen'
+              return (
+                <button
+                  key={u.idx}
+                  type="button"
+                  className={`tile ${state}`}
+                  style={ramped ? { background: fillFor(u) } : undefined}
+                  aria-label={
+                    state === 'more' ? `${u.form}, ready for more` : `${u.form}, ${state}`
+                  }
+                  title={state === 'off' ? 'Hold to turn back on' : 'Hold to turn off for practice'}
+                  onClick={() => {
+                    // Swallow the click the browser fires at the end of a hold.
+                    if (held.current) {
+                      held.current = false
+                      return
+                    }
+                    onSelect(u)
+                  }}
+                  onPointerDown={() => startHold(u)}
+                  onPointerUp={endHold}
+                  onPointerLeave={endHold}
+                  onPointerCancel={endHold}
+                  // Right-click is the pointer equivalent of the phone's long press.
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    toggleUnit(u)
+                  }}
+                >
+                  {u.form}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="board-legend">
+            {TIERS.map(({ tier, label }) => (
+              <span key={tier} className="legend-item">
+                <span className={`legend-swatch tile-${tier}`} />
+                <span className="legend-label">{label}</span>
+              </span>
+            ))}
+          </div>
+        </>
       )}
-
-      {/* One wrapping grid: `auto-fill` sizes the columns, so nothing here has to measure a width. */}
-      <div className="board-grid">
-        {units.map((u) => {
-          const state = stateOf(u)
-          // The ramp only applies between the two ends; unseen, ready and off are flat.
-          const ramped = state !== 'off' && state !== 'more' && state !== 'unseen'
-          return (
-            <button
-              key={u.idx}
-              type="button"
-              className={`tile ${state}`}
-              style={ramped ? { background: fillFor(u) } : undefined}
-              aria-label={state === 'more' ? `${u.form}, ready for more` : `${u.form}, ${state}`}
-              title={state === 'off' ? 'Hold to turn back on' : 'Hold to turn off for practice'}
-              onClick={() => {
-                // Swallow the click the browser fires at the end of a hold.
-                if (held.current) {
-                  held.current = false
-                  return
-                }
-                onSelect(u)
-              }}
-              onPointerDown={() => startHold(u)}
-              onPointerUp={endHold}
-              onPointerLeave={endHold}
-              onPointerCancel={endHold}
-              // Right-click is the pointer equivalent of the phone's long press.
-              onContextMenu={(e) => {
-                e.preventDefault()
-                toggleUnit(u)
-              }}
-            >
-              {u.form}
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="board-legend">
-        {TIERS.map(({ tier, label }) => (
-          <span key={tier} className="legend-item">
-            <span className={`legend-swatch tile-${tier}`} />
-            <span className="legend-label">{label}</span>
-          </span>
-        ))}
-      </div>
     </div>
   )
 }

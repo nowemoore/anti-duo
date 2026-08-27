@@ -124,11 +124,14 @@ function parseUnitRow(row: Record<string, string>, registry: Map<number, Word>):
   if (!Number.isInteger(idx)) throw new ContentError(`Bad idx "${row.idx}"`)
   const where = `unit idx=${idx}`
   const batch = Number(row.batch)
+  const complexity = Number(row.complexity)
   const unit: Unit = {
     idx,
     form: row.char,
     batch: Number.isFinite(batch) && batch >= 1 ? batch : 1,
     category: row.category?.trim() || 'Everyday & Misc',
+    // Optional: a db that doesn't rate complexity simply leaves the board's sort to fall back on idx.
+    ...(Number.isFinite(complexity) && complexity > 0 ? { complexity } : {}),
     gloss: splitMeanings(row.meanings ?? ''),
     examples: resolveExamples(
       parseJsonField<{ idx: number; batch?: number }[]>(row.examples, `${where}.examples`),

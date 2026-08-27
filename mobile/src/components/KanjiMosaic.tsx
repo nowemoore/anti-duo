@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Animated, View, Text, Pressable, StyleSheet } from 'react-native'
 import type { Unit } from '@shared/types'
-import { isCategoryEnabled, isUnitEnabled, toggleInList } from '@lib/categories'
+import { boardList, categoryOptions, radicalOptions, type BoardFilters as Filters } from '@lib/board'
+import { isUnitEnabled, toggleInList } from '@lib/categories'
 import { masteryProgress, masteryTier, readyForMore, type MasteryTier } from '@lib/study'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
+import { BoardFilters } from './BoardFilters'
 import { useStagger, useStaggerStyles } from './Stagger'
 import { fonts, radius, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
@@ -54,6 +56,11 @@ const TIERS: { tier: TileState; label: string }[] = [
  * kind of thing — this kanji has levelled far enough to have unlocked example words you haven't been
  * shown. Opening it clears the flag.
  *
+ * Ordered by stroke count, fewest first (see `sortByStrokes`), so the board runs from 一 to the
+ * intricate end of the curriculum and its shape matches the shape of the work. Two filters narrow
+ * it — a topic and a radical — and they compose: each one's options are counted against the other,
+ * so the pair reads as a single query.
+ *
  * Holding a tile drops that kanji out of practice and learning. Disabled tiles stay on the board,
  * faded: filtering them out would leave no way back in short of hunting through Settings.
  */
@@ -63,8 +70,20 @@ export function KanjiMosaic({ onSelect }: { onSelect: (u: Unit) => void }) {
   const index = useContent()
   const { progress, update } = useProgress()
   const { ui } = useLanguage()
-  // Everything in the enabled *categories*, disabled units included — see the note above.
-  const units = index.content.units.filter((u) => isCategoryEnabled(progress.settings, u.category))
+  const [filters, setFilters] = useState<Filters>({ category: null, radical: null })
+
+  // Sorting a few hundred units and walking them twice for the option counts is cheap, but not on
+  // every render of a 300-tile board — memoised on what actually changes it.
+  const units = useMemo(() => boardList(index, progress, filters), [index, progress, filters])
+  const categories = useMemo(
+    () => categoryOptions(index, progress, { radical: filters.radical }),
+    [index, progress, filters.radical],
+  )
+  const radicals = useMemo(
+    () => radicalOptions(index, progress, { category: filters.category }),
+    [index, progress, filters.category],
+  )
+  const filtered = filters.category != null || filters.radical != null
   const [width, setWidth] = useState(0)
 
   /*
@@ -108,6 +127,12 @@ export function KanjiMosaic({ onSelect }: { onSelect: (u: Unit) => void }) {
 
   return (
     <View style={styles.wrap} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <BoardFilters
+        filters={filters}
+        onChange={setFilters}
+        categories={categories}
+        radicals={radicals}
+      />
       {waiting > 0 && (
         <View style={styles.prompt}>
           <Text style={styles.promptText}>
@@ -116,7 +141,9 @@ export function KanjiMosaic({ onSelect }: { onSelect: (u: Unit) => void }) {
         </View>
       )}
       {units.length === 0 ? (
-        <Text style={styles.empty}>No {ui.noun} in the enabled set.</Text>
+        <Text style={styles.empty}>
+          {filtered ? `No ${ui.noun} match those filters.` : `No ${ui.noun} in the enabled set.`}
+        </Text>
       ) : (
         <>
           {/*

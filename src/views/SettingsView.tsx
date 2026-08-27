@@ -8,6 +8,19 @@ export default function SettingsView() {
   const { progress, update, saving } = useProgress()
   const { name } = progress.settings
 
+  // Moved off the study home, where it sat under the greeting: it's a settings action, and having
+  // it one click from "start learning" was never the right neighbourhood for it.
+  function resetProgress() {
+    if (
+      !window.confirm(
+        'Reset all learning progress? Your introduced kanji and levels will be cleared (your name and dataset selection are kept).',
+      )
+    ) {
+      return
+    }
+    update((p) => ({ settings: p.settings, units: {} }))
+  }
+
   return (
     <div className="settings-page">
       <section className="panel settings">
@@ -36,6 +49,18 @@ export default function SettingsView() {
             </>
           )}
         </p>
+      </section>
+
+      <section className="panel settings">
+        <h2>Progress</h2>
+        <p className="muted">
+          Clears every kanji you&apos;ve unlocked and their levels. Your name and which kanji are
+          switched on are kept. There is no undo.
+        </p>
+        <button type="button" className="reset-btn" onClick={resetProgress}>
+          <FontAwesomeIcon icon="trash-can" />
+          reset progress
+        </button>
       </section>
 
       {/* Directly under the profile: signing in is the other half of "who is this progress for". */}

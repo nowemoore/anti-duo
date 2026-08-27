@@ -609,6 +609,14 @@ button {
   justify-content: center;
 }
 
+/* The greeting is the only thing above the cards, so it can carry the page on its own. */
+.home-greeting {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 /* "n / k kanji unlocked. Continue learning or [reset]" under the welcome heading */
 .home-status {
   color: var(--muted);
@@ -634,26 +642,36 @@ button {
   background: var(--accent-hover);
 }
 
+/* Two columns, three cards: the fourth cell is left empty on purpose, so the set reads as a grid
+   with room in it rather than as a row that happens to be one short. Spans the panel's full width —
+   the cards are wide rows now, and they want the space.
+
+   The grid also takes the height the panel has going spare (`flex: 1` against .intro's min-height),
+   with two equal rows: the cards grow into the card rather than floating in the middle of it. */
 .study-choices {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 2rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 1.1rem;
+  flex: 1;
+  width: 100%;
+  max-height: 24rem;
+  margin: 2rem 0 0;
 }
 
+/* A wide row, not a tile: the icon leads and the label sits beside it, so the card is as short as
+   its content and the eye reads left to right instead of top to bottom. */
 .study-choice {
   /* Anchors the watermark, which is clipped by the card's own edges. */
   position: relative;
   overflow: hidden;
-  flex: 1 1 0;
-  max-width: 16rem;
-  min-width: 11rem;
+  min-width: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.7rem;
-  padding: 2rem 1.25rem;
+  text-align: left;
+  gap: 1.25rem;
+  padding: 1.5rem;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--bg);
@@ -673,9 +691,23 @@ button {
 }
 
 .study-choice .icon-circle {
-  width: 3.25rem;
-  height: 3.25rem;
-  font-size: 1.35rem;
+  flex: none;
+  width: 3.4rem;
+  height: 3.4rem;
+  font-size: 1.4rem;
+}
+
+/* The label column: title over subtitle, both left-aligned against the icon. */
+.study-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+/* Bilingual centres its two lines by default — in a row that has to align to the left edge. */
+.study-choice .bilingual {
+  align-items: flex-start;
 }
 
 .study-choice-sub {
@@ -1873,14 +1905,12 @@ ruby rt {
     padding: 2.5rem 1.1rem 1.4rem;
   }
   /* Stack the Learn / Practice cards vertically instead of side-by-side. */
+  /* One column on a phone: two cards side by side at this width are too narrow to read. */
   .study-choices {
-    flex-direction: column;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    width: min(100%, 22rem);
   }
   .study-choice {
-    flex: none;
-    width: 100%;
-    max-width: 22rem;
     padding: 1.5rem 1rem;
   }
 
@@ -4195,4 +4225,53 @@ button.known-words:disabled {
 .account code {
   color: var(--accent-ink);
   font-size: 0.9em;
+}
+
+/* --- Board filters -------------------------------------------------------- */
+
+.board-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.board-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.board-filter-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.board-filter select {
+  max-width: 14rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.board-filter select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.board-filter-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.1rem;
+  padding: 0.35rem 0.8rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.78rem;
 }
