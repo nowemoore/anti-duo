@@ -6,10 +6,11 @@ import { DrawCanvas, type Stroke } from '../DrawCanvas'
 import { SpeakButton } from '../SpeakButton'
 import { Feedback } from './Feedback'
 import { QuizActions } from './QuizActions'
+import type { ReportResult } from './types'
 
 interface Props {
   task: DrawTask
-  onResult: (delta: number) => void
+  onResult: ReportResult
 }
 
 /**
@@ -86,7 +87,10 @@ export function DrawTaskView({ task, onResult }: Props) {
         answered={revealed}
         canCheck={strokes.length > 0}
         onCheck={check}
-        onContinue={() => onResult(score ?? 0)}
+        onContinue={() =>
+          // The strokes ride along so the session can file them in `drawings` and link the row.
+          onResult(score ?? 0, { strokes, overrodeVerdict: overridden })
+        }
         leftExtra={
           revealed && !overridden ? (
             // The appeal, in whichever direction the machine got it wrong.

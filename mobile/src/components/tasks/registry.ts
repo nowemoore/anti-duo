@@ -4,6 +4,7 @@ import { typeWordTask } from './TypeWordTask'
 import { whichWordsTask } from './WhichWordsTask'
 import { choiceTask } from './ChoiceTask'
 import { pluralTask } from './PluralTask'
+import { kanaTask } from './KanaTask'
 
 /** Built-in task UIs, keyed by task kind. Draw + any language-specific tasks come from the pack. */
 const BUILTIN: Record<string, TaskUI> = {
@@ -14,6 +15,11 @@ const BUILTIN: Record<string, TaskUI> = {
   'pick-reading': choiceTask as unknown as TaskUI,
   'pick-meaning': choiceTask as unknown as TaskUI,
   plural: pluralTask as unknown as TaskUI, // opt-in, data-driven; dormant until a language has plural data
+  // The kana-word questions. Built in rather than pack-contributed: they're keyed off a kana word,
+  // which is a shape shared/types knows about, not a Japanese-only view concern.
+  'kana-spell': kanaTask as unknown as TaskUI,
+  'kana-meaning': kanaTask as unknown as TaskUI,
+  'kana-cloze': kanaTask as unknown as TaskUI,
 }
 
 /**

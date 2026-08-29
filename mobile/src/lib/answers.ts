@@ -16,8 +16,8 @@ const TABLE = 'answers'
 export interface AnswerRow {
   userId: string
   lang: string
-  /** The kanji/unit the question was about. */
-  unitIdx: number
+  /** The kanji/unit the question was about. Null for a kana word, which has no unit. */
+  unitIdx: number | null
   /** TaskType, e.g. 'cloze' — kept as a string so a new task type needs no migration. */
   taskKind: string
   /** Whether it counted as correct (for which-words, whether it was a perfect score). */
@@ -32,8 +32,8 @@ export interface AnswerRow {
   picked: string | null
   /** The sentence the question was built from, when it came from one. */
   sentenceId: string | null
-  /** The unit's level *before* this answer — retention depends on prior strength. */
-  lvlBefore: number
+  /** The unit's level *before* this answer — retention depends on prior strength. Null for kana. */
+  lvlBefore: number | null
   /** The word's streak before this answer, when the task tested one specific curated word. */
   wordStreakBefore: number | null
   /** When this unit was last answered, so the review gap is on the row rather than a window query. */

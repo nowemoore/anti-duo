@@ -7,12 +7,23 @@ import type { Progress, Unit } from '../../shared/types'
 import type { ContentIndex } from './content'
 import { isCategoryEnabled } from './categories'
 
-/** Neither filter set = show everything. `null` is "no filter", never "unknown". */
+/**
+ * Neither filter set = show everything. An empty array (or null) is "no filter", never "unknown".
+ *
+ * Both take a *list*: picking two topics should widen the board rather than replace the first
+ * choice, which is what a single value forces. A list of one behaves exactly as the single value
+ * did, so a caller that only ever offers one option needs no special case.
+ */
 export interface BoardFilters {
-  /** A single category name, or null for all of them. */
-  category?: string | null
-  /** A single classifying radical character, or null for all of them. */
-  radical?: string | null
+  /** Category names to keep. Empty or null = all of them. */
+  category?: string[] | null
+  /** Classifying radical characters to keep. Empty or null = all of them. */
+  radical?: string[] | null
+}
+
+/** Whether a value passes one filter. An unset or empty filter passes everything. */
+function passes(chosen: string[] | null | undefined, value: string): boolean {
+  return !chosen || chosen.length === 0 || chosen.includes(value)
 }
 
 /** A filter option and how many board units it covers, for a picker that can show its own counts. */
@@ -60,11 +71,9 @@ export function boardList(
   progress: Progress,
   filters: BoardFilters = {},
 ): Unit[] {
-  const units = boardUnits(index, progress).filter((u) => {
-    if (filters.category && u.category !== filters.category) return false
-    if (filters.radical && radicalOf(index, u) !== filters.radical) return false
-    return true
-  })
+  const units = boardUnits(index, progress).filter(
+    (u) => passes(filters.category, u.category) && passes(filters.radical, radicalOf(index, u)),
+  )
   return sortByStrokes(units)
 }
 
@@ -82,7 +91,7 @@ export function categoryOptions(
 ): FilterOption[] {
   const counts = new Map<string, number>()
   for (const u of boardUnits(index, progress)) {
-    if (filters.radical && radicalOf(index, u) !== filters.radical) continue
+    if (!passes(filters.radical, radicalOf(index, u))) continue
     counts.set(u.category, (counts.get(u.category) ?? 0) + 1)
   }
   return [...counts].map(([value, count]) => ({ value, count }))
@@ -103,7 +112,7 @@ export function radicalOptions(
 ): FilterOption[] {
   const counts = new Map<string, number>()
   for (const u of boardUnits(index, progress)) {
-    if (filters.category && u.category !== filters.category) continue
+    if (!passes(filters.category, u.category)) continue
     const r = radicalOf(index, u)
     if (!r) continue
     counts.set(r, (counts.get(r) ?? 0) + 1)

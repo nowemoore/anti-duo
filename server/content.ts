@@ -183,7 +183,15 @@ function parseKanaWordRow(row: Record<string, string>): KanaWord {
  *  the neutral Token model (surface/gloss/units) as we load — the loader is the JA→neutral adapter. */
 type RawToken =
   | { kind: 'particle'; kana: string }
-  | { kind: 'word'; ja: string; reading: string; en: string; kanji: string[]; targets: number[] }
+  | {
+      kind: 'word'
+      ja: string
+      reading: string
+      en: string
+      kanji: string[]
+      targets: number[]
+      kana_targets?: number[]
+    }
 
 function toToken(raw: RawToken): Token {
   if (raw.kind === 'particle') {
@@ -197,6 +205,8 @@ function toToken(raw: RawToken): Token {
     gloss: raw.en,
     units: raw.kanji,
     targets: raw.targets,
+    // Only where there is one: a token with no kana word behind it keeps its old shape exactly.
+    ...(raw.kana_targets?.length ? { kanaTargets: raw.kana_targets } : {}),
   }
   return w
 }
@@ -206,6 +216,7 @@ function parseSentenceRow(row: Record<string, string>): Sentence {
   return {
     id: row.id,
     unitList: parseJsonField<number[]>(row.kanji_list, `${where}.kanji_list`),
+    kanaList: parseJsonField<number[]>(row.kana_list || '[]', `${where}.kana_list`),
     tokens: parseJsonField<RawToken[]>(row.tokens, `${where}.tokens`).map(toToken),
   }
 }

@@ -27,7 +27,7 @@ export const ar: LanguagePack = {
   inputHint: 'اكتب بالعربية',
   tasks,
   // Hold the "?" in the top bar for the alphabet + vowel-mark reference.
-  reference: { title: { native: 'الحروف والحركات', en: 'Alphabet & vowels' }, Chart: ArabicChart },
+  reference: { title: { native: 'الحروف والحركات', en: 'Alphabet & vowels' }, aid: 'the alphabet', Chart: ArabicChart },
   // AR type-word is production (meaning → word); its pack view overrides the built-in reading-recall one.
   taskUIs: { 'type-word': arTypeWordTask as unknown as TaskUI },
   // Highlight the root letters inside a word (in Learn, and on reveal in tasks).

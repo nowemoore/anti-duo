@@ -6,10 +6,11 @@ import { HoverGloss } from '../HoverGloss'
 import { SpeakButton } from '../SpeakButton'
 import { Feedback } from './Feedback'
 import { QuizActions } from './QuizActions'
+import type { ReportResult } from './types'
 
 interface Props {
   task: TypeWordTask
-  onResult: (delta: number) => void
+  onResult: ReportResult
 }
 
 type Phase = 'first' | 'retry' | 'revealed'
@@ -103,7 +104,7 @@ export function TypeWordTaskView({ task, onResult }: Props) {
         answered={revealed}
         canCheck={hasValue}
         onCheck={check}
-        onContinue={() => onResult(score)}
+        onContinue={() => onResult(score, { picked: inputRef.current?.value || null })}
         leftExtra={
           !revealed ? (
             <button type="button" className="ghost" onClick={giveUp}>

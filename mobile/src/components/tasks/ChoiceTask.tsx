@@ -5,7 +5,7 @@ import { SpeakButton } from '../SpeakButton'
 import { VoweledText } from '../VoweledText'
 import { useLanguage } from '../../context/LanguageContext'
 import type { TaskUI, TaskViewProps } from './types'
-import { fonts, type Palette } from '../../theme'
+import { edge, fonts, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
@@ -25,7 +25,10 @@ function ChoiceView({ task, answer, setAnswer, phase }: TaskViewProps<ChoiceTask
   const isPickReading = task.kind === 'pick-reading' // select pronunciation
   const isMeaning = task.kind === 'pick-meaning'
   const formSelect = isCloze || isRootCloze // options are unit forms (rendered large)
-  const stacked = isMeaning || isPickReading // both stack 1 per row
+  // Only pick-reading stacks one per row: its options are readings with a speak button beside each,
+  // which needs the width. Meanings go two-up like every other four-option question — a column of
+  // four short glosses left most of the card empty and pushed the last one near the fold.
+  const stacked = isPickReading
 
   let override: TokenOverride
   if (isCloze) {
@@ -42,10 +45,16 @@ function ChoiceView({ task, answer, setAnswer, phase }: TaskViewProps<ChoiceTask
   return (
     <View style={styles.root}>
       <View style={styles.sentenceRow}>
-        <View style={styles.sentenceWrap}>
-          <SentenceView tokens={task.sentence.tokens} overrides={overrides} revealMeanings={revealed} />
-        </View>
-        <SpeakButton text={sentenceSpeech(task)} label="Play sentence" disabled={!revealed} small />
+        <SentenceView
+          tokens={task.sentence.tokens}
+          overrides={overrides}
+          revealMeanings={revealed}
+          // Inside the sentence, so it follows the last character rather than centring itself
+          // against the whole block — punctuation, not a control parked in the margin.
+          trailing={
+            <SpeakButton text={sentenceSpeech(task)} label="Play sentence" disabled={!revealed} small />
+          }
+        />
       </View>
 
       <View style={[styles.grid, stacked && styles.gridCol]}>
@@ -69,6 +78,7 @@ function ChoiceView({ task, answer, setAnswer, phase }: TaskViewProps<ChoiceTask
                 style={[
                   styles.opt,
                   formSelect && styles.optBig,
+                  isMeaning && styles.optMeaning,
                   stacked && styles.optSlim,
                   isPickReading && styles.optFlex,
                   optFade(verdict, state, colors),
@@ -76,6 +86,10 @@ function ChoiceView({ task, answer, setAnswer, phase }: TaskViewProps<ChoiceTask
               >
                 <VoweledText
                   text={formSelect ? (pack.displayForm?.(o.label) ?? o.label) : o.label}
+                  // A long gloss shrinks to fit its cell rather than wrapping to a fourth line and
+                  // making one option taller than the other three. Two lines, then it scales.
+                  numberOfLines={isMeaning ? 2 : undefined}
+                  shrinkToFit={isMeaning}
                   style={[
                     styles.optText,
                     // pick-meaning's options are English glosses — Latin text on a Latin face.
@@ -141,15 +155,15 @@ function optTextStyle(state: string, colors: Palette) {
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   root: { width: '100%' },
-  sentenceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20 },
-  sentenceWrap: { flexShrink: 1, minWidth: 0 },
+  // The play button now flows inside the sentence, so this is just the block's own spacing.
+  sentenceRow: { alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, alignSelf: 'center', width: '100%', maxWidth: 460 },
   gridCol: { flexDirection: 'column', flexWrap: 'nowrap', rowGap: 10, maxWidth: 340 },
   cell: { width: '48%' },
   cellFull: { width: '100%' },
   readingCell: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   opt: {
-    borderWidth: 1.5,
+    borderWidth: edge,
     borderColor: colors.border,
     borderRadius: 12,
     paddingVertical: 12,
@@ -161,11 +175,14 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   optFlex: { flex: 1 },
   optSlim: { paddingVertical: 9 },
   optBig: { paddingVertical: 18, minHeight: 56 },
+  optMeaning: { minHeight: 62 },
   // No family: VoweledText gives kanji runs the mincho face and leaves kana on the OS gothic.
   optText: { fontSize: 20, color: colors.ink },
   optTextEn: { fontFamily: fonts.body },
   // Fixed lineHeight so the unit-form options (kanji char / Arabic root) share a row size across modes.
   clozeOptText: { fontSize: 32, lineHeight: 40 },
   readingText: { fontSize: 22 },
-  meaningText: { fontSize: 16, textAlign: 'center' },
+  // Two to a row, so each cell has to hold its own height whatever the gloss is: a fixed minHeight
+  // keeps the four cells a matched pair of pairs instead of a ragged grid.
+  meaningText: { fontSize: 15, lineHeight: 20, textAlign: 'center' },
 })

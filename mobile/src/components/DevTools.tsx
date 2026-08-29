@@ -7,7 +7,7 @@ import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
 import { Icon } from './Icon'
-import { fonts, radius, spacing, type Palette } from '../theme'
+import { edge, fonts, radius, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
 /**
@@ -84,7 +84,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   panel: {
     backgroundColor: colors.panel,
     borderColor: colors.accentSoft,
-    borderWidth: 1,
+    borderWidth: edge,
     borderStyle: 'dashed',
     borderRadius: radius.lg,
     padding: spacing.lg,
@@ -99,7 +99,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.md,
     paddingVertical: 10,
     paddingHorizontal: spacing.sm,

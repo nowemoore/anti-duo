@@ -5,7 +5,7 @@ import { Bilingual } from '../components/Bilingual'
 import { Tally } from '../components/Tally'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
-import { introducedWords } from '../lib/study'
+import { metVocabulary } from '../lib/study'
 import { knownWordCount, taskRates, TASK_LABELS } from '../lib/stats'
 import { taskIcon } from '../lib/taskIcons'
 
@@ -72,7 +72,7 @@ function KnownWordsCard() {
   const [listOpen, setListOpen] = useState(false)
 
   // Hundreds of words even part-way in — worth memoising rather than rebuilding each render.
-  const words = useMemo(() => introducedWords(index, progress), [index, progress])
+  const words = useMemo(() => metVocabulary(index, progress), [index, progress])
   const known = knownWordCount(progress, words)
   const total = words.size
   const pct = total === 0 ? 0 : Math.round((known / total) * 100)

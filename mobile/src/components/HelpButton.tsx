@@ -1,19 +1,34 @@
 import { useState } from 'react'
-import { Modal, View, Text, ScrollView, StyleSheet } from 'react-native'
+import { Modal, View, Text, ScrollView, StyleSheet, useColorScheme } from 'react-native'
 import { useLanguage } from '../context/LanguageContext'
-import { Icon } from './Icon'
 import { TapScale } from './TapScale'
-import { fonts, radius, type Palette } from '../theme'
-import { useColors, useStyles } from '../hooks/theme'
+import { edge, fonts, radius, spacing, type Palette } from '../theme'
+import { useStyles } from '../hooks/theme'
 
-/** "?" button: hold it to reveal the active language's script reference, release to hide it. */
+/**
+ * Hold to reveal the active language's script reference, release to hide it.
+ *
+ * Says what it does, in words, with no glyph. A question mark in a header is a guess — settings? a
+ * tutorial? an about box? — and the part no glyph can convey at all is that the chart has to be
+ * *held* to stay up. Mid-question is exactly when a learner needs to know the aid is there, and
+ * exactly when they won't go exploring to find out.
+ */
 export function HelpButton() {
   const [open, setOpen] = useState(false)
-  const colors = useColors()
   const styles = useStyles(makeStyles)
+  /*
+   * The colour is matched to the capsule iOS draws behind a bar button, not to the app's palette.
+   *
+   * That capsule is a system material and it flips with the *system* scheme, not with the app (which
+   * is dark either way): in dark mode it is a light glass with a dark glyph on it — which is why the
+   * back chevron opposite reads dark — and in light mode the reverse. Nothing exposes the glyph
+   * colour the system picked, so this mirrors the rule instead. Palette ink was the bug: it is light
+   * in both palettes, so on that light capsule the label washed out to nearly nothing.
+   */
+  const onCapsule = useColorScheme() === 'light' ? '#f2f2f2' : '#1c1c1e'
   const { reference } = useLanguage()
   if (!reference) return null // a language with no script chart hides the help button
-  const { title, Chart } = reference
+  const { title, aid, Chart } = reference
 
   return (
     <>
@@ -21,15 +36,13 @@ export function HelpButton() {
         style={styles.helpBtn}
         onPressIn={() => setOpen(true)}
         onPressOut={() => setOpen(false)}
-        accessibilityLabel={`Hold for ${title.en} chart`}
+        accessibilityLabel={`Hold to view ${aid}`}
         hitSlop={8}
       >
-        {/* `ink` to match the system back chevron opposite it, which the stack tints from
-            `navTheme.colors.text`. Anything quieter reads as a different kind of control. */}
-        <Icon name="question" size={20} color={colors.ink} />
+        <Text style={[styles.helpLabel, { color: onCapsule }]}>hold to view {aid}</Text>
       </TapScale>
 
-      {/* pointerEvents: 'none' so the held "?" keeps the touch — releasing it hides the chart. */}
+      {/* pointerEvents: 'none' so the held label keeps the touch — releasing it hides the chart. */}
       <Modal visible={open} transparent animationType="fade">
         <View style={styles.backdrop} pointerEvents="none">
           <View style={styles.card}>
@@ -48,12 +61,27 @@ export function HelpButton() {
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  helpBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  helpBtn: {
+    alignItems: 'center',
+    /*
+     * The system capsule hugs this view, so this padding is the gap between the words and the glass
+     * edge — at the default they sat hard against it. Sized to content rather than to a fixed 40pt
+     * height: with a height set, the label centred inside it but the capsule did not, leaving more
+     * air above the words than below.
+     */
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+  },
+  // Lower case, in the app's voice for a hint: it explains the control, it isn't a heading. The
+  // colour is applied inline, matched to the system's capsule — see the label itself.
+  // An explicit lineHeight, so the text's box is symmetric around the glyphs. Left to the font, the
+  // ascent runs taller than the descent and the words sit low in their own line.
+  helpLabel: { fontFamily: fonts.body, fontSize: 12, lineHeight: 14 },
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: 'rgba(0,0,0,0.35)' },
   card: {
     backgroundColor: colors.overlay,
     borderColor: colors.overlayEdge,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.lg,
     padding: 12,
     maxWidth: 560,

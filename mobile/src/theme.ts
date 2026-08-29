@@ -3,8 +3,9 @@
 //
 // Colours are per-language: each palette below is a full theme, and a language pack selects one via
 // its `palette` field (resolved at render by useColors/useStyles — see hooks/theme.ts). `fonts`,
-// `spacing`, `radius`, and `shadow` are shared across languages. JA-only components may import the
+// `spacing`, `radius`, `edge`, and `shadow` are shared across languages. JA-only components may import the
 // static `colors` (= the Japanese palette) directly, since they only ever render in Japanese mode.
+import { StyleSheet } from 'react-native'
 
 /** Japanese palette — the original dark theme (unchanged). */
 export const jaColors = {
@@ -32,6 +33,17 @@ export const jaColors = {
   onAccent: '#2f2f2f',
 
   /*
+   * A second highlight from the same family as the pink, one step toward the ground: the lavender
+   * neighbour. It marks *state* — how far along you are, which tab you are on — while the accent is
+   * reserved for what you can act on. Keeping the two apart is what stops a screen from reading as
+   * one field of pink in which nothing is more urgent than anything else.
+   */
+  highlight: '#9493b7',
+  highlightInk: '#b8b7d6', // text/icons on a lavender wash — the lavender itself is 3.2:1 there
+  highlightSoft: 'rgba(148,147,183,0.62)', // edges — the lavender should be legible as a colour
+  highlightWash: 'rgba(148,147,183,0.26)', // fills + glass tint — has to survive the material
+
+  /*
    * Verdict colours: sage for right, slate for wrong. Both are mid-tones far too light to sit behind
    * near-white ink, so a judged card tints with the Soft variant rather than filling.
    *
@@ -51,13 +63,17 @@ export const jaColors = {
 
   /*
    * "Ready for more": a kanji that has levelled far enough to unlock example words it hasn't been
-   * shown. Deliberately off the mastery ramp — it isn't more-mastered-than-solid, it's a prompt.
-   * Deep enough to carry the ink text at 4.8:1, which the accent tile never did (1.9:1).
+   * shown, and the task chip that heads a practice card. Deliberately off the mastery ramp — it
+   * isn't more-mastered-than-solid, it's a prompt.
+   *
+   * A deeper violet, one step past the lavender {@link highlight}: the two are the same family, so a
+   * board of pink tiles with these among them reads as one palette rather than as two. It used to be
+   * a teal, which was the only colour in the app from nowhere near the rest of it.
    */
-  ready: '#007678',
-  readySoft: 'rgba(0,118,120,0.22)',
-  // Light enough to sit on readySoft: the teal itself is 2.4:1 as text, this is 6.5:1.
-  readyInk: '#a9cec2',
+  ready: '#5a5591',
+  readySoft: 'rgba(90,85,145,0.28)',
+  // Light enough to sit on readySoft: the violet itself is 2.6:1 as text, this is 7.1:1.
+  readyInk: '#c6c3e6',
 
   // Dark "chip" strips (the reveal strip + Learn caption): light text on a dark surface in both themes.
   onChip: '#edf1ef',
@@ -108,6 +124,13 @@ export const arColors: Palette = {
   accentHover: 'rgba(0,118,99,0.36)',
   onAccent: '#fbf3e6', // cream text on the green accent
 
+  // Same role as the JA lavender: a second highlight for state, here a warm sand against the
+  // chocolate — progress bars, the selected tab, anything that reports rather than invites.
+  highlight: '#b6a693',
+  highlightInk: '#d5c8b6',
+  highlightSoft: 'rgba(182,166,147,0.62)',
+  highlightWash: 'rgba(182,166,147,0.26)',
+
   // Shared with Japanese: light mint / lavender — legible on the dark chocolate.
   correct: '#9cc2a1',
   correctSoft: 'rgba(156,194,161,0.18)',
@@ -118,13 +141,17 @@ export const arColors: Palette = {
 
   /*
    * "Ready for more": a kanji that has levelled far enough to unlock example words it hasn't been
-   * shown. Deliberately off the mastery ramp — it isn't more-mastered-than-solid, it's a prompt.
-   * Deep enough to carry the ink text at 4.8:1, which the accent tile never did (1.9:1).
+   * shown, and the task chip that heads a practice card. Deliberately off the mastery ramp — it
+   * isn't more-mastered-than-solid, it's a prompt.
+   *
+   * A deeper violet, one step past the lavender {@link highlight}: the two are the same family, so a
+   * board of pink tiles with these among them reads as one palette rather than as two. It used to be
+   * a teal, which was the only colour in the app from nowhere near the rest of it.
    */
-  ready: '#007678',
-  readySoft: 'rgba(0,118,120,0.22)',
-  // Light enough to sit on readySoft: the teal itself is 2.4:1 as text, this is 6.5:1.
-  readyInk: '#a9cec2',
+  ready: '#5a5591',
+  readySoft: 'rgba(90,85,145,0.28)',
+  // Light enough to sit on readySoft: the violet itself is 2.6:1 as text, this is 7.1:1.
+  readyInk: '#c6c3e6',
 
   // Dark chip strips carry cream / gold text (like the rest of the theme).
   onChip: '#efe6d7',
@@ -171,6 +198,18 @@ export const fonts = {
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const
 export const radius = { sm: 8, md: 10, lg: 14, pill: 999 } as const
+
+/**
+ * The width of every outline in the app: card edges, option chips, the drawing canvas' verdict ring.
+ *
+ * One value, and a fine one. A border's job here is to say where a surface ends, and at 1.5 or 2pt
+ * it stops describing the edge and starts being a feature of it — the outline reads as heavier than
+ * the thing it contains, which is what makes an interface look cheap. Two device pixels is enough to
+ * survive on any screen and light enough to stay an edge.
+ *
+ * Kept as a token rather than a number per file so "outlines are too heavy" is one change, not forty.
+ */
+export const edge = StyleSheet.hairlineWidth * 2
 
 /**
  * iOS button metrics, applied app-wide.

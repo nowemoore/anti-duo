@@ -59,12 +59,24 @@ export type TokenDisplay = 'english' | 'native'
  * learned; otherwise it stays English. A word with no tracked units renders natively only when the
  * language deems an untracked surface safe to show (JA: kana-only, e.g. ある/です) — so a word built
  * on an unfamiliar unit (島, 田中) stays English and is never shown as if it were known.
+ *
+ * `isMetWord` narrows that last case where the caller can answer it: a kana word the learner has met
+ * reads in kana, one they haven't reads in English, exactly as an unlearned kanji word does. Without
+ * it every kana-only surface renders natively — which was right while nothing tracked kana words,
+ * and wrong now that something does. Omit it and the old behaviour stands, so a caller with no
+ * progress to hand (a preview, a test) still gets a sentence it can render.
  */
 export function contentTokenDisplay(
   token: WordToken,
   isLearned: (form: string) => boolean,
   lang: LangEngine,
+  isMetWord?: (surface: string) => boolean,
 ): TokenDisplay {
-  if (token.units.length === 0) return lang.nativeWhenUntracked(token.surface) ? 'native' : 'english'
+  if (token.units.length === 0) {
+    if (!lang.nativeWhenUntracked(token.surface)) return 'english'
+    // A surface the language would happily show, but which the course does track as vocabulary:
+    // it has to be earned like any other word.
+    return isMetWord ? (isMetWord(token.surface) ? 'native' : 'english') : 'native'
+  }
   return token.units.some(isLearned) ? 'native' : 'english'
 }

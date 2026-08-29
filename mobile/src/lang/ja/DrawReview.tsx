@@ -13,7 +13,7 @@ import { logTracedAttempt, toTarget, type Target } from './drawTarget'
 import { useLearned } from '../../hooks/useLearned'
 import { useAuth } from '../../context/AuthContext'
 import type { DrawReviewProps } from '../types'
-import { colors, fonts, btnPrimary, radius, shadow, spacing, btnLabel } from '../../theme'
+import { btnLabel, btnPrimary, colors, edge, fonts, radius, shadow, spacing } from '../../theme'
 
 /** Per-item state, kept so you can flip back to a passed word and see your answer without redoing it. */
 interface Slot {
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.panel,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.lg,
     padding: spacing.lg,
   },

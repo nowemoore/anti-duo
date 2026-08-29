@@ -4,6 +4,7 @@ import { boardList, categoryOptions, radicalOptions, type BoardFilters } from '.
 import { isUnitEnabled, toggleInList } from '../lib/categories'
 import { masteryProgress, masteryTier, readyForMore, type MasteryTier } from '../lib/study'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { Legend } from './Legend'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 
@@ -60,7 +61,7 @@ export function KanjiBoard({ onSelect }: { onSelect: (u: Unit) => void }) {
     () => radicalOptions(index, progress, { category: filters.category }),
     [index, progress, filters.category],
   )
-  const filtered = filters.category != null || filters.radical != null
+  const filtered = Boolean(filters.category?.length || filters.radical?.length)
 
   const unlockEvery = index.lang.batchUnlockEvery
   const stateOf = (u: Unit): TileState => {
@@ -106,12 +107,16 @@ export function KanjiBoard({ onSelect }: { onSelect: (u: Unit) => void }) {
 
   return (
     <div className="board">
+      {/* The key comes first: it explains what the grid below means, and a key you only reach after
+          scrolling past the grid has missed its moment. */}
+      <Legend items={TIERS.map(({ tier, label }) => ({ swatchClass: `tile-${tier}`, label }))} />
+
       <div className="board-filters">
         <label className="board-filter">
           <span className="board-filter-label">Topic</span>
           <select
-            value={filters.category ?? ''}
-            onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value || null }))}
+            value={filters.category?.[0] ?? ''}
+            onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value ? [e.target.value] : null }))}
           >
             <option value="">All topics</option>
             {categories.map((c) => (
@@ -125,8 +130,8 @@ export function KanjiBoard({ onSelect }: { onSelect: (u: Unit) => void }) {
         <label className="board-filter">
           <span className="board-filter-label">Radical</span>
           <select
-            value={filters.radical ?? ''}
-            onChange={(e) => setFilters((f) => ({ ...f, radical: e.target.value || null }))}
+            value={filters.radical?.[0] ?? ''}
+            onChange={(e) => setFilters((f) => ({ ...f, radical: e.target.value ? [e.target.value] : null }))}
           >
             <option value="">All radicals</option>
             {radicals.map((r) => (
@@ -202,15 +207,6 @@ export function KanjiBoard({ onSelect }: { onSelect: (u: Unit) => void }) {
                 </button>
               )
             })}
-          </div>
-
-          <div className="board-legend">
-            {TIERS.map(({ tier, label }) => (
-              <span key={tier} className="legend-item">
-                <span className={`legend-swatch tile-${tier}`} />
-                <span className="legend-label">{label}</span>
-              </span>
-            ))}
           </div>
         </>
       )}

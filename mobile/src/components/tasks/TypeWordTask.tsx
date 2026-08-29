@@ -66,7 +66,23 @@ function TypeWordView({ task, answer, setAnswer, phase, score, onLock, onGiveUp 
           onSubmitEditing={() => canLock && onLock()}
           placeholder={inputHint}
           placeholderTextColor={colors.muted}
-          style={[styles.input, revealed && (score > 0 ? styles.inputOk : styles.inputBad)]}
+          // The caret and any selection carry the accent — half of the field's "this holds your
+          // answer" mark, the outline being the other half.
+          selectionColor={colors.accent}
+          style={[
+            styles.input,
+            /*
+             * Outlined in the accent for as long as it is the thing you answer with — not switched
+             * on by a tap, and not by the first keystroke either. Tying it to state made the outline
+             * and the caret disagree: the caret is accent the moment the field is live, so an
+             * outline that waited for content read as the field failing to notice you.
+             *
+             * Outline and caret, nothing more. A fill behind live text is one more thing to read
+             * through while you are still reading what you typed.
+             */
+            !revealed && styles.inputActive,
+            revealed && (score > 0 ? styles.inputOk : styles.inputBad),
+          ]}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -147,12 +163,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderWidth: 1,
+    // A hairline. The accent is doing the work of saying "answer here", and it says it better thin:
+    // a heavy ring reads as a form field to be filled in, a fine one as a considered edge.
+    borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: colors.border,
-    borderRadius: 8,
+    // Pill, like every other control that takes an answer on this card.
+    borderRadius: radius.pill,
     backgroundColor: colors.bg,
     width: '100%',
   },
+  inputActive: { borderColor: colors.accent },
   // Matches the card's verdict tint, so the field is judged along with everything else.
   inputOk: { borderColor: colors.correct, backgroundColor: colors.correctSoft },
   inputBad: { borderColor: colors.incorrect, backgroundColor: colors.incorrectSoft },

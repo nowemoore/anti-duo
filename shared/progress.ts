@@ -159,11 +159,29 @@ function normalizeKana(raw: unknown): KanaProgress | undefined {
     }
   }
 
-  if (!Object.keys(chars).length && !Object.keys(traced).length && !Object.keys(wins).length) {
+  const words: Record<number, string> = {}
+  if (typeof src.words === 'object' && src.words !== null) {
+    for (const [idx, value] of Object.entries(src.words as Record<string, unknown>)) {
+      const n = Number(idx)
+      if (Number.isInteger(n) && typeof value === 'string') words[n] = value
+    }
+  }
+
+  if (
+    !Object.keys(chars).length &&
+    !Object.keys(traced).length &&
+    !Object.keys(wins).length &&
+    !Object.keys(words).length
+  ) {
     return undefined
   }
-  // `wins` spread conditionally: a profile written before it existed keeps its exact shape.
-  return { chars, traced, ...(Object.keys(wins).length ? { wins } : {}) }
+  // `wins` and `words` spread conditionally: a profile written before either existed keeps its shape.
+  return {
+    chars,
+    traced,
+    ...(Object.keys(wins).length ? { wins } : {}),
+    ...(Object.keys(words).length ? { words } : {}),
+  }
 }
 
 /** Fill defaults and coerce settings into valid shapes. Migrates legacy `kanji`/`disabledKanji`

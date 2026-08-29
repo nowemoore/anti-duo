@@ -21,7 +21,7 @@ export const ja: LanguagePack = {
   toReadingLive: (raw) => toKana(raw, { IMEMode: true }), // as-you-type: buffer "n" (kana → かな)
   inputHint: 'かな / romaji',
   tasks: ALL_TASK_TYPES,
-  reference: { title: { native: 'ひらがな', en: 'Hiragana' }, Chart: HiraganaTable },
+  reference: { title: { native: 'ひらがな', en: 'Hiragana' }, aid: 'kana', Chart: HiraganaTable },
   draw: {
     isDrawable: drawable,
     isTraceable: traceable,

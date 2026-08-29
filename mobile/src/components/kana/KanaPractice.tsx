@@ -15,17 +15,7 @@ import { Tally } from '../Tally'
 import { saveDrawing } from '../../lib/drawings'
 import type { RawStroke } from '@lib/handwriting'
 import { useKanaAudio } from './audio'
-import {
-  btnLabel,
-  btnLabelQuiet,
-  btnPrimary,
-  btnSecondary,
-  fonts,
-  radius,
-  shadow,
-  spacing,
-  type Palette,
-} from '../../theme'
+import { btnLabel, btnLabelQuiet, btnPrimary, btnSecondary, edge, fonts, radius, shadow, spacing, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
@@ -476,7 +466,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.panel,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.lg,
     padding: spacing.lg,
   },
@@ -519,7 +509,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingVertical: spacing.lg,
     backgroundColor: colors.panel,
     borderColor: colors.border,
-    borderWidth: 1.5,
+    borderWidth: edge,
     borderRadius: 12,
   },
   // Soft fills so the character itself stays legible while the verdict reads at a glance.
@@ -539,7 +529,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 6,
     borderRadius: 23,
-    borderWidth: 1,
+    borderWidth: edge,
   },
   markYes: { backgroundColor: colors.correctSoft, borderColor: colors.correct },
   markNo: { backgroundColor: colors.incorrectSoft, borderColor: colors.incorrect },

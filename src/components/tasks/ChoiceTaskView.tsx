@@ -3,11 +3,12 @@ import { checkChoice, type ChoiceTask } from '../../lib/tasks'
 import { SentenceView, type TokenOverride } from '../SentenceView'
 import { SpeakButton } from '../SpeakButton'
 import { Feedback } from './Feedback'
+import type { ReportResult } from './types'
 import { QuizActions } from './QuizActions'
 
 interface Props {
   task: ChoiceTask
-  onResult: (delta: number) => void
+  onResult: ReportResult
 }
 
 /** Speakable surface form of a sentence (particles as kana, words as their ja). */
@@ -86,7 +87,9 @@ export function ChoiceTaskView({ task, onResult }: Props) {
         answered={answered}
         canCheck={chosen !== null}
         onCheck={() => chosen !== null && setResult(checkChoice(task, chosen))}
-        onContinue={() => onResult(result ? 1 : -1)}
+        onContinue={() =>
+          onResult(result ? 1 : -1, { picked: chosen != null ? task.options[chosen].label : null })
+        }
       />
     </div>
   )

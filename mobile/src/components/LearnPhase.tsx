@@ -4,7 +4,7 @@ import { PagerChevron } from '../components/PagerChevron'
 import { TapScale } from './TapScale'
 import type { Unit } from '@shared/types'
 import { SKIP_REQUEUE_GAP } from '@shared/constants'
-import { skipCard } from '@lib/study'
+import { learnItemKey, skipCard, type LearnItem } from '@lib/study'
 import { releasedExamples } from '@lib/tasks'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
@@ -15,20 +15,21 @@ import { RootWord } from './RootWord'
 import { RevealContextProvider, RevealStrip, useReveal } from './RevealStrip'
 import { VoweledText } from './VoweledText'
 import { SpeakButton } from './SpeakButton'
+import { KanaWordCard } from './kana/KanaWordCard'
 import { useScreenHeader } from '../context/HeaderContext'
-import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { edge, fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
 const SCREEN_W = Dimensions.get('window').width
 
 interface Props {
-  chunk: Unit[]
-  reserve: Unit[]
+  chunk: LearnItem[]
+  reserve: LearnItem[]
   /**
    * Finished this card. Reports the (possibly swapped) cards *and* what's left of the reserve, so a
    * caller running one card at a time can carry the pool forward — a "Not now" requeues into it.
    */
-  onComplete: (learned: Unit[], reserve: Unit[]) => void
+  onComplete: (learned: LearnItem[], reserve: LearnItem[]) => void
   /** Back to the unit page (Learn/Practice menu). */
   /** Total progress dots across learn + the write review that follows (defaults to just this set). */
   totalSteps?: number
@@ -38,7 +39,12 @@ interface Props {
   headerCount?: { current: number; total: number }
 }
 
-/** Introduces new unit one card at a time: char, glosses, breakdown, and up to 5 example words. */
+/**
+ * Introduces one new thing per card — a kanji (char, glosses, breakdown, example words) or a kana
+ * word (the word, where it came from, the phrases it turns up in). Same deck, same swipe, same
+ * "Not now": which card shows is the only difference, because from the learner's side meeting a
+ * word written in kana and meeting a kanji are the same act.
+ */
 export function LearnPhase({
   chunk,
   reserve,
@@ -49,12 +55,12 @@ export function LearnPhase({
 }: Props) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
-  const [cards, setCards] = useState<Unit[]>(chunk)
-  const [pool, setPool] = useState<Unit[]>(reserve)
+  const [cards, setCards] = useState<LearnItem[]>(chunk)
+  const [pool, setPool] = useState<LearnItem[]>(reserve)
   const [i, setI] = useState(0)
   const { ui } = useLanguage()
 
-  const unit = cards[i]
+  const item = cards[i]
   const isFirst = i === 0
   const isLast = i === cards.length - 1
   const canSkip = pool.length > 0 || cards.length > 1
@@ -160,7 +166,11 @@ export function LearnPhase({
       >
         <Animated.View style={{ transform: [{ translateX: dragX }] }}>
           <RevealContextProvider value={revealApi}>
-            <LearnCard key={unit.idx} unit={unit} />
+            {item.kind === 'unit' ? (
+              <LearnCard key={learnItemKey(item)} unit={item.unit} />
+            ) : (
+              <KanaWordCard key={learnItemKey(item)} word={item.word} embedded />
+            )}
           </RevealContextProvider>
         </Animated.View>
       </ScrollView>
@@ -392,7 +402,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.panel,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.lg,
     padding: spacing.lg,
   },

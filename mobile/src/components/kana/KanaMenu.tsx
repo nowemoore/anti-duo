@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { View, Text, ScrollView, StyleSheet } from 'react-native'
-import { ActionRow } from '../ActionRow'
+import { ActionPair, ActionRow } from '../ActionRow'
+import { ScrollCue } from '../ScrollCue'
 import { ProgressTally } from '../ProgressTally'
 import {
   canDrill,
@@ -79,35 +80,45 @@ export function KanaMenu({
           for the chart sections, which would push the tally miles off its button. */}
       <View style={styles.head}>
         <ProgressTally count={studied} total={total} label="characters studied" />
-        {/* The only entry action here: there is no "teach me five random ones", because the charts
-            below are the browse *and* the curriculum — you pick the character you want. */}
-        <ActionRow
-          primary
-          icon="play"
-          title="Practice"
-          sub={
-            ready
-              ? `${KANA_DRILL_ITEMS} questions`
-              : `study ${toGo} more ${toGo === 1 ? 'character' : 'characters'} of one script first`
-          }
-          disabled={!ready}
-          onPress={onPractice}
-        />
-        {/* The second step: the same characters in real words. Secondary rather than primary — the
-            character drill is what a learner needs first, and this is where they go once it's easy. */}
-        <ActionRow
-          icon="book-open"
-          title="Words"
-          sub={
-            wordsReady
-              ? `${KANA_WORD_ITEMS} questions`
-              : `${wordsToGo} more readable ${wordsToGo === 1 ? 'word' : 'words'} needed`
-          }
-          disabled={!wordsReady}
-          onPress={onWordPractice}
-        />
+        {/*
+          The two drills, side by side as on the vocabulary page. There is no "teach me five random
+          ones" among them: the charts below are the browse *and* the curriculum, so learning is
+          always a character you chose.
+
+          Sounds first and filled — it is what a learner needs before anything else; words are where
+          they go once the glyphs are easy.
+        */}
+        <ActionPair>
+          <ActionRow
+            compact
+            primary
+            icon="play"
+            title="Practice sounds"
+            sub={
+              ready
+                ? `${KANA_DRILL_ITEMS} questions`
+                : `study ${toGo} more ${toGo === 1 ? 'character' : 'characters'} first`
+            }
+            disabled={!ready}
+            onPress={onPractice}
+          />
+          <ActionRow
+            compact
+            icon="book-open"
+            title="Practice real words"
+            sub={
+              wordsReady
+                ? `${KANA_WORD_ITEMS} questions`
+                : `${wordsToGo} more readable ${wordsToGo === 1 ? 'word' : 'words'} needed`
+            }
+            disabled={!wordsReady}
+            onPress={onWordPractice}
+          />
+        </ActionPair>
         <Text style={styles.scrollNote}>or scroll to continue learning</Text>
       </View>
+
+      <ScrollCue />
 
       <Segmented
         values={scripts.map((s) => s.title.en)}
@@ -118,7 +129,13 @@ export function KanaMenu({
 
       {active && (
         <View style={styles.script}>
-          <Text style={styles.blurb}>{active.blurb}</Text>
+          {/* The alphabet's name in its own script — the first thing an alphabet teaches you about
+              itself. No English under it: the pill directly above already says "Hiragana", and
+              printing it twice makes the title look like a translation rather than a name. */}
+          <View style={styles.scriptHead}>
+            <Text style={styles.scriptTitle}>{active.title.native}</Text>
+            <Text style={styles.blurb}>{active.blurb}</Text>
+          </View>
 
           {active.sections.map((section) => (
             <View key={section.id} style={styles.section}>
@@ -142,9 +159,11 @@ export function KanaMenu({
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   scroll: { flex: 1 },
-  // Generous gaps: this page is a long scroll of dense grids, and the sections need to read as
-  // separate blocks rather than one continuous wall of cells.
-  content: { gap: spacing.xxl, paddingTop: spacing.md },
+  /* Same rhythm as the vocabulary page: header, divider and switch sit a step apart, so the cue
+     reads as the hand-off between them rather than as a band floating in its own space. The page's
+     generous gap is what the chart sections need, not what these three do — so it moved onto the
+     one block that wanted it (see `script`). */
+  content: { gap: spacing.md, paddingTop: spacing.md },
 
   head: { gap: spacing.md },
   // Sits directly under the button, so the alternative to practising is obvious without hunting.
@@ -154,13 +173,21 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     textAlign: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
 
   tabs: { alignSelf: 'center', width: 260 },
 
-  script: { gap: spacing.xl, alignItems: 'center' },
+  // The long scroll of dense grids starts here, and it needs the air the page used to give away to
+  // every gap: the chart sections have to read as separate blocks, not one wall of cells.
+  script: { gap: spacing.xl, alignItems: 'center', marginTop: spacing.xl },
+  // Title and blurb are one block: the blurb finishes the sentence the title starts, so they sit
+  // closer to each other than either does to the charts below.
+  scriptHead: { alignItems: 'center', gap: spacing.xs },
+  scriptTitle: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20 },
   blurb: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center' },
   section: { gap: spacing.sm, alignItems: 'center' },
-  sectionLabel: { color: colors.accentInk, fontFamily: fonts.medium, fontSize: 11 },
+  // Lavender, like every other label that says which part of something you are looking at. The
+  // accent is reserved for what you can act on, and a section heading is not that.
+  sectionLabel: { color: colors.highlightInk, fontFamily: fonts.medium, fontSize: 11 },
 })

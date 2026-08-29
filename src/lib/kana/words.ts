@@ -221,3 +221,63 @@ export function buildWordDrill(
   }
   return items
 }
+
+// ---------------------------------------------------------------------------
+// Browsing filters
+// ---------------------------------------------------------------------------
+
+/**
+ * Neither set = every word. An empty array (or null) is "no filter", never "unknown".
+ *
+ * Lists rather than single values, for the same reason as the kanji board's: choosing a second topic
+ * should add to the view, not replace what you chose first.
+ */
+export interface KanaWordFilters {
+  script?: KanaWord['script'][] | null
+  category?: string[] | null
+}
+
+/** Whether a value passes one filter. An unset or empty filter passes everything. */
+function passes(chosen: readonly string[] | null | undefined, value: string): boolean {
+  return !chosen || chosen.length === 0 || chosen.includes(value)
+}
+
+/** A filter option and how many words it covers, so a picker can show its own counts. */
+export interface KanaFilterOption {
+  value: string
+  count: number
+}
+
+/** The words a browser should show, narrowed by whichever filters are set. */
+export function filterKanaWords(words: KanaWord[], filters: KanaWordFilters = {}): KanaWord[] {
+  return words.filter((w) => passes(filters.script, w.script) && passes(filters.category, w.category))
+}
+
+/**
+ * Script options, counted against the *other* filter — pick a topic and each script shows how many
+ * of that topic's words it holds, so the two read as one query rather than two.
+ */
+export function kanaScriptOptions(
+  words: KanaWord[],
+  filters: KanaWordFilters = {},
+): KanaFilterOption[] {
+  const counts = new Map<string, number>()
+  for (const w of filterKanaWords(words, { category: filters.category })) {
+    counts.set(w.script, (counts.get(w.script) ?? 0) + 1)
+  }
+  return [...counts].map(([value, count]) => ({ value, count }))
+}
+
+/** Topic options, commonest first — the same reasoning as the kanji board's radical list. */
+export function kanaCategoryOptions(
+  words: KanaWord[],
+  filters: KanaWordFilters = {},
+): KanaFilterOption[] {
+  const counts = new Map<string, number>()
+  for (const w of filterKanaWords(words, { script: filters.script })) {
+    counts.set(w.category, (counts.get(w.category) ?? 0) + 1)
+  }
+  return [...counts]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+}

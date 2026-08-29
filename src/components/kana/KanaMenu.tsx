@@ -121,7 +121,13 @@ export function KanaMenu({
 
       {active && (
         <div className="kana-script">
-          <p className="kana-blurb">{active.blurb}</p>
+          {/* The alphabet's name in its own script — the first thing an alphabet teaches you about
+              itself. No English under it: the tabs directly above already say "Hiragana", and
+              printing it twice makes the title look like a translation rather than a name. */}
+          <div className="kana-script-head">
+            <h3 className="kana-script-title">{active.title.native}</h3>
+            <p className="kana-blurb">{active.blurb}</p>
+          </div>
           {active.sections.map((section) => (
             <div key={section.id} className="kana-section-block">
               <h3 className="kana-section-label">{section.label}</h3>

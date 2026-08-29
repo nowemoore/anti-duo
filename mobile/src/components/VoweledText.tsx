@@ -25,18 +25,25 @@ export function VoweledText({
   style,
   color,
   numberOfLines,
+  shrinkToFit,
 }: {
   text: string
   style?: StyleProp<TextStyle>
   color?: string
   numberOfLines?: number
+  /**
+   * Scale the text down rather than let it overflow its box. Pair with `numberOfLines`: the two
+   * together mean "wrap up to N lines, then shrink", which is what keeps a long option the same
+   * height as a short one.
+   */
+  shrinkToFit?: boolean
 }) {
   const colors = useColors()
   const markColor = color ?? colors.vowel
   const chars = [...text]
   if (!chars.some((c) => HARAKAT.test(c) || KANJI.test(c))) {
     return (
-      <Text style={style} numberOfLines={numberOfLines}>
+      <Text style={style} numberOfLines={numberOfLines} {...shrink(shrinkToFit)}>
         {text}
       </Text>
     )
@@ -52,7 +59,7 @@ export function VoweledText({
     else segs.push({ t: ch, mark, kanji })
   }
   return (
-    <Text style={style} numberOfLines={numberOfLines}>
+    <Text style={style} numberOfLines={numberOfLines} {...shrink(shrinkToFit)}>
       {segs.map((s, i) =>
         s.mark ? (
           <Text key={i} style={{ color: markColor }}>
@@ -68,4 +75,9 @@ export function VoweledText({
       )}
     </Text>
   )
+}
+
+/** The two props that make a Text scale down instead of overflowing, or nothing when it shouldn't. */
+function shrink(on?: boolean) {
+  return on ? { adjustsFontSizeToFit: true, minimumFontScale: 0.7 } : {}
 }

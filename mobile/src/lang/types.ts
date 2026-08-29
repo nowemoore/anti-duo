@@ -108,8 +108,14 @@ export interface LanguagePack {
   inputHint: string
   /** Which task types this language offers (subset of the global registry). */
   tasks: TaskType[]
-  /** Optional script reference (kana chart, Arabic alphabet…) shown behind the help button. */
-  reference?: { title: { native: string; en: string }; Chart: ComponentType }
+  /**
+   * Optional script reference (kana chart, Arabic alphabet…) shown behind the help button.
+   *
+   * `aid` completes "hold to view …" on the button itself — "kana", "the alphabet". The title is the
+   * chart's own heading and is often too specific to double as a label ("Hiragana" for a control
+   * that also covers katakana), so each pack says how to refer to its chart in passing.
+   */
+  reference?: { title: { native: string; en: string }; aid: string; Chart: ComponentType }
   /** User-facing shell strings (greetings, card labels, headers…) in this language + English. */
   ui: UiStrings
   /** Handwriting/draw capability (recognizer coverage + write-review), if the language has one. */

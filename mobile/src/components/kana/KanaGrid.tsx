@@ -1,7 +1,7 @@
 import { Animated, View, Text, Pressable, StyleSheet } from 'react-native'
 import { chartRomaji, type ChartSection } from '@lib/kana'
 import { useStagger, useStaggerStyles } from '../Stagger'
-import { fonts, radius, type Palette } from '../../theme'
+import { edge, fonts, radius, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 /** How a cell reads: never opened, or studied. The fill within `studied` is a ramp — see `fillOf`. */
@@ -118,7 +118,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 2,
-    borderWidth: 1,
+    borderWidth: edge,
     borderColor: 'rgba(227,152,221,0.4)',
     borderRadius: 4,
     backgroundColor: kanaBg,

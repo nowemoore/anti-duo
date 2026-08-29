@@ -3,7 +3,7 @@ import { View, Text, PanResponder, StyleSheet } from 'react-native'
 import { TapScale } from './TapScale'
 import Svg, { Path, Text as SvgText } from 'react-native-svg'
 import { Icon } from './Icon'
-import { colors, fonts, radius, spacing } from '../theme'
+import { colors, edge, fonts, radius, spacing } from '../theme'
 
 export type Point = { x: number; y: number }
 export type Stroke = Point[]
@@ -265,12 +265,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.md,
     overflow: 'hidden',
   },
   // Verdict tints. The fills stay soft so the learner's own strokes remain the clearest thing on
   // the surface — the border carries most of the signal.
-  surfaceRight: { borderColor: colors.correct, borderWidth: 2, backgroundColor: colors.correctSoft },
-  surfaceWrong: { borderColor: colors.incorrect, borderWidth: 2, backgroundColor: colors.incorrectSoft },
+  surfaceRight: { borderColor: colors.correct, borderWidth: edge, backgroundColor: colors.correctSoft },
+  surfaceWrong: { borderColor: colors.incorrect, borderWidth: edge, backgroundColor: colors.incorrectSoft },
 })

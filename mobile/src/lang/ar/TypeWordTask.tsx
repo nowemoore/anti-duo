@@ -8,7 +8,7 @@ import { Icon } from '../../components/Icon'
 import { RootWord } from '../../components/RootWord'
 import { VoweledText } from '../../components/VoweledText'
 import type { TaskUI, TaskViewProps } from '../../components/tasks/types'
-import { fonts, radius, type Palette } from '../../theme'
+import { edge, fonts, radius, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 import { stripHarakat } from './normalize'
 import { rootSpans } from './roots'
@@ -124,7 +124,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     writingDirection: 'rtl',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderWidth: 1,
+    borderWidth: edge,
     borderColor: colors.border,
     borderRadius: 8,
     backgroundColor: colors.bg,

@@ -7,7 +7,7 @@ import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
 import { TASK_TUNING, type TaskType } from '@lib/tasks'
 import { TASK_LABELS } from '@lib/stats'
-import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { edge, fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
 /** Settings section: adjust how often each practice task type appears (its selection weight). */
@@ -57,7 +57,7 @@ function FreqRow({ type }: { type: TaskType }) {
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
+  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: edge, borderRadius: radius.lg, padding: spacing.lg },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: 6 },
   muted: { color: colors.muted, fontFamily: fonts.body, fontSize: 13, marginBottom: spacing.md },
   list: { gap: spacing.lg },

@@ -4,13 +4,21 @@ import { useReveal } from '../RevealStrip'
 import { VoweledText } from '../VoweledText'
 import { useLanguage } from '../../context/LanguageContext'
 import { RootWord } from '../RootWord'
+import { Icon } from '../Icon'
 import { SpeakButton } from '../SpeakButton'
 import type { TaskUI, TaskViewProps } from './types'
-import { fonts, type Palette } from '../../theme'
+import { edge, fonts, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
-/** T2: multi-select the real words. Tap toggles; hold reveals reading (→ + meaning once answered). */
+/**
+ * T2: multi-select the real words. Tap toggles; hold reveals reading (→ + meaning once answered).
+ *
+ * Full-width rows with a checkbox, not a grid of chips. This is the one question in the app that
+ * takes more than one answer, and a grid of tappable tiles looks exactly like the ones that take
+ * only one — nothing on screen said "you may pick several" until you had already picked wrong. A
+ * checkbox says it before the first tap, and it is the one control that means precisely that.
+ */
 function WhichWordsView({ task, answer, setAnswer, phase }: TaskViewProps<WhichWordsTask, number[]>) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
@@ -47,24 +55,32 @@ function WhichWordsView({ task, answer, setAnswer, phase }: TaskViewProps<WhichW
           const revealText = revealed ? `${o.reading}  ·  ${o.meaning}` : o.reading
           const canReveal = revealed ? o.correct : true
           return (
-            <View key={i} style={styles.cell}>
-              <AnimatedPressable
-                onPress={() => toggle(i)}
-                onLongPress={canReveal ? () => reveal.show(revealText) : undefined}
-                delayLongPress={150}
-                onPressOut={reveal.hide}
-                style={[styles.opt, optFade(verdict, state, colors)]}
-              >
-                <RootWord
-                  surface={o.word}
-                  spans={revealed && o.correct ? pack.rootSpans?.(o.word, task.form) : undefined}
-                  style={[styles.optWord, optTextStyle(state, colors)]}
-                />
-              </AnimatedPressable>
-              {revealed && o.correct && (
-                <SpeakButton text={o.reading} label={`Play ${o.word}`} small style={styles.optSpeak} />
-              )}
-            </View>
+            <AnimatedPressable
+              key={i}
+              onPress={() => toggle(i)}
+              onLongPress={canReveal ? () => reveal.show(revealText) : undefined}
+              delayLongPress={150}
+              onPressOut={reveal.hide}
+              style={[styles.opt, optFade(verdict, state, colors)]}
+            >
+              {/* Ticked while you are choosing; after the reveal the box carries the verdict's
+                  colour like everything else on the row, so a word you ticked wrongly still shows
+                  as ticked — it was your answer, and hiding it would hide the mistake. */}
+              <View style={[styles.box, isSel && styles.boxOn, isSel && boxTint(state, colors)]}>
+                {isSel && <Icon name="check" size={11} color={colors.onAccent} />}
+              </View>
+              <RootWord
+                surface={o.word}
+                spans={revealed && o.correct ? pack.rootSpans?.(o.word, task.form) : undefined}
+                style={[styles.optWord, optTextStyle(state, colors)]}
+              />
+              {/* Reserved either way, so revealing the answers doesn't reflow the rows. */}
+              <View style={styles.speakSlot}>
+                {revealed && o.correct && (
+                  <SpeakButton text={o.reading} label={`Play ${o.word}`} small />
+                )}
+              </View>
+            </AnimatedPressable>
           )
         })}
       </View>
@@ -116,6 +132,13 @@ function optFade(v: Animated.Value, state: string, colors: Palette) {
     borderColor: fadeColor(v, from.edge, to.edge),
   }
 }
+/** The ticked box's fill once a verdict is in — the row's colour, so the two agree. */
+function boxTint(state: string, colors: Palette) {
+  if (state === 'correct') return { backgroundColor: colors.correct, borderColor: colors.correct }
+  if (state === 'wrong') return { backgroundColor: colors.incorrect, borderColor: colors.incorrect }
+  return null
+}
+
 function optTextStyle(state: string, colors: Palette) {
   if (state === 'correct') return { color: colors.correct }
   if (state === 'wrong') return { color: colors.incorrect }
@@ -128,20 +151,34 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   // lineHeight fixed (matches the Learn card's bigForm) so the line size is the same in every language.
   // No family here either — the prompt is routed through VoweledText for the same split.
   promptForm: { fontSize: 64, lineHeight: 70, color: colors.ink, textAlign: 'center', marginBottom: 18 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, alignSelf: 'center', width: '100%', maxWidth: 460 },
-  cell: { width: '48%', position: 'relative' },
+  // One row per option, stacked: a list is what a multi-select looks like.
+  grid: { rowGap: 10, alignSelf: 'center', width: '100%', maxWidth: 460 },
   opt: {
-    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: edge,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     backgroundColor: colors.panel,
-    alignItems: 'center',
   },
+  // Square, so it reads as a checkbox rather than as a radio: several of these may be ticked.
+  box: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    borderWidth: edge,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  boxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  // Takes the row, so the speaker sits at the far edge whatever the word's length.
   // No family: VoweledText gives kanji runs the mincho face and leaves kana on the OS gothic.
-  optWord: { fontSize: 22, color: colors.ink },
-  optSpeak: { position: 'absolute', top: 6, right: 6 },
+  optWord: { flex: 1, fontSize: 22, color: colors.ink },
+  speakSlot: { width: 34, alignItems: 'flex-end' },
   retrySlot: { minHeight: 34, justifyContent: 'center' },
   retry: { color: colors.incorrect, fontFamily: fonts.body, fontSize: 13, textAlign: 'center', paddingVertical: 8 },
 })

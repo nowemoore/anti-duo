@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
 import { TapScale } from '../TapScale'
 import type { IconName } from '@fortawesome/fontawesome-svg-core'
 import { Icon } from '../Icon'
-import { fonts, radius, shadow, spacing, type Palette } from '../../theme'
+import { edge, fonts, radius, shadow, spacing, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 /**
@@ -180,7 +180,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     ...shadow,
     backgroundColor: colors.panel,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.lg,
     overflow: 'hidden',
   },

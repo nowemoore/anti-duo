@@ -135,6 +135,13 @@ export interface WordToken {
   units: string[]
   /** idx values of the units in this word that may be blanked (cloze targets). */
   targets: number[]
+  /**
+   * idx values of the *kana words* this token is, for a word written without kanji (パン, ある).
+   *
+   * The kana half of `targets`: a kana word is vocabulary in its own right, so a sentence containing
+   * one can teach and test it exactly as it does a kanji. Absent on tokens that aren't a kana word.
+   */
+  kanaTargets?: number[]
   /** Language-specific fields (e.g. Arabic `lemma`, `inflected`) — read only by the language pack. */
   extra?: Record<string, unknown>
 }
@@ -146,6 +153,8 @@ export interface Sentence {
   id: string
   /** unit `idx` values appearing in this sentence. */
   unitList: number[]
+  /** kana-word `idx` values appearing in this sentence — the union of the tokens' `kanaTargets`. */
+  kanaList: number[]
   tokens: Token[]
 }
 
@@ -288,6 +297,15 @@ export interface KanaProgress {
    * character's chart cell is. Optional so profiles written before it existed round-trip unchanged.
    */
   wins?: Record<string, number>
+  /**
+   * Kana words the learner has opened, by `idx`, mapped to when they first did.
+   *
+   * The kana half of "words met": a kanji word counts once its kanji is introduced, and this is the
+   * equivalent act for a word that has no unit behind it. Deliberately not readability — the
+   * vocabulary section lets you open any word, and a fluent reader would otherwise "know" all of
+   * them on day one. Optional, so older profiles round-trip unchanged.
+   */
+  words?: Record<number, string>
 }
 
 export interface GrammarTopicProgress {

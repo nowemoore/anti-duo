@@ -3,7 +3,7 @@ import { View, Text, Modal, FlatList, StyleSheet } from 'react-native'
 import { TapScale } from '../components/TapScale'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WORD_KNOWN_STREAK } from '@shared/constants'
-import { introducedWords } from '@lib/study'
+import { metVocabulary } from '@lib/study'
 import { knownWordCount, taskRates, TASK_LABELS } from '@lib/stats'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
@@ -13,7 +13,7 @@ import { Stagger } from '../components/Stagger'
 import { Icon } from '../components/Icon'
 import { taskIcon } from '../components/TaskChip'
 import { Tally } from '../components/Tally'
-import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { edge, fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
 /** Vocabulary mastered + success rate per task type. (The kanji board lives in Learn kanji.) */
@@ -78,7 +78,7 @@ function KnownWordsCard() {
   const [listOpen, setListOpen] = useState(false)
 
   // Hundreds of words even part-way in — worth memoising rather than rebuilding the set each render.
-  const words = useMemo(() => introducedWords(index, progress), [index, progress])
+  const words = useMemo(() => metVocabulary(index, progress), [index, progress])
   const known = knownWordCount(progress, words)
   const total = words.size
   const pct = total === 0 ? 0 : Math.round((known / total) * 100)
@@ -203,7 +203,7 @@ function StreakDots({ streak }: { streak: number }) {
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   stack: { gap: spacing.lg },
-  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
+  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: edge, borderRadius: radius.lg, padding: spacing.lg },
   bigRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: spacing.md },
   big: { fontFamily: fonts.semibold, fontSize: 28, fontVariant: ['tabular-nums'] },
   captionRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, marginTop: spacing.sm },
@@ -217,7 +217,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   label: { color: colors.ink, fontFamily: fonts.body, fontSize: 14 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   bar: { flex: 1, height: 8, borderRadius: 999, backgroundColor: colors.border, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 999, backgroundColor: colors.accent },
+  /* Lavender, not the accent: a bar reports where you are, it isn't something to act on. */
+  fill: { height: '100%', borderRadius: 999, backgroundColor: colors.highlight },
   pct: { color: colors.ink, fontFamily: fonts.body, fontSize: 13, width: 40, textAlign: 'right', fontVariant: ['tabular-nums'] },
   count: { color: colors.muted, fontFamily: fonts.body, fontSize: 11, width: 54, textAlign: 'right' },
   modal: { flex: 1, backgroundColor: colors.bg },
@@ -244,5 +245,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   wordReading: { flex: 1, color: colors.ink, fontSize: 17 },
   dots: { flexDirection: 'row', gap: 5 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
-  dotOn: { backgroundColor: colors.accent },
+  dotOn: { backgroundColor: colors.highlight },
 })

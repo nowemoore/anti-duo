@@ -10,10 +10,11 @@ import { HoverGloss } from '../HoverGloss'
 import { SpeakButton } from '../SpeakButton'
 import { Feedback } from './Feedback'
 import { QuizActions } from './QuizActions'
+import type { ReportResult } from './types'
 
 interface Props {
   task: WhichWordsTask
-  onResult: (delta: number) => void
+  onResult: ReportResult
 }
 
 type Phase = 'first' | 'retry' | 'revealed'
@@ -103,7 +104,15 @@ export function WhichWordsTaskView({ task, onResult }: Props) {
         answered={revealed}
         canCheck={!revealed}
         onCheck={check}
-        onContinue={() => onResult(score)}
+        onContinue={() =>
+          onResult(score, {
+            picked:
+              [...selected]
+                .sort((a, b) => a - b)
+                .map((i) => task.options[i].word)
+                .join(' | ') || null,
+          })
+        }
       />
     </div>
   )

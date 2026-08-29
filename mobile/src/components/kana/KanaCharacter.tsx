@@ -18,17 +18,7 @@ import { DrawCanvas } from '../DrawCanvas'
 import { SpeakButton } from '../SpeakButton'
 import { Icon } from '../Icon'
 import { useKanaAudio } from './audio'
-import {
-  fonts,
-  btnPrimary,
-  btnSecondary,
-  btnLabel,
-  btnLabelQuiet,
-  radius,
-  shadow,
-  spacing,
-  type Palette,
-} from '../../theme'
+import { btnLabel, btnLabelQuiet, btnPrimary, btnSecondary, edge, fonts, radius, shadow, spacing, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
@@ -465,7 +455,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.lg,
     backgroundColor: colors.panel,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderWidth: edge,
     borderColor: colors.border,
     ...shadow,
   },

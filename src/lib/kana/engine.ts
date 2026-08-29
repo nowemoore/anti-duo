@@ -135,3 +135,32 @@ export function recordResult(progress: Progress, chars: string[], correct: boole
   for (const c of chars) next = recordCharResult(next, c, correct)
   return next
 }
+
+// ---------------------------------------------------------------------------
+// Words met
+// ---------------------------------------------------------------------------
+
+/** Whether the learner has opened this kana word. */
+export function isWordMet(progress: Progress, idx: number): boolean {
+  return progress.kana?.words?.[idx] != null
+}
+
+/** How many of `words` have been opened — the kana half of the vocabulary counter. */
+export function metWordCount(progress: Progress, words: { idx: number }[]): number {
+  return words.reduce((n, w) => n + (isWordMet(progress, w.idx) ? 1 : 0), 0)
+}
+
+/**
+ * Record that a kana word has been met — by opening its page, or by answering it correctly in the
+ * word drill. Both are the same claim: the learner has encountered this word and it can start
+ * showing up as vocabulary they own.
+ *
+ * Idempotent — the first timestamp is kept, because this answers "when did you meet it", not "when
+ * did you last look". One correct answer is enough; a word is not a kanji, and there is no level for
+ * it to climb.
+ */
+export function markWordMet(progress: Progress, idx: number, now: string): Progress {
+  if (isWordMet(progress, idx)) return progress
+  const kana = progress.kana ?? { chars: {}, traced: {} }
+  return { ...progress, kana: { ...kana, words: { ...kana.words, [idx]: now } } }
+}

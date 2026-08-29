@@ -3,7 +3,7 @@ import { type PluralTask } from '@lib/tasks'
 import { VoweledText } from '../VoweledText'
 import { SpeakButton } from '../SpeakButton'
 import type { TaskUI, TaskViewProps } from './types'
-import { fonts, type Palette } from '../../theme'
+import { edge, fonts, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
@@ -122,7 +122,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   meaning: { fontSize: 14, color: colors.muted, fontFamily: fonts.body },
   grid: { flexDirection: 'column', gap: 10, alignSelf: 'center', width: '100%', maxWidth: 340 },
   opt: {
-    borderWidth: 1.5,
+    borderWidth: edge,
     borderColor: colors.border,
     borderRadius: 12,
     paddingVertical: 14,

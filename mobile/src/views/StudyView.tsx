@@ -1,22 +1,27 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { IconName } from '@fortawesome/fontawesome-svg-core'
-import { View, Text, ScrollView, StyleSheet } from 'react-native'
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
 import { DefaultTheme, NavigationContainer, useNavigationContainerRef, type Theme } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TapScale } from '../components/TapScale'
-import type { Unit } from '@shared/types'
+import type { KanaWord, Unit } from '@shared/types'
+import type { KanaWordFilters } from '@lib/kana'
 import { PRACTICE_ITERATIONS } from '@shared/constants'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { Bilingual } from '../components/Bilingual'
+import { GlassSurface } from '../components/Glass'
+import { FadeView } from '../components/FadeView'
 import { LanguageToggle } from '../components/LanguageToggle'
 import { Icon } from '../components/Icon'
-import { ActionRow } from '../components/ActionRow'
+import { ActionPair, ActionRow } from '../components/ActionRow'
 import { ProgressTally } from '../components/ProgressTally'
 import { HelpButton } from '../components/HelpButton'
 import { Segmented } from '../components/Segmented'
+import { Legend } from '../components/Legend'
+import { ScrollCue } from '../components/ScrollCue'
 import { Stagger } from '../components/Stagger'
 import { Tally } from '../components/Tally'
 import { LearnPhase } from '../components/LearnPhase'
@@ -25,24 +30,42 @@ import { KanjiMosaic } from '../components/KanjiMosaic'
 import { GrammarMenu } from '../components/grammar/GrammarMenu'
 import { GrammarSection } from '../components/grammar/GrammarSection'
 import { KanaMenu } from '../components/kana/KanaMenu'
+import { KanaWordCard } from '../components/kana/KanaWordCard'
+import { FilterBar } from '../components/BoardFilters'
 import { KanaCharacter } from '../components/kana/KanaCharacter'
 import { KanaPractice } from '../components/kana/KanaPractice'
 import { KanaWordPractice } from '../components/kana/KanaWordPractice'
 import { HeaderProvider, useHeaderConfig, useScreenHeader } from '../context/HeaderContext'
 import { useTabBarHeight } from '../context/TabBarContext'
 import { useLanguage } from '../context/LanguageContext'
+import { toggleInList } from '@lib/categories'
 import { hasPassed, topicProgress, topicsForLang, type GrammarTopic } from '@lib/grammar'
-import { readableWords, scriptsForLang, studiedCount, totalKanaCount, type KanaScript } from '@lib/kana'
-import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import {
+  filterKanaWords,
+  isReadable,
+  isWordMet,
+  markWordMet,
+  metWordCount,
+  kanaCategoryOptions,
+  kanaScriptOptions,
+  scriptsForLang,
+  studiedCount,
+  totalKanaCount,
+  type KanaScript,
+} from '@lib/kana'
+import { edge, fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 import {
   ackBatches,
-  applyLearned,
+  applyLearnItem,
+  enabledWords,
   introducedUnits,
   introducedWords,
-  learnChunkSize,
-  nextLearnSession,
+  learnItemKey,
+  mixedChunkSize,
+  nextMixedLearnSession,
   unlearnedUnits,
+  type LearnItem,
 } from '@lib/study'
 
 // 'home' = welcome; 'menu' = the unit page; 'grammar'/'grammarTopic' = the grammar subsections;
@@ -59,6 +82,7 @@ type Route =
   | 'kanaChar'
   | 'kanaPractice'
   | 'kanaWords'
+  | 'kanaWord'
 
 export function StudyView() {
   const index = useContent()
@@ -93,31 +117,36 @@ export function StudyView() {
     }),
     [colors],
   )
-  // One learn session: the units to teach, the pool "Not now" swaps from, and where we are in it.
-  // Each unit runs learn → write before the next begins, so `qi`/`stage` walk that interleaving.
-  const [chunk, setChunk] = useState<Unit[]>([])
-  const [reserve, setReserve] = useState<Unit[]>([])
+  // One learn session: the things to teach, the pool "Not now" swaps from, and where we are in it.
+  // A kanji runs learn → write before the next begins, so `qi`/`stage` walk that interleaving; a kana
+  // word has no writing step (it needs no tracing — it is already the word), so it is one card long.
+  const [chunk, setChunk] = useState<LearnItem[]>([])
+  const [reserve, setReserve] = useState<LearnItem[]>([])
   const [qi, setQi] = useState(0)
   const [practiceRun, setPracticeRun] = useState(0)
   const [stage, setStage] = useState<'learn' | 'write'>('learn')
   const [topic, setTopic] = useState<GrammarTopic | null>(null)
+  /** Which half of the vocabulary section is showing — the home screen's shortcuts set it. */
+  const [vocabTab, setVocabTab] = useState(0)
   const [kanaScript, setKanaScript] = useState<KanaScript | null>(null)
   const [kanaChar, setKanaChar] = useState<string | null>(null)
+  /** The kana word whose page is open — pushed like a kanji's Learn card, not floated over the list. */
+  const [kanaWord, setKanaWord] = useState<KanaWord | null>(null)
   const grammarTopics = topicsForLang(langId)
   const kanaScripts = scriptsForLang(langId)
 
   function startLearn() {
-    const { chunk: next, reserve: rest } = nextLearnSession(index, progress)
+    const { chunk: next, reserve: rest } = nextMixedLearnSession(index, progress)
     if (next.length === 0) return
     beginSession(next, rest)
   }
 
   /** Study one specific kanji, chosen from the board. No reserve — there's nothing to swap for. */
   function startOne(unit: Unit) {
-    beginSession([unit], [])
+    beginSession([{ kind: 'unit', unit }], [])
   }
 
-  function beginSession(units: Unit[], pool: Unit[]) {
+  function beginSession(units: LearnItem[], pool: LearnItem[]) {
     setChunk(units)
     setReserve(pool)
     setQi(0)
@@ -144,14 +173,19 @@ export function StudyView() {
    * seen, then goes straight to writing *this* unit rather than banking it for the end — writing a
    * character while it's fresh is the point of the drill.
    */
-  function finishCard(learned: Unit[], pool: Unit[]) {
-    const unit = learned[0]
-    if (!unit) return advance()
-    update((p) => ackBatches(applyLearned(p, [unit]), unit, index.lang.batchUnlockEvery))
+  function finishCard(learned: LearnItem[], pool: LearnItem[]) {
+    const item = learned[0]
+    if (!item) return advance()
+    update((p) => {
+      const next = applyLearnItem(p, item, new Date().toISOString())
+      // Only a kanji has example batches to acknowledge.
+      return item.kind === 'unit' ? ackBatches(next, item.unit, index.lang.batchUnlockEvery) : next
+    })
     // A "Not now" swaps the card and requeues into the pool; carry both forward.
-    setChunk((cs) => cs.map((c, n) => (n === qi ? unit : c)))
+    setChunk((cs) => cs.map((c, n) => (n === qi ? item : c)))
     setReserve(pool)
-    if (writeable(unit)) setStage('write')
+    // Writing is a kanji step. A kana word is finished the moment its card is.
+    if (item.kind === 'unit' && writeable(item.unit)) setStage('write')
     else advance()
   }
 
@@ -165,8 +199,8 @@ export function StudyView() {
     setStage('learn')
   }
 
-  // Dots run across the whole session: one per learn card plus one per unit that can be written.
-  const stepsFor = (u: Unit) => 1 + (writeable(u) ? 1 : 0)
+  // Dots run across the whole session: one per learn card plus one per kanji that can be written.
+  const stepsFor = (it: LearnItem) => 1 + (it.kind === 'unit' && writeable(it.unit) ? 1 : 0)
   const stepTotal = chunk.reduce((n, u) => n + stepsFor(u), 0)
   const stepOffset = chunk.slice(0, qi).reduce((n, u) => n + stepsFor(u), 0)
   const current = chunk[qi]
@@ -178,13 +212,15 @@ export function StudyView() {
           {() => (
             <ScreenFrame bare>
               <StudyHome
-                onOpen={() => go('menu')}
+                onOpenVocab={(t) => {
+                  setVocabTab(t)
+                  go('menu')
+                }}
                 onPractice={() => go('practice')}
                 onGrammar={grammarTopics.length ? () => go('grammar') : undefined}
                 // A language with no script course (Arabic) simply doesn't get the card.
                 onKana={kanaScripts.length ? () => go('kana') : undefined}
                 onKanaPractice={() => go('kanaPractice')}
-                onKanaWords={() => go('kanaWords')}
                 kanaScripts={kanaScripts}
                 grammarTopics={grammarTopics}
               />
@@ -195,7 +231,20 @@ export function StudyView() {
         <Stack.Screen name="menu">
           {() => (
             <ScreenFrame scrolls>
-              <StudyMenu onLearn={startLearn} onPractice={() => go('practice')} onSelectUnit={startOne} />
+              <StudyMenu
+                tab={vocabTab}
+                onTab={setVocabTab}
+                onLearn={startLearn}
+                onPractice={() => go('practice')}
+                onSelectUnit={startOne}
+                onSelectWord={(w) => {
+                  // Opening the word is what "met" means for kana — there is no unit behind it to
+                  // introduce, so the act of looking is the whole of it.
+                  update((p) => markWordMet(p, w.idx, new Date().toISOString()))
+                  setKanaWord(w)
+                  go('kanaWord')
+                }}
+              />
             </ScreenFrame>
           )}
         </Stack.Screen>
@@ -208,7 +257,7 @@ export function StudyView() {
               {current && stage === 'learn' ? (
                 <LearnPhase
                   // Remounts per unit, so each card starts clean.
-                  key={current.idx}
+                  key={learnItemKey(current)}
                   chunk={[current]}
                   reserve={reserve}
                   onComplete={finishCard}
@@ -216,10 +265,10 @@ export function StudyView() {
                   baseStep={stepOffset}
                   headerCount={{ current: qi + 1, total: chunk.length }}
                 />
-              ) : current && stage === 'write' && draw ? (
+              ) : current?.kind === 'unit' && stage === 'write' && draw ? (
                 <draw.Review
-                  key={current.idx}
-                  units={[current]}
+                  key={learnItemKey(current)}
+                  units={[current.unit]}
                   baseStep={stepOffset + 1}
                   totalSteps={stepTotal}
                   onDone={advance}
@@ -298,6 +347,10 @@ export function StudyView() {
               <KanaPractice onBack={() => go('kana')} />
             </ScreenFrame>
           )}
+        </Stack.Screen>
+
+        <Stack.Screen name="kanaWord">
+          {() => <ScreenFrame>{kanaWord ? <KanaWordCard word={kanaWord} /> : null}</ScreenFrame>}
         </Stack.Screen>
 
         <Stack.Screen name="kanaWords">
@@ -516,18 +569,26 @@ function SectionCard({
   stat: ReactNode
   /** Watermark glyph, or null for a language whose script has none to draw with. */
   mark?: ReactNode
-  /** Set when the whole card is the action — it then shows a chevron and takes no child buttons. */
+  /** Opens the section. Always set — the card itself is the way in, buttons or no buttons. */
   onPress?: () => void
   children?: ReactNode
 }) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const body = (
-    <>
+    <GlassSurface style={styles.sectionGlass}>
+      {/*
+        The lavender, painted as its own layer rather than handed to the material as a tint: a
+        translucent `tintColor` is all but invisible against real Liquid Glass, which supplies its
+        own surface. A plain fill over the glass reads the same on every device, and the glass is
+        still doing its work underneath it.
+      */}
+      <View pointerEvents="none" style={styles.sectionTint} />
       {mark}
       <View style={styles.sectionHead}>
         <View style={styles.iconCircle}>
-          <Icon name={icon} size={20} color={colors.onAccent} />
+          {/* Ink light enough to read on the lavender the circle now carries. */}
+          <Icon name={icon} size={20} color={colors.ink} />
         </View>
         <View style={styles.entryText}>
           <Text style={styles.entryTitle}>{title}</Text>
@@ -536,17 +597,25 @@ function SectionCard({
         {onPress ? <Icon name="chevron-right" size={14} color={colors.muted} /> : null}
       </View>
       {children}
-    </>
+    </GlassSurface>
   )
   /*
-   * A card carrying its own buttons must not be pressable itself: two overlapping targets, one of
-   * which wins by accident, is worse than a card that simply holds controls. Grammar has nothing
-   * inside it, so there the whole card is the button and it shows a chevron to say so.
+   * The card is the way into its section, and it also holds shortcuts. Nesting is what makes that
+   * work: a press landing on a child button is claimed by that button, so the card's own handler
+   * only fires for the space around them — the heading row, the padding, the watermark.
+   */
+  /*
+   * A plain Pressable, not the app's TapScale.
+   *
+   * Liquid Glass does not survive being animated: a scale or opacity animation on the view above a
+   * GlassView invalidates the material, and the card renders as a flat white slab that never comes
+   * back. The tap bump is worth less than the glass, so these three cards go without it — every
+   * control *inside* them still bumps, which is where the feedback is actually needed.
    */
   return onPress ? (
-    <TapScale style={styles.section} onPress={onPress}>
+    <Pressable style={styles.section} onPress={onPress}>
       {body}
-    </TapScale>
+    </Pressable>
   ) : (
     <View style={styles.section}>{body}</View>
   )
@@ -571,21 +640,20 @@ function SubAction({ icon, label, onPress }: { icon: IconName; label: string; on
  * browse the board, start practising — are one tap from here rather than three.
  */
 function StudyHome({
-  onOpen,
+  onOpenVocab,
   onPractice,
   onGrammar,
   onKana,
   onKanaPractice,
-  onKanaWords,
   kanaScripts,
   grammarTopics,
 }: {
-  onOpen: () => void
+  /** Opens the vocabulary section on one of its two tabs (0 = kanji, 1 = kana). */
+  onOpenVocab: (tab: number) => void
   onPractice: () => void
   onGrammar?: () => void
   onKana?: () => void
   onKanaPractice: () => void
-  onKanaWords: () => void
   kanaScripts: KanaScript[]
   grammarTopics: GrammarTopic[]
 }) {
@@ -594,15 +662,15 @@ function StudyHome({
   const index = useContent()
   const { progress } = useProgress()
   const { ui, id: langId } = useLanguage()
-  /** Which half of the vocabulary this section is reporting on. */
-  const [vocabMode, setVocabMode] = useState(0)
 
-  const introduced = introducedUnits(index, progress).length
-  const remainingToLearn = unlearnedUnits(index, progress).length
-  const enabledTotal = introduced + remainingToLearn
-  const wordsMet = introducedWords(index, progress).size
   const kanaWords = index.content.kanaWords ?? []
-  const readable = readableWords(progress, kanaWords).length
+  /*
+   * The card counts *words*, not kanji — the section is called Vocab, and the number under it should
+   * be the thing it is about. Same definition the section's own tally uses: a kanji word once its
+   * kanji is introduced, a kana word once it has been opened.
+   */
+  const wordsUnlocked = introducedWords(index, progress).size + metWordCount(progress, kanaWords)
+  const wordsTotal = enabledWords(index, progress).size + kanaWords.length
   const grammarDone = grammarTopics.filter((t) => hasPassed(topicProgress(progress, t.id))).length
   const name = progress.settings.name.trim()
 
@@ -610,7 +678,6 @@ function StudyHome({
   const greeting = ui.greeting(name, hasRecord)
   // Japanese only for now: the glyphs are Japanese, so Arabic keeps the same layout without them.
   const marks = langId === 'ja'
-  const onKanji = vocabMode === 0
 
   return (
     <View style={styles.home}>
@@ -643,9 +710,10 @@ function StudyHome({
                   </Watermark>
                 ) : null
               }
+              onPress={onKana}
             >
               <View style={styles.subRow}>
-                <SubAction icon="table-cells" label="Charts" onPress={onKana} />
+                <SubAction icon="table-cells" label="Scripts" onPress={onKana} />
                 <SubAction icon="ear-listen" label="Practice" onPress={onKanaPractice} />
               </View>
             </SectionCard>
@@ -655,18 +723,10 @@ function StudyHome({
             icon="pen-nib"
             title={`${ui.vocabSection.native}・${ui.vocabSection.en}`}
             stat={
-              onKanji ? (
-                <>
-                  {`${wordsMet} met · `}
-                  <Tally count={introduced} total={enabledTotal} />
-                  {` ${ui.noun}`}
-                </>
-              ) : (
-                <>
-                  <Tally count={readable} total={kanaWords.length} />
-                  {' words readable'}
-                </>
-              )
+              <>
+                <Tally count={wordsUnlocked} total={wordsTotal} />
+                {' words unlocked'}
+              </>
             }
             mark={
               marks ? (
@@ -675,29 +735,23 @@ function StudyHome({
                 </Watermark>
               ) : null
             }
+            onPress={() => onOpenVocab(0)}
           >
-            {/* The same control the kana charts use, one level up: which half of the vocabulary this
-                section is about. It swaps the counter and the way in — not the practice below, which
-                draws on everything you know either way. */}
-            {kanaWords.length > 0 && (
-              <Segmented
-                values={['Kanji', 'Kana']}
-                index={vocabMode}
-                onChange={setVocabMode}
-                style={styles.vocabSwitch}
-              />
-            )}
+            {/* Both halves of the vocabulary, each opening the section on its own tab. */}
             <View style={styles.subRow}>
-              {onKanji ? (
-                <SubAction icon="table-cells" label="Board" onPress={onOpen} />
-              ) : (
-                <SubAction icon="comment" label="Kana words" onPress={onKanaWords} />
+              <SubAction icon="pen-nib" label="Kanji" onPress={() => onOpenVocab(0)} />
+              {kanaWords.length > 0 && (
+                <SubAction icon="comment" label="Kana words" onPress={() => onOpenVocab(1)} />
               )}
             </View>
             <TapScale style={styles.jumpBtn} onPress={onPractice} accessibilityRole="button">
-              <Icon name="play" size={13} color={colors.onAccent} />
               <View style={styles.jumpText}>
-                <Text style={styles.jumpTitle}>Jump straight to practice</Text>
+                {/* The play mark opens the line rather than standing in a column of its own — it
+                    belongs to the sentence "▶ Jump straight to practice", not beside it. */}
+                <View style={styles.jumpTitleRow}>
+                  <Icon name="play" size={13} color={colors.onAccent} />
+                  <Text style={styles.jumpTitle}>Jump straight to practice</Text>
+                </View>
                 <Text style={styles.jumpSub}>{`${PRACTICE_ITERATIONS} mixed questions`}</Text>
               </View>
               <Icon name="chevron-right" size={14} color={colors.onAccent} />
@@ -733,27 +787,56 @@ function StudyHome({
   )
 }
 
-/** The unit page: the Learn / Practice actions over the browsable board. */
+/**
+ * The vocabulary section: the two halves of what there is to know, behind one switch.
+ *
+ * Kanji is the curriculum — the actions that pick for you, over the board you can pick from. Kana
+ * words are the other half of the vocabulary, gated on being able to read them rather than on the
+ * kanji order, so they get their own tab rather than a place in that list.
+ */
 function StudyMenu({
+  tab,
+  onTab,
   onLearn,
   onPractice,
   onSelectUnit,
+  onSelectWord,
 }: {
+  tab: number
+  onTab: (next: number) => void
   onLearn: () => void
   onPractice: () => void
   onSelectUnit: (u: Unit) => void
+  onSelectWord: (w: KanaWord) => void
 }) {
+  const colors = useColors()
   const styles = useStyles(makeStyles)
   const tabBar = useTabBarHeight()
   const index = useContent()
   const { progress } = useProgress()
   const { ui } = useLanguage()
   const introduced = introducedUnits(index, progress).length
-  const remainingToLearn = unlearnedUnits(index, progress).length
-  const chunkSize = learnChunkSize(index, progress)
-  const total = introduced + remainingToLearn
-  const canLearn = remainingToLearn > 0
+  const remainingUnits = unlearnedUnits(index, progress).length
+  const total = introduced + remainingUnits
+  // What Learn will actually teach: kanji *and* readable kana words not yet met, so the button is
+  // live while either half has something left.
+  const chunkSize = mixedChunkSize(index, progress)
+  const canLearn = chunkSize > 0
   const canPractice = introduced > 0
+
+  const kanaWords = index.content.kanaWords ?? []
+  /** Narrowing for the kana list — the same pair of chips the kanji board carries. */
+  const [wordFilters, setWordFilters] = useState<KanaWordFilters>({ script: null, category: null })
+  const shownWords = filterKanaWords(kanaWords, wordFilters)
+  const onKanji = tab === 0 || kanaWords.length === 0
+  /*
+   * Both halves of the vocabulary. A kanji word counts once its kanji has been introduced; a kana
+   * word counts once it has been opened, which is the equivalent act for a word with no unit behind
+   * it (see markWordMet). Readability deliberately doesn't enter into it — every word here is open,
+   * so a fluent reader would otherwise start at 293 met.
+   */
+  const wordsMet = introducedWords(index, progress).size + metWordCount(progress, kanaWords)
+  const wordsTotal = enabledWords(index, progress).size + kanaWords.length
 
   useScreenHeader() // the system bar owns the back control; no step label on this screen
 
@@ -763,34 +846,153 @@ function StudyMenu({
       contentContainerStyle={[styles.menuWrap, { paddingBottom: tabBar + spacing.xxl }]}
     >
       <Stagger>
-      <ProgressTally count={introduced} total={total} label={`${ui.noun} unlocked`} />
+        {/*
+          The section's own header, tightened into one block the way the kana page does it: where you
+          are, then the two ways to let the app choose for you. Both sit *above* the switch because
+          neither belongs to one half — practice draws on everything you know, and the counter is the
+          vocabulary as a whole.
+        */}
+        <View style={styles.head}>
+          <ProgressTally count={wordsMet} total={wordsTotal} label="words unlocked" />
+          <Text style={styles.tallyNote}>
+            you can unlock more words by studying more cards
+          </Text>
+          {/* Side by side: two ways to let the app choose, offered as a pair rather than a list.
+              Learn leads, because meeting a word comes before drilling it. */}
+          <ActionPair>
+            <ActionRow
+              compact
+              icon="plus"
+              title={canLearn ? `Learn ${chunkSize} random` : 'Nothing left'}
+              // Counted across the whole section, kana words included: the tally above says "words
+              // unlocked", so the number under Learn has to be the rest of that same total rather
+              // than the kanji half of it.
+              sub={canLearn ? `${wordsTotal - wordsMet} more to go` : `all ${ui.noun} introduced`}
+              disabled={!canLearn}
+              onPress={onLearn}
+            />
+            <ActionRow
+              compact
+              primary
+              icon="play"
+              title="Practice"
+              sub={canPractice ? `${PRACTICE_ITERATIONS} questions` : `learn some ${ui.noun} first`}
+              disabled={!canPractice}
+              onPress={onPractice}
+            />
+          </ActionPair>
+          <Text style={styles.scrollNote}>or scroll to pick what to study</Text>
+        </View>
 
-      {/* Two ways to let the app choose for you; the board below is the third, and its own thing. */}
-      <ActionRow
-        primary
-        icon="play"
-        title="Practice"
-        sub={canPractice ? `${PRACTICE_ITERATIONS} questions` : `learn some ${ui.noun} first`}
-        disabled={!canPractice}
-        onPress={onPractice}
-      />
-      <ActionRow
-        icon="plus"
-        title={canLearn ? `Learn ${chunkSize} new` : 'Nothing left to learn'}
-        sub={canLearn ? `${remainingToLearn} still to meet` : `all ${ui.noun} introduced`}
-        disabled={!canLearn}
-        onPress={onLearn}
-      />
+        <ScrollCue />
 
-      <Text style={styles.boardNote}>or keep scrolling to study {ui.noun} you like</Text>
-      <Text style={styles.boardHint}>
-        tap {ui.noun} to learn it · hold {ui.noun} to disable it for practice
-      </Text>
-      <KanjiMosaic onSelect={onSelectUnit} />
+        {/* Only worth a switch when there is a second half to switch to. Labelled in the scripts
+            themselves — the section is about reading them, and by the time you are here both are
+            readable. */}
+        {kanaWords.length > 0 && (
+          <Segmented values={['漢字', 'かな']} index={tab} onChange={onTab} />
+        )}
+
+        {/* Keyed on the tab so the incoming half animates in rather than snapping — the same
+            treatment the app's own tab bar uses when it swaps Stats for Settings. */}
+        <FadeView key={onKanji ? 'kanji' : 'kana'} style={styles.tabBody}>
+        {onKanji ? (
+          <>
+            <Text style={styles.boardHint}>
+              tap {ui.noun} to learn it · hold {ui.noun} to disable it for practice
+            </Text>
+            <KanjiMosaic onSelect={onSelectUnit} />
+          </>
+        ) : (
+          <>
+            {/*
+              Every word, all of them open. Readability gates the *kana course*, where the point is
+              learning to read — here it would be the wrong rule twice over: this section assumes you
+              can already read kana, and the two courses are independent. Pick any word you like.
+            */}
+            <Text style={styles.boardHint}>tap a word to look at it · hold a phrase for its meaning</Text>
+            <FilterBar
+              onClear={() => setWordFilters({ script: null, category: null })}
+              filters={[
+                {
+                  key: 'script',
+                  icon: 'language',
+                  title: 'Scripts',
+                  allLabel: 'All kana',
+                  options: kanaScriptOptions(kanaWords, { category: wordFilters.category }),
+                  selected: wordFilters.script ?? [],
+                  onToggle: (v: string | null) =>
+                    setWordFilters((f) => ({
+                      ...f,
+                      script:
+                        v === null
+                          ? null
+                          : (toggleInList(f.script ?? [], v as KanaWord['script']) as KanaWord['script'][]),
+                    })),
+                },
+                {
+                  key: 'category',
+                  icon: 'layer-group',
+                  title: 'Topics',
+                  allLabel: 'All topics',
+                  options: kanaCategoryOptions(kanaWords, { script: wordFilters.script }),
+                  selected: wordFilters.category ?? [],
+                  onToggle: (v: string | null) =>
+                    setWordFilters((f) => ({
+                      ...f,
+                      category: v === null ? null : toggleInList(f.category ?? [], v),
+                    })),
+                },
+              ]}
+            />
+
+            {/*
+              The same key the kanji board carries, minus "ready for more" — that state is about a
+              kanji's example words unlocking as it levels, and a kana word has none. Nor is there an
+              "off": a word can't be switched out of practice the way a unit can.
+            */}
+            <Legend
+              items={[
+                { color: colors.border, label: 'not viewed' },
+                { color: colors.accentSoft, label: 'opened' },
+                { color: colors.accent, label: 'readable' },
+              ]}
+            />
+
+            <View style={styles.wordTiles}>
+              {shownWords.map((w) => {
+                /*
+                 * Three states, from what the course actually knows: whether you have opened the
+                 * word, and whether every character in it is one you can read. Nothing tracks a kana
+                 * word's own mastery, so "readable" is the strongest claim the data supports.
+                 */
+                const met = isWordMet(progress, w.idx)
+                const readable = isReadable(progress, w)
+                return (
+                  <TapScale
+                    key={w.idx}
+                    style={[
+                      styles.wordTile,
+                      met && styles.wordTileMet,
+                      met && readable && styles.wordTileReadable,
+                    ]}
+                    onPress={() => onSelectWord(w)}
+                  >
+                    <Text style={styles.wordTileText}>{w.word}</Text>
+                  </TapScale>
+                )
+              })}
+            </View>
+          </>
+        )}
+        </FadeView>
       </Stagger>
     </ScrollView>
   )
 }
+
+/** The jump button's title line box — shared by the text and the icons that must sit on it. */
+const JUMP_TITLE_LINE = 20
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   fill: { flex: 1 },
@@ -805,7 +1007,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginBottom: spacing.md,
   },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
-  dotOn: { backgroundColor: colors.accent },
+  dotOn: { backgroundColor: colors.highlight },
   menuScroll: { flex: 1 },
   // Was a centred column of two cards; now a scrolling page, because the board below is long.
   menuWrap: { gap: spacing.md, paddingTop: spacing.md },
@@ -835,13 +1037,29 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
 
   // Language toggle sits flush at the very top; the greeting centres in the gap between it and the cards.
   home: { flex: 1, alignItems: 'center', width: '100%' },
-  greetingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' },
+  /* The greeting sits near the top, given air rather than a share of the screen: the slack belongs
+     to the cards below it now, which centre in it. */
+  greetingWrap: {
+    alignItems: 'center',
+    width: '100%',
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
   /*
    * Clips a watermark to its card. Inset rather than `overflow: 'hidden'` on the card itself:
    * on iOS that also sets clipsToBounds, which would drop the card's shadow.
    */
   clip: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', borderRadius: radius.lg },
-  cardsCol: { alignSelf: 'stretch', gap: spacing.md, paddingBottom: spacing.md },
+  /* Takes everything left between the greeting and the tab bar (which the screen frame has already
+     padded for) and centres the header and cards in it, rather than letting them settle at the
+     bottom of the screen. */
+  cardsCol: {
+    flex: 1,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingBottom: spacing.md,
+  },
   /*
    * Content is a left-aligned row (circle, then label over counter), but the card keeps the footprint
    * it had when that content was a centred stack — hence the minHeight. Without it the row collapses
@@ -862,17 +1080,32 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
    * A section holds a heading row and its own controls, so it grows with its content rather than
    * keeping the fixed height the old single-action cards needed.
    */
-  section: {
-    ...shadow,
-    alignSelf: 'stretch',
+  /*
+   * Real glass rather than a drawn outline: the lavender is the *tint* of the material, so the card
+   * takes its edge from the light behind it instead of from a border. On a device with no Liquid
+   * Glass the surface falls back to that tint as a fill plus a hairline, which is the look the app
+   * had before — see GlassSurface.
+   *
+   * The radius is deliberately far past the app's `radius.lg`: these are the only three cards on the
+   * screen, and rounding them this hard is what makes them read as soft objects rather than panels.
+   */
+  section: { ...shadow, alignSelf: 'stretch', borderRadius: 30 },
+  /*
+   * The lavender edge is drawn here rather than left to the material. A tint at wash strength is
+   * almost invisible against real Liquid Glass — the glass supplies its own surface — so the card
+   * lost both its colour and its outline. The border puts the highlight back without giving up the
+   * glass underneath it.
+   */
+  sectionGlass: {
     gap: spacing.md,
-    backgroundColor: colors.panel,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.lg,
+    borderRadius: 30,
+    borderWidth: edge,
+    borderColor: colors.highlightSoft,
+    overflow: 'hidden',
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.lg,
   },
+  sectionTint: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.highlightWash },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   subRow: { flexDirection: 'row', gap: spacing.sm },
   // Quiet, and each takes an equal share of the row however many there are.
@@ -882,26 +1115,71 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.panelStrong,
-    borderRadius: radius.md,
+    /* Outline only, no fill. These sit *inside* a card that is already glass, and a second lighter
+       fill on top of it just made a paler patch of the same surface — the edge is what says "this is
+       a control", so it is the only thing that should be doing the saying. */
+    borderWidth: edge,
+    borderColor: colors.border,
+    borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: spacing.md,
   },
   subBtnText: { color: colors.ink, fontFamily: fonts.medium, fontSize: 14 },
-  vocabSwitch: { marginBottom: spacing.xs },
+  head: { gap: spacing.md },
+  /* The gap the kanji board sets on its own wrapper, applied to the tab as a whole — so the space
+     between the legend and the tiles is the same on both halves. */
+  tabBody: { gap: spacing.md },
+  // Same voice as the board's own hints: quiet, lower case, explaining rather than instructing.
+  tallyNote: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, marginTop: -spacing.xs },
+  scrollNote: {
+    color: colors.muted,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
+  // Wrapping, not columned: each tile is as wide as its word, and the row breaks where it runs out.
+  wordTiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  // Same chrome as a board tile — these are the kana half of the same board, not a different thing,
+  // so they take the board's corner rather than the soft radius the controls use.
+  wordTile: {
+    backgroundColor: colors.panelStrong,
+    borderRadius: radius.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  wordTileMet: { backgroundColor: colors.accentSoft },
+  wordTileReadable: { backgroundColor: colors.accent },
+  wordTileText: { color: colors.ink, fontSize: 17 },
   /* The one filled control on the screen, and rounder than the quiet ones so it reads as the way in
      rather than a third sibling. */
+  /* Fully rounded, not merely soft-cornered: the one filled control on the screen, shaped like a
+     button rather than like another card. */
+  /*
+   * The play mark now opens the title line, so the row itself no longer has to top-align: the text
+   * block and the chevron are two things sitting side by side, and both want the row's centre.
+   */
   jumpBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     backgroundColor: colors.accent,
-    borderRadius: 18,
+    borderRadius: radius.pill,
     paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
+    // Asymmetric on purpose: the left edge carries the play mark and the label, so it needs the
+    // room; the chevron on the right is a hint, and pushing it inward just strands it.
+    paddingLeft: spacing.xl,
+    paddingRight: spacing.md,
   },
   jumpText: { flex: 1 },
-  jumpTitle: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 15 },
+  jumpTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  jumpTitle: {
+    color: colors.onAccent,
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    lineHeight: JUMP_TITLE_LINE,
+  },
   jumpSub: { color: colors.onAccent, fontFamily: fonts.body, fontSize: 12, opacity: 0.75 },
   entryCard: {
     ...shadow,
@@ -912,7 +1190,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.panel,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.lg,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
@@ -923,11 +1201,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   entryTitle: { color: colors.ink, fontSize: 16, fontWeight: '600' },
   entrySub: { color: colors.muted, fontFamily: fonts.body, fontSize: 12 },
   iconMuted: { backgroundColor: colors.border },
+  /* Lavender, like the rest of the app's state colour. The cards name where you can go rather than
+     being the thing you press — the accent stays with the buttons inside them. */
   iconCircle: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.highlight,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -181,6 +181,8 @@ function parseSentenceRow(row: Record<string, string>, formByIdx: Map<number, st
   return {
     id: row.id,
     unitList: parseJsonField<number[]>(row.root_list, `${where}.root_list`),
+    // Arabic has no kana course, so no sentence of its own can carry kana words.
+    kanaList: [],
     tokens: parseJsonField<RawArToken[]>(row.tokens, `${where}.tokens`).map((t) => toToken(t, formByIdx)),
   }
 }

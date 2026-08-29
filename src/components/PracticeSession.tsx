@@ -1,26 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import type { Progress } from '../../shared/types'
+import type { KanaWord, Progress } from '../../shared/types'
 import { PRACTICE_ITERATIONS } from '../../shared/constants'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { introducedUnits, isForgottenLevel } from '../lib/study'
-import { awardDelta, levelDeltaFor, markSeen, pickTarget } from '../lib/practice'
+import { awardDelta, levelDeltaFor, markSeen, pickMixedTarget } from '../lib/practice'
+import { generateKanaTask, scoreKanaAnswer, type KanaTask } from '../lib/kanaTasks'
+import { KanaTaskView } from './tasks/KanaTaskView'
 import { recordTaskResult, recordWordResult } from '../lib/stats'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR } from '../../shared/constants'
 import { generateAnyTask, testedWordKey, type Task } from '../lib/tasks'
 import { useDrawableWord } from '../lib/useDrawableWord'
 import { TaskRunner } from './tasks/TaskRunner'
 import { Bilingual } from './Bilingual'
+import { useAuth } from '../context/AuthContext'
+import { describeAnswer, saveAnswer } from '../lib/answers'
+import { saveDrawing } from '../lib/drawings'
+import type { AnswerDetail } from './tasks/types'
 
 interface Props {
   onExit: () => void
 }
 
-interface Current {
-  task: Task
-  targetIdx: number
-}
+/**
+ * The question on screen, and what it is about.
+ *
+ * A kanji question carries the unit's idx (its level is what moves); a kana one carries the word
+ * itself, because a kana word has no unit and its progress lives in its own streak. Everything that
+ * branches on the difference does so through this.
+ */
+type Current =
+  /** `random`: the target came from the uniform exploration slice rather than by level weight — the
+   *  only rows whose review gap the scheduler didn't choose, and so the only ones retention can
+   *  honestly be fitted on. */
+  | { kind: 'unit'; task: Task; targetIdx: number; random: boolean }
+  | { kind: 'kana'; task: KanaTask; word: KanaWord }
 
 type Levels = Record<number, { lvl: number }>
 
@@ -41,6 +56,10 @@ export function PracticeSession({ onExit }: Props) {
   // Gate on the recognizer: passing this is what enables 'draw' generation at all, so a draw task
   // is only ever produced for a word the canvas can actually grade.
   const canDrawWord = useDrawableWord()
+  const { session } = useAuth()
+  const userId = session?.user?.id
+  /** When the question on screen appeared, for the answer log's latency. */
+  const shownAtRef = useRef(Date.now())
 
   // Working level copy, seeded once from the introduced set.
   const workingRef = useRef<Levels>(
@@ -59,8 +78,12 @@ export function PracticeSession({ onExit }: Props) {
 
   const makeTask = useCallback((): Current | null => {
     const synthetic: Progress = { ...progress, units: workingRef.current }
-    const pick = pickTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
+    const pick = pickMixedTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
     if (pick == null) return null
+    if (pick.kind === 'kana') {
+      const task = generateKanaTask(index, pick.word.idx)
+      return task ? { kind: 'kana', task, word: pick.word } : null
+    }
     const targetIdx = pick.idx
     const studySet = Object.keys(workingRef.current).map(Number)
     const task = generateAnyTask(index, targetIdx, {
@@ -71,7 +94,7 @@ export function PracticeSession({ onExit }: Props) {
       levelOf: (idx) => workingRef.current[idx]?.lvl ?? 0,
       canDraw: canDrawWord,
     })
-    return task ? { task, targetIdx } : null
+    return task ? { kind: 'unit', task, targetIdx, random: pick.random } : null
   }, [index, progress, canDrawWord])
 
   // First task.
@@ -83,8 +106,72 @@ export function PracticeSession({ onExit }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleResult = (delta: number) => {
+  /**
+   * One row per answered question, for distractor quality, per-skill accuracy and retention.
+   *
+   * `Progress` keeps only running totals, which cannot answer "which distractor did they pick" or
+   * "what fraction is still correct after three weeks" — those need the individual events. Signed
+   * out there is nowhere to put them, so nothing is written. Fire-and-forget either way: a logging
+   * failure must never disrupt practice.
+   */
+  const logAnswer = (
+    args: {
+      unitIdx: number | null
+      taskKind: string
+      correct: boolean
+      score: number
+      sentenceId: string | null
+      lvlBefore: number | null
+      wordStreakBefore: number | null
+      prevSeenAt: string | null
+      randomPick: boolean
+      drawingId: string | null
+    },
+    detail?: AnswerDetail,
+  ) => {
+    if (!userId) return
+    void saveAnswer({
+      userId,
+      lang: index.lang.id,
+      picked: describeAnswer(detail?.picked),
+      latencyMs: Date.now() - shownAtRef.current,
+      ...args,
+    }).catch(() => {})
+  }
+
+  const handleResult = (delta: number, detail?: AnswerDetail) => {
     if (!current) return
+
+    /*
+     * A kana answer touches none of the level machinery: no unit, no `lvl`, nothing to even out.
+     * It moves the word's own run, the runs of the characters it is spelled from, and marks the word
+     * met — see scoreKanaAnswer — plus the same per-task tally every question feeds.
+     */
+    if (current.kind === 'kana') {
+      const { task, word } = current
+      update((p) =>
+        recordTaskResult(scoreKanaAnswer(p, word, delta > 0, new Date().toISOString()), task.kind, delta),
+      )
+      logAnswer(
+        {
+          unitIdx: null,
+          taskKind: task.kind,
+          correct: delta > 0,
+          score: delta,
+          sentenceId: task.sentence?.id ?? null,
+          // No unit, so no level and no recency: a kana word's strength lives in its own streak.
+          lvlBefore: null,
+          wordStreakBefore: progress.words?.[word.word] ?? 0,
+          prevSeenAt: null,
+          randomPick: false,
+          drawingId: null,
+        },
+        detail,
+      )
+      advance()
+      return
+    }
+
     const { task, targetIdx } = current
 
     // Scale the level change by this task type's reward/penalty knob, damped while the kanji is still
@@ -103,6 +190,11 @@ export function PracticeSession({ onExit }: Props) {
     // Keyed by surface *and* reading where a form has more than one: missing 木/き must not walk
     // 木/もく backwards, and getting もく right must not credit き.
     const word = testedWordKey(task, index)
+    // Read before the update: these describe the state the question was answered *from*, which is
+    // what retention has to be conditioned on.
+    const lvlBefore = progress.units[targetIdx]?.lvl ?? INTRODUCED_LEVEL
+    const prevSeenAt = progress.units[targetIdx]?.lastSeenAt ?? null
+    const wordStreakBefore = word ? (progress.words?.[word] ?? 0) : null
     update((p) => {
       let next = levelDelta !== 0 ? awardDelta(p, targetIdx, levelDelta) : p
       // Every answered question stamps recency, including the ones worth no level change.
@@ -112,6 +204,45 @@ export function PracticeSession({ onExit }: Props) {
     })
     prevTargetRef.current = targetIdx
 
+    const row = {
+      unitIdx: targetIdx,
+      taskKind: task.kind,
+      correct: delta > 0,
+      score: delta,
+      sentenceId: 'sentence' in task ? task.sentence.id : null,
+      lvlBefore,
+      wordStreakBefore,
+      prevSeenAt,
+      randomPick: current.random,
+    }
+    /*
+     * A drawing is saved to its own table first and linked from the answer row, so the strokes and
+     * the verdict on them stay one record. Practice only ever offers recognizer-graded words —
+     * tracing lives in the write review — hence mode 'recognized'.
+     */
+    const strokes = detail?.strokes
+    if (task.kind === 'draw' && userId && Array.isArray(strokes) && strokes.length) {
+      saveDrawing({
+        userId,
+        lang: index.lang.id,
+        unitIdx: targetIdx,
+        word: task.word,
+        strokes,
+        correct: delta > 0,
+        mode: 'recognized',
+      })
+        .then((drawingId) => logAnswer({ ...row, drawingId }, detail))
+        .catch(() => logAnswer({ ...row, drawingId: null }, detail))
+    } else {
+      logAnswer({ ...row, drawingId: null }, detail)
+    }
+
+    advance()
+  }
+
+  /** Step to the next question, or end the run. Shared by both answer paths. */
+  function advance() {
+    shownAtRef.current = Date.now()
     const nextIteration = iteration + 1
     setIteration(nextIteration)
     if (nextIteration >= PRACTICE_ITERATIONS) {
@@ -159,7 +290,11 @@ export function PracticeSession({ onExit }: Props) {
       </div>
 
       <div className="task-wrap" key={iteration}>
-        <TaskRunner task={current.task} onResult={handleResult} />
+        {current.kind === 'kana' ? (
+          <KanaTaskView task={current.task} onResult={handleResult} />
+        ) : (
+          <TaskRunner task={current.task} onResult={handleResult} />
+        )}
       </div>
     </section>
   )

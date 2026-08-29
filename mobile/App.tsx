@@ -48,7 +48,7 @@ import { SettingsView } from './src/views/SettingsView'
 import { FadeView } from './src/components/FadeView'
 import { GlassSurface } from './src/components/Glass'
 import { Icon } from './src/components/Icon'
-import { fonts, radius, spacing, type Palette } from './src/theme'
+import { edge, fonts, radius, spacing, type Palette } from './src/theme'
 import { useColors, useStyles } from './src/hooks/theme'
 
 type Tab = 'study' | 'stats' | 'settings'
@@ -175,7 +175,7 @@ function Shell() {
                 accessibilityState={{ selected: active }}
                 accessibilityLabel={t.label}
               >
-                <Icon name={t.icon} size={20} color={active ? colors.accentInk : colors.muted} />
+                <Icon name={t.icon} size={20} color={active ? colors.highlightInk : colors.muted} />
                 <Text style={[styles.tabLabel, !active && styles.tabLabelOff]}>{t.label}</Text>
               </Pressable>
             )
@@ -256,12 +256,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
+  /*
+   * A true capsule, not a rounded rectangle: the radius is half the bar's own height, so the ends
+   * are semicircles and the shape reads as one floating object. `radius.lg` left visible straight
+   * runs at the sides, which made it look like a panel that happened to be tucked up off the floor.
+   */
   tabbar: {
     flexDirection: 'row',
     alignItems: 'center',
     borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.lg,
+    borderWidth: edge,
+    borderRadius: radius.pill,
     padding: spacing.sm,
     overflow: 'hidden',
   },
@@ -275,7 +280,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.pill,
   },
   // The selected tab is a filled pill; the rest are bare glyphs on the bar.
-  tabOn: { backgroundColor: colors.accentSoft },
-  tabLabel: { color: colors.accentInk, fontFamily: fonts.semibold, fontSize: 13 },
+  /* Lavender, like the progress bars: which tab you are on is a statement of where you
+     are, not an invitation. The accent stays with the things you can press. */
+  tabOn: { backgroundColor: colors.highlightWash },
+  tabLabel: { color: colors.highlightInk, fontFamily: fonts.semibold, fontSize: 13 },
   tabLabelOff: { color: colors.muted },
 })

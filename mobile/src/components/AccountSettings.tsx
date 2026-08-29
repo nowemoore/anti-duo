@@ -4,7 +4,7 @@ import { TapScale } from './TapScale'
 import { useAuth } from '../context/AuthContext'
 import { useSync } from '../context/SyncContext'
 import { Icon } from './Icon'
-import { fonts, btnPrimary, type Palette, radius, shadow, spacing, btnLabel } from '../theme'
+import { btnLabel, btnPrimary, edge, fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
 /** Settings card: optional cloud login (emailed code) that backs up and syncs progress. */
@@ -167,7 +167,7 @@ function SignedOut({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
+  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: edge, borderRadius: radius.lg, padding: spacing.lg },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: spacing.md },
   muted: { color: colors.muted, fontFamily: fonts.body, fontSize: 13, lineHeight: 19 },
   email: { color: colors.ink, fontFamily: fonts.semibold },
@@ -177,7 +177,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     color: colors.ink,
     paddingVertical: 9,
     paddingHorizontal: 12,
-    borderWidth: 1,
+    borderWidth: edge,
     borderColor: colors.border,
     borderRadius: 8,
     backgroundColor: colors.bg,

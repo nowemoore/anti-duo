@@ -1,4 +1,5 @@
 import type { Task } from '../../lib/tasks'
+import type { ReportResult } from './types'
 import { ChoiceTaskView } from './ChoiceTaskView'
 import { DrawTaskView } from './DrawTaskView'
 import { TypeWordTaskView } from './TypeWordTaskView'
@@ -6,8 +7,8 @@ import { WhichWordsTaskView } from './WhichWordsTaskView'
 
 interface Props {
   task: Task
-  /** Reports the score delta to add to the target kanji's level. */
-  onResult: (delta: number) => void
+  /** Reports the score delta to add to the target kanji's level, plus what was answered. */
+  onResult: ReportResult
 }
 
 /** Renders the right component for a task and reports the result back. */

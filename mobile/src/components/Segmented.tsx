@@ -11,6 +11,10 @@ import { useColors } from '../hooks/theme'
  * Deliberately no `backgroundColor`: passing one paints the control's layer as a plain square,
  * because UISegmentedControl's rounded track is part of the background it comes with rather than a
  * corner radius applied over whatever colour you hand it. `appearance` alone gives the right track.
+ *
+ * The selected segment takes the lavender, like the selected tab and the progress bars. Which half
+ * of a switch you are on is a statement about where you are, not something to act on — the accent
+ * stays with the things you press.
  */
 export function Segmented({
   values,
@@ -30,9 +34,9 @@ export function Segmented({
       selectedIndex={index}
       onChange={(e) => onChange(e.nativeEvent.selectedSegmentIndex)}
       appearance="dark"
-      tintColor={colors.accent}
+      tintColor={colors.highlight}
       fontStyle={{ color: colors.muted }}
-      activeFontStyle={{ color: colors.onAccent, fontWeight: '600' }}
+      activeFontStyle={{ color: colors.ink, fontWeight: '600' }}
       style={style}
     />
   )

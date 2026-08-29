@@ -8,7 +8,7 @@ import { CategorySettings } from '../components/CategorySettings'
 import { DevTools } from '../components/DevTools'
 import { TaskFrequencySettings } from '../components/TaskFrequencySettings'
 import { Icon } from '../components/Icon'
-import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { edge, fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
 export function SettingsView() {
@@ -66,7 +66,7 @@ export function SettingsView() {
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
+  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: edge, borderRadius: radius.lg, padding: spacing.lg },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: spacing.md },
   fieldLabel: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 14, marginBottom: 6 },
   input: {
@@ -74,7 +74,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     color: colors.ink,
     paddingVertical: 9,
     paddingHorizontal: 12,
-    borderWidth: 1,
+    borderWidth: edge,
     borderColor: colors.border,
     borderRadius: 8,
     backgroundColor: colors.bg,

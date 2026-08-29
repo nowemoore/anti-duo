@@ -4,9 +4,11 @@ import {
   LEVEL_FLOOR,
   MASTERY_LEARNT,
 } from '../../shared/constants'
-import type { Unit, Progress } from '../../shared/types'
+import type { KanaWord, Unit, Progress } from '../../shared/types'
 import { wordKey, type ContentIndex } from './content'
 import { isUnitEnabled } from './categories'
+import { isWordMet, markWordMet } from './kana/engine'
+import { readableWords } from './kana/words'
 import { batchesUnlocked } from './tasks'
 import { shuffle } from './random'
 
@@ -157,6 +159,22 @@ export function introducedWords(index: ContentIndex, progress: Progress): Set<st
   return out
 }
 
+/**
+ * Every word the learner has met, in either script — the scope Stats counts "words you know"
+ * against.
+ *
+ * A kanji word counts once its kanji has been introduced; a kana word counts once it has been met
+ * (opened, or answered right in the word drill). Both then live on the same `Progress.words` streak,
+ * so the card is one number over one population rather than two half-populations.
+ */
+export function metVocabulary(index: ContentIndex, progress: Progress): Set<string> {
+  const out = introducedWords(index, progress)
+  for (const w of index.content.kanaWords ?? []) {
+    if (isWordMet(progress, w.idx)) out.add(w.word)
+  }
+  return out
+}
+
 /** How many new kanji one Learn click will introduce (≤ LEARN_CHUNK, capped by what's left). */
 export function learnChunkSize(index: ContentIndex, progress: Progress): number {
   return Math.min(LEARN_CHUNK, unlearnedUnits(index, progress).length)
@@ -202,12 +220,12 @@ export function nextLearnSession(
  * the reserve is shorter than the gap). With an empty reserve there's nothing to swap in, so the
  * card is dropped instead (deferred to a future Learn). Returns the new cards, reserve, and cursor.
  */
-export function skipCard(
-  cards: Unit[],
-  reserve: Unit[],
+export function skipCard<T>(
+  cards: T[],
+  reserve: T[],
   i: number,
   gap: number,
-): { cards: Unit[]; reserve: Unit[]; index: number } {
+): { cards: T[]; reserve: T[]; index: number } {
   const skipped = cards[i]
   if (reserve.length > 0) {
     const [replacement, ...rest] = reserve
@@ -231,4 +249,82 @@ export function applyLearned(progress: Progress, learned: Unit[]): Progress {
     units,
     lastRunAt: new Date().toISOString(),
   }
+}
+
+/**
+ * One thing a Learn session can teach: a kanji, or a kana word.
+ *
+ * Learn used to be a queue of `Unit`, which quietly made "the vocabulary" mean "the kanji". It
+ * doesn't — half of what a beginner reads is written in kana and has no unit behind it — so the
+ * queue holds both kinds and the card decides which it is.
+ */
+export type LearnItem = { kind: 'unit'; unit: Unit } | { kind: 'kana'; word: KanaWord }
+
+/** A stable identity for a queue item, for React keys and for de-duplicating a requeue. */
+export function learnItemKey(item: LearnItem): string {
+  return item.kind === 'unit' ? `u${item.unit.idx}` : `k${item.word.idx}`
+}
+
+/**
+ * Kana words that are worth teaching now: readable but not yet met.
+ *
+ * Gated on *readable* — every character in the word has been traced — because a word you can't read
+ * yet isn't a word you can be taught, it's a row of characters. That gate is also the weighting: the
+ * kana half of a Learn session starts small and grows on its own as the chart fills in.
+ */
+export function unmetKanaWords(index: ContentIndex, progress: Progress): KanaWord[] {
+  const words = index.content.kanaWords ?? []
+  return readableWords(progress, words).filter((w) => !isWordMet(progress, w.idx))
+}
+
+/**
+ * The mixed (re)teach queue: forgotten kanji first, then everything still to meet, shuffled together.
+ *
+ * Forgotten kanji keep their place at the front — a lapsed character has to come back, and a kana
+ * word has no lapsing to compete with it. Past that the two halves are one pool, so a Learn tap is
+ * genuinely five random things to learn rather than five kanji.
+ */
+export function mixedLearnQueue(index: ContentIndex, progress: Progress): LearnItem[] {
+  const forgotten = forgottenUnits(index, progress)
+  const forgottenIdx = new Set(forgotten.map((k) => k.idx))
+  const fresh: LearnItem[] = unlearnedUnits(index, progress)
+    .filter((k) => !forgottenIdx.has(k.idx))
+    .map((unit) => ({ kind: 'unit', unit }))
+  const kana: LearnItem[] = unmetKanaWords(index, progress).map((word) => ({ kind: 'kana', word }))
+  return [
+    ...shuffle(forgotten).map((unit): LearnItem => ({ kind: 'unit', unit })),
+    ...shuffle([...fresh, ...kana]),
+  ]
+}
+
+/** How many items one Learn tap will teach — ≤ LEARN_CHUNK, capped by what is left in either half. */
+export function mixedChunkSize(index: ContentIndex, progress: Progress): number {
+  return Math.min(LEARN_CHUNK, mixedLearnQueue(index, progress).length)
+}
+
+/** {@link nextLearnSession} over the mixed queue: the chunk to teach, plus the "Not now" reserve. */
+export function nextMixedLearnSession(
+  index: ContentIndex,
+  progress: Progress,
+): { chunk: LearnItem[]; reserve: LearnItem[] } {
+  const queue = mixedLearnQueue(index, progress)
+  const size = Math.min(LEARN_CHUNK, queue.length)
+  return { chunk: queue.slice(0, size), reserve: queue.slice(size) }
+}
+
+/**
+ * Credit one finished Learn card.
+ *
+ * A kanji is introduced to {@link INTRODUCED_LEVEL}; a kana word is marked met, which is the same
+ * statement about a thing that has no level — it's now yours, and practice may ask about it.
+ */
+export function applyLearnItem(progress: Progress, item: LearnItem, now: string): Progress {
+  return item.kind === 'unit'
+    ? applyLearned(progress, [item.unit])
+    : markWordMet(progress, item.word.idx, now)
+}
+
+/** Everything still to meet, in both scripts — the "N more to go" beside a Learn button. */
+export function remainingToLearn(index: ContentIndex, progress: Progress): number {
+  return unlearnedUnits(index, progress).length + unmetKanaWords(index, progress).length
 }

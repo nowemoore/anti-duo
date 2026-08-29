@@ -52,7 +52,7 @@ const LEGACY_ITEM_IDS: Record<string, string> = {
   r01: 'v:食べる', r02: 'v:見る', r03: 'v:起きる',
   r04: 'v:開ける', r05: 'v:教える', r06: 'v:答える',
   r07: 'v:考える', r08: 'v:始める', r09: 'v:借りる',
-  r10: 'v:止める', r11: 'v:入れる', r12: 'v:集める',
+  r10: 'v:止める|とめる', r11: 'v:入れる', r12: 'v:集める',
   r13: 'v:飲む', r14: 'v:読む', r15: 'v:書く',
   r16: 'v:聞く', r17: 'v:行く', r18: 'v:会う',
   r19: 'v:買う', r20: 'v:使う', r21: 'v:待つ',
@@ -61,6 +61,15 @@ const LEGACY_ITEM_IDS: Record<string, string> = {
   r28: 'v:知る', r29: 'v:作る', r30: 'v:習う',
   e31: 'v:帰る', e32: 'v:入る', e33: 'v:走る',
   e34: 'v:切る',
+  /*
+   * Spellings that later gained a second reading, and so a longer id (see verbBank.verbItemId).
+   *
+   * The mapping is unambiguous rather than a guess: 止める meant とめる (word 644) and 開く meant あく
+   * (669) at the time these ids were recorded — やめる (906) and ひらく (905) were added to the
+   * registry afterwards, so no attempt can have been about them.
+   */
+  'v:止める': 'v:止める|とめる',
+  'v:開く': 'v:開く|あく',
 }
 
 // The form's grammatical name is deliberately absent from every pre-reveal string below — titles,

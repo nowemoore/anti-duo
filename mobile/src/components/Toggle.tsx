@@ -28,7 +28,9 @@ export function Toggle({
       onValueChange={onChange}
       disabled={disabled}
       accessibilityLabel={label}
-      trackColor={{ false: colors.border, true: colors.accent }}
+      // Lavender when on, like every other switch and bar in the app: it reports a setting's state
+      // rather than inviting a press.
+      trackColor={{ false: colors.border, true: colors.highlight }}
       // iOS paints the off-track white underneath `trackColor.false` unless this matches it.
       ios_backgroundColor={colors.border}
       // The nested variant sits in a tighter row; the switch has no size prop, so scale it.

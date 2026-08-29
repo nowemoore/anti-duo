@@ -6,9 +6,10 @@ import { TaskChip } from './TaskChip'
 import type { Progress } from '@shared/types'
 import { INTRODUCED_LEVEL, LEVEL_FLOOR, PRACTICE_ITERATIONS } from '@shared/constants'
 import { introducedUnits, isForgottenLevel } from '@lib/study'
-import { awardDelta, levelDeltaFor, markSeen, pickTarget } from '@lib/practice'
+import { awardDelta, levelDeltaFor, markSeen, pickMixedTarget } from '@lib/practice'
+import { generateKanaTask, scoreKanaAnswer } from '@lib/kanaTasks'
 import { amendTaskResult, recordTaskResult, recordWordResult, restoreWordStreak } from '@lib/stats'
-import { generateAnyTask, testedWordKey, WHICH_WORDS_OPTIONS, WHICH_WORDS_POINT } from '@lib/tasks'
+import { generateAnyTask, testedWordKey, WHICH_WORDS_OPTIONS, WHICH_WORDS_POINT, type Task } from '@lib/tasks'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
 import { useLanguage } from '../context/LanguageContext'
@@ -25,7 +26,7 @@ import { useAuth } from '../context/AuthContext'
 import { saveDrawing, overrideDrawing } from '../lib/drawings'
 import { describeAnswer, saveAnswer } from '../lib/answers'
 import type { DrawStroke } from '../lang/types'
-import { fonts, btnPrimary, btnSecondary, radius, shadow, spacing, type Palette, btnLabel, btnLabelQuiet } from '../theme'
+import { btnLabel, btnLabelQuiet, btnPrimary, btnSecondary, edge, fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 import { fadeColor, useVerdictFade } from '../hooks/verdictFade'
 
@@ -76,8 +77,28 @@ export function PracticeSession({
 
   const makeQA = useCallback((): QA | null => {
     const synthetic: Progress = { ...progress, units: workingRef.current }
-    const pick = pickTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
+    const pick = pickMixedTarget(index, synthetic, { avoidIdx: prevTargetRef.current ?? undefined })
     if (pick == null) return null
+
+    // A kana word: no unit, so no study set and no staged release — just the word and a question
+    // about it. `targetIdx` is -1 because there is nothing for it to point at; `kanaWord` is what
+    // the rest of the session branches on.
+    if (pick.kind === 'kana') {
+      const task = generateKanaTask(index, pick.word.idx)
+      if (!task) return null
+      const ui = getTaskUI(task.kind, pack)
+      return {
+        task,
+        kanaWord: pick.word,
+        targetIdx: -1,
+        answer: ui ? ui.emptyAnswer() : null,
+        phase: 'first',
+        score: 0,
+        recorded: false,
+        shownAt: Date.now(),
+      }
+    }
+
     const targetIdx = pick.idx
     const studySet = Object.keys(workingRef.current).map(Number)
     const task = generateAnyTask(index, targetIdx, {
@@ -126,9 +147,48 @@ export function PracticeSession({
    * Returns the level change actually applied, so the caller can store it on the QA for `override`.
    */
   const record = (item: QA): { levelDelta: number; prevWordStreak: number } => {
+    /*
+     * A kana answer touches none of the level machinery: there is no unit to move, nothing to damp
+     * and nothing to even out. It moves the characters' runs, the word's own run and marks the word
+     * met (see scoreKanaAnswer), plus the per-task tally every question feeds. The zeroes it returns
+     * mean an override would be a no-op — which is right: none of these tasks offers one.
+     */
+    if (item.kanaWord) {
+      const kanaWord = item.kanaWord
+      const correct = isCorrect(item)
+      update((p) =>
+        recordTaskResult(scoreKanaAnswer(p, kanaWord, correct, new Date().toISOString()), item.task.kind, item.score),
+      )
+      if (userId) {
+        void saveAnswer({
+          userId,
+          lang: pack.id,
+          unitIdx: null,
+          taskKind: item.task.kind,
+          correct,
+          score: item.score,
+          picked: describeAnswer(item.answer),
+          sentenceId: 'sentence' in item.task ? (item.task.sentence?.id ?? null) : null,
+          lvlBefore: null,
+          wordStreakBefore: progress.words?.[kanaWord.word] ?? 0,
+          prevSeenAt: null,
+          latencyMs: item.shownAt ? Date.now() - item.shownAt : null,
+          randomPick: item.randomPick ?? false,
+          drawingId: null,
+        }).catch(() => {})
+      }
+      return { levelDelta: 0, prevWordStreak: 0 }
+    }
+
+    /*
+     * Past the branch above every question is a kanji one, but the union on `QA.task` can't be
+     * narrowed by `item.kanaWord` — so it's stated once here rather than at each of the six uses.
+     */
+    const task = item.task as Task
+
     // Damped while the kanji is still warming up, so a new one can't be un-learned by one miss.
     const cur = workingRef.current[item.targetIdx]?.lvl ?? INTRODUCED_LEVEL
-    const levelDelta = levelDeltaFor(item.task.kind, item.score, cur)
+    const levelDelta = levelDeltaFor(task.kind, item.score, cur)
     if (levelDelta !== 0) {
       const nextLvl = Math.max(LEVEL_FLOOR, cur + levelDelta)
       workingRef.current = { ...workingRef.current, [item.targetIdx]: { lvl: nextLvl } }
@@ -139,7 +199,7 @@ export function PracticeSession({
     // inflection (食べた) which shouldn't be tracked separately from its dictionary form.
     // Keyed by surface *and* reading where a form has more than one: missing 木/き must not walk
     // 木/もく backwards, and getting もく right must not credit き.
-    const word = testedWordKey(item.task, index)
+    const word = testedWordKey(task, index)
     // Read before the update so an override can put it back exactly. Safe to read from the rendered
     // progress: exactly one answer is recorded per question, and each needs its own tap.
     const prevWordStreak = word ? (progress.words?.[word] ?? 0) : 0
@@ -152,7 +212,7 @@ export function PracticeSession({
       let next = levelDelta !== 0 ? awardDelta(p, item.targetIdx, levelDelta) : p
       // Every answered question stamps recency, including the ones worth no level change.
       next = markSeen(next, item.targetIdx, answeredAt)
-      next = recordTaskResult(next, item.task.kind, item.score)
+      next = recordTaskResult(next, task.kind, item.score)
       return word ? recordWordResult(next, word, isCorrect(item)) : next
     })
     prevTargetRef.current = item.targetIdx
@@ -165,11 +225,11 @@ export function PracticeSession({
         userId,
         lang: pack.id,
         unitIdx: item.targetIdx,
-        taskKind: item.task.kind,
+        taskKind: task.kind,
         correct: isCorrect(item),
         score: item.score,
         picked: describeAnswer(item.answer),
-        sentenceId: 'sentence' in item.task ? item.task.sentence.id : null,
+        sentenceId: 'sentence' in task ? task.sentence.id : null,
         lvlBefore,
         wordStreakBefore: word ? prevWordStreak : null,
         prevSeenAt,
@@ -183,9 +243,9 @@ export function PracticeSession({
     // a save failure must never disrupt practice. A later override updates the row (via its id).
     // The answer row is written after it, so a draw answer can link to its strokes.
     const strokes = item.answer as DrawStroke[]
-    if (item.task.kind === 'draw' && userId && Array.isArray(strokes) && strokes.length) {
+    if (task.kind === 'draw' && userId && Array.isArray(strokes) && strokes.length) {
       const at = pos
-      const drawnWord = item.task.word
+      const drawnWord = task.word
       // Practice only ever offers recognizer-graded words; tracing lives in the write review.
       saveDrawing({ userId, lang: pack.id, unitIdx: item.targetIdx, word: drawnWord, strokes, correct: item.score > 0, mode: 'recognized' })
         .then((id) => {
@@ -208,7 +268,8 @@ export function PracticeSession({
     if (!qa || qa.phase === 'revealed') return
     const ui = getTaskUI(qa.task.kind, pack)
     if (!ui) return
-    const res = ui.resolve(qa.task, qa.answer, qa.phase, pack)
+    // Same pairing-by-kind as TaskRunner: the UI came from the task's own kind, so it grades it.
+    const res = ui.resolve(qa.task as Task, qa.answer, qa.phase, pack)
     const answer = res.answer !== undefined ? res.answer : qa.answer
     if (res.phase === 'retry') {
       patch({ ...qa, answer, phase: 'retry' })
@@ -260,7 +321,9 @@ export function PracticeSession({
    * plenty of the rest, so treating a dispute as "no result" would let its failures cap real progress.
    */
   const override = () => {
-    if (!qa || qa.phase !== 'revealed' || qa.overridden) return
+    if (!qa || qa.phase !== 'revealed' || qa.overridden || qa.kanaWord) return
+    // Kanji-only, as the guard above now says outright: no kana task offers an override link.
+    const task = qa.task as Task
     const recognizerCorrect = isCorrect(qa) // the verdict being disputed (before we re-score)
     const learnerCorrect = !recognizerCorrect
     const newScore = learnerCorrect ? 1 : -1
@@ -269,17 +332,17 @@ export function PracticeSession({
     // applied against the same level the original verdict saw.
     const applied = qa.appliedDelta ?? 0
     const cur = workingRef.current[qa.targetIdx]?.lvl ?? INTRODUCED_LEVEL
-    const newDelta = levelDeltaFor(qa.task.kind, newScore, cur - applied)
+    const newDelta = levelDeltaFor(task.kind, newScore, cur - applied)
     const correction = newDelta - applied
     workingRef.current = { ...workingRef.current, [qa.targetIdx]: { lvl: Math.max(LEVEL_FLOOR, cur + correction) } }
     patch({ ...qa, score: newScore, overridden: true, appliedDelta: newDelta })
 
     // Same key as when it was first recorded, or the rewind would restore the wrong run.
-    const word = testedWordKey(qa.task, index)
+    const word = testedWordKey(task, index)
     update((p) => {
       let next = correction !== 0 ? awardDelta(p, qa.targetIdx, correction) : p
       // Swap the points the original verdict earned for the learner's, without a second attempt.
-      next = amendTaskResult(next, qa.task.kind, qa.score, newScore)
+      next = amendTaskResult(next, task.kind, qa.score, newScore)
       // Rewind the run to before the disputed answer, then apply the verdict the learner gave.
       if (word) next = recordWordResult(restoreWordStreak(next, word, qa.prevWordStreak ?? 0), word, learnerCorrect)
       return next
@@ -528,17 +591,24 @@ function Summary({ working, startLevels, index, onExit, onRestart }: SummaryProp
         </>
       )}
 
-      {/* Carrying on is the likelier next step, so it takes the accent; leaving is the quiet one. */}
+      {/* Carrying on is the likelier next step, so it takes the accent; the other is the quiet one. */}
       <View style={styles.summaryActions}>
+        {/*
+          A chevron that trails the label and points forward. It used to lead and point back, which
+          made leaving the summary look like undoing it — but the vocabulary section is where you go
+          *next*, to pick up what this round showed you were missing. It's a step on, not a retreat.
+        */}
         <TapScale style={styles.backBtn} onPress={onExit}>
-          <Icon name="chevron-left" size={12} color={colors.ink} />
           <Text style={styles.backText} numberOfLines={1}>
-            Back to studying
+            Learn extras
           </Text>
+          <Icon name="chevron-right" size={12} color={colors.ink} />
         </TapScale>
         {onRestart && (
           <TapScale style={styles.doneBtn} onPress={onRestart}>
-            <Icon name="rotate-left" size={12} color={colors.ink} />
+            {/* `onAccent`, like the label beside it — the two are one phrase, and the icon was
+                rendering in the page's light ink against the accent fill the label sits on. */}
+            <Icon name="rotate-left" size={12} color={colors.onAccent} />
             <Text style={styles.doneText} numberOfLines={1}>
               Keep practising
             </Text>
@@ -555,7 +625,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.panel,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.lg,
     padding: spacing.lg,
   },

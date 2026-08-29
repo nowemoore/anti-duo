@@ -8,7 +8,7 @@ import { enabledUnitCount, isCategoryEnabled, isUnitEnabled, toggleInList } from
 import { Toggle } from './Toggle'
 import { Icon } from './Icon'
 import { categoryIcon } from '../categoryIcons'
-import { fonts, radius, shadow, spacing, type Palette } from '../theme'
+import { edge, fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
 /** Settings section: pick which units to study by toggling categories or individual units. */
@@ -67,13 +67,15 @@ export function CategorySettings() {
                 >
                   <Chevron open={isOpen} color={catOn ? colors.muted : colors.border} />
                 </TapScale>
-                <View style={[styles.catIcon, !catOn && styles.catIconOff]}>
-                  <Icon
-                    name={categoryIcon(cat.name)}
-                    size={13}
-                    color={catOn ? colors.accentInk : colors.muted}
-                  />
-                </View>
+                {/* Inline with the label and in the label's own colour — the icon is part of the
+                    name, not a badge in front of it, so it dims with the name when a category is
+                    switched off. The row already carries two real controls (the chevron and the
+                    toggle); a third tinted disc read as a third thing to press. */}
+                <Icon
+                  name={categoryIcon(cat.name)}
+                  size={15}
+                  color={catOn ? colors.ink : colors.muted}
+                />
                 <Text style={[styles.catName, !catOn && styles.off]}>{cat.name}</Text>
                 <Text style={[styles.catCount, !catOn && styles.off]}>
                   {enabledInCat}/{cat.units.length}
@@ -165,7 +167,7 @@ function Collapsible({ open, children }: { open: boolean; children: ReactNode })
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg },
+  panel: { ...shadow, backgroundColor: colors.panel, borderColor: colors.border, borderWidth: edge, borderRadius: radius.lg, padding: spacing.lg },
   collapseInner: { position: 'absolute', left: 0, right: 0 },
   h2: { color: colors.ink, fontFamily: fonts.headingBold, fontSize: 20, marginBottom: 6 },
   muted: { color: colors.muted, fontFamily: fonts.body, fontSize: 13, marginBottom: spacing.sm },
@@ -173,16 +175,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   block: { borderTopColor: colors.border, borderTopWidth: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   expand: { width: 24, alignItems: 'center' },
-  // Tinted disc so the glyph reads as a label, not a tappable control — the row already has two.
-  catIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.accentSoft,
-  },
-  catIconOff: { backgroundColor: colors.border },
   catName: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 15 },
   catCount: { marginLeft: 'auto', color: colors.muted, fontFamily: fonts.body, fontSize: 13 },
   off: { color: colors.muted, opacity: 0.7 },

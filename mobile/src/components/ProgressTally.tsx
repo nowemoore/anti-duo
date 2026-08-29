@@ -34,5 +34,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   count: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 17 },
   of: { color: colors.muted, fontFamily: fonts.semibold, fontSize: 17 },
   bar: { height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: colors.accent, borderRadius: radius.sm },
+  /* Lavender, not the accent: a bar reports where you are, it isn't something to act on. */
+  fill: { height: '100%', backgroundColor: colors.highlight, borderRadius: radius.sm },
 })

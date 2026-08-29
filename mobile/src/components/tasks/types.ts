@@ -1,5 +1,7 @@
 import type { FC } from 'react'
 import type { Task } from '@lib/tasks'
+import type { KanaTask } from '@lib/kanaTasks'
+import type { KanaWord } from '@shared/types'
 import type { LanguagePack } from '../../lang/types'
 
 export type QAPhase = 'first' | 'retry' | 'revealed'
@@ -9,7 +11,19 @@ export type QAPhase = 'first' | 'retry' | 'revealed'
  * the task's module (`TaskUI.emptyAnswer`), so the session can hold/replay it without knowing the task.
  */
 export interface QA {
-  task: Task
+  /**
+   * Either kind of question. A kanji task is about a unit and moves its level; a kana task is about
+   * a word that has no unit at all, and moves the word's own run instead. `kanaWord` is what tells
+   * them apart at the point of recording.
+   */
+  task: Task | KanaTask
+  /**
+   * The kana word this question is about, when it is one. Absent for every kanji task.
+   *
+   * A kana word has no unit, so `targetIdx` is meaningless for it and is left at -1 — nothing reads
+   * it on this path, because the recording branch on `kanaWord` comes first.
+   */
+  kanaWord?: KanaWord
   targetIdx: number
   answer: unknown
   phase: QAPhase
@@ -44,7 +58,7 @@ export type Resolution<A = unknown> =
   | { phase: 'retry'; answer?: A }
 
 /** Props every task View receives; it reaches reveal/pack/content itself via hooks. */
-export interface TaskViewProps<T extends Task = Task, A = unknown> {
+export interface TaskViewProps<T extends Task | KanaTask = Task, A = unknown> {
   task: T
   answer: A
   setAnswer: (a: A) => void
@@ -59,7 +73,7 @@ export interface TaskViewProps<T extends Task = Task, A = unknown> {
  * with the engine-side TaskSpec (generation) by `kind` in the registry. Built-ins live in the global
  * registry; a language pack contributes its own (draw, plural…) — see registry.ts.
  */
-export interface TaskUI<T extends Task = Task, A = unknown> {
+export interface TaskUI<T extends Task | KanaTask = Task, A = unknown> {
   emptyAnswer: () => A
   /** Whether there's enough of an answer to lock in (enables the lock button). */
   hasAnswer: (answer: A) => boolean

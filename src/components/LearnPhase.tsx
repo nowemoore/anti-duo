@@ -2,19 +2,20 @@ import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { Unit } from '../../shared/types'
 import { SKIP_REQUEUE_GAP } from '../../shared/constants'
-import { skipCard } from '../lib/study'
+import { learnItemKey, skipCard, type LearnItem } from '../lib/study'
 import { useContent } from '../context/ContentContext'
 import { Bilingual } from './Bilingual'
 import { HoldToReveal } from './HoldToReveal'
 import { HoverGloss } from './HoverGloss'
 import { SpeakButton } from './SpeakButton'
+import { KanaWordCard } from './kana/KanaWordCard'
 
 interface Props {
-  chunk: Unit[]
-  /** Extra queued kanji used to replace a card the learner taps "Not now" on. */
-  reserve: Unit[]
+  chunk: LearnItem[]
+  /** Extra queued items used to replace a card the learner taps "Not now" on. */
+  reserve: LearnItem[]
   /** Called with the final set of cards the learner kept (skipped cards excluded). */
-  onComplete: (learned: Unit[]) => void
+  onComplete: (learned: LearnItem[]) => void
   /**
    * Where this card sits in the wider session, when the caller is running one unit at a time (a
    * learn session alternates each card with writing that character). Without it the header counts
@@ -23,13 +24,17 @@ interface Props {
   headerCount?: { current: number; total: number }
 }
 
-/** Introduces new kanji one card at a time: char, glosses, and up to 5 example words. */
+/**
+ * Introduces one new thing per card — a kanji (char, glosses, example words) or a kana word (the
+ * word, where it came from, the phrases it turns up in). Same deck, same swipe, same "Not now":
+ * meeting a word written in kana and meeting a kanji are the same act from the learner's side.
+ */
 export function LearnPhase({ chunk, reserve, onComplete, headerCount }: Props) {
-  const [cards, setCards] = useState<Unit[]>(chunk)
-  const [pool, setPool] = useState<Unit[]>(reserve)
+  const [cards, setCards] = useState<LearnItem[]>(chunk)
+  const [pool, setPool] = useState<LearnItem[]>(reserve)
   const [i, setI] = useState(0)
 
-  const kanji = cards[i]
+  const item = cards[i]
   const isFirst = i === 0
   const isLast = i === cards.length - 1
   // "Not now" swaps in a queued kanji when one is available; otherwise it drops the card. So it's
@@ -83,24 +88,29 @@ export function LearnPhase({ chunk, reserve, onComplete, headerCount }: Props) {
   return (
     <section className="panel learn" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <div className="learn-head">
+        {/* "Word", not "kanji": the deck now teaches both, and the header has to name what's in it. */}
         <Bilingual
           className="step"
-          ja={`新しい漢字 ${step.current} / ${step.total}`}
-          en={`New kanji ${step.current} / ${step.total}`}
+          ja={`新しいことば ${step.current} / ${step.total}`}
+          en={`New word ${step.current} / ${step.total}`}
         />
         <button
           type="button"
           className="skip-btn"
           onClick={skip}
           disabled={!canSkip}
-          aria-label="Skip this kanji for now"
+          aria-label="Skip this card for now"
         >
           <FontAwesomeIcon icon="forward" />
           <Bilingual ja="あとで" en="Not now" />
         </button>
       </div>
 
-      <LearnCard key={kanji.idx} kanji={kanji} />
+      {item.kind === 'unit' ? (
+        <LearnCard key={learnItemKey(item)} kanji={item.unit} />
+      ) : (
+        <KanaWordCard key={learnItemKey(item)} word={item.word} />
+      )}
 
       <div className="pager">
         <button

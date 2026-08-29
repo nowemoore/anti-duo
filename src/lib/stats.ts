@@ -1,12 +1,21 @@
 import { WORD_KNOWN_STREAK, WORD_STREAK_MAX } from '../../shared/constants'
 import type { Progress } from '../../shared/types'
 import { ALL_TASK_TYPES, TASK_SPECS, type TaskType } from './tasks'
+import { KANA_TASK_TUNING, KANA_TASK_TYPES, type KanaTaskType } from './kanaTaskTypes'
 
 /** Human labels per task type — derived from the task registry (single source of truth). */
-export const TASK_LABELS = Object.fromEntries(TASK_SPECS.map((s) => [s.kind, s.label])) as Record<
-  TaskType,
-  string
->
+export const TASK_LABELS = {
+  ...(Object.fromEntries(TASK_SPECS.map((s) => [s.kind, s.label])) as Record<TaskType, string>),
+  ...(Object.fromEntries(
+    KANA_TASK_TYPES.map((kind) => [kind, KANA_TASK_TUNING[kind].label]),
+  ) as Record<KanaTaskType, string>),
+}
+
+/** Every question type that can be recorded — the kanji roster plus the kana one. */
+export type AnyTaskType = TaskType | KanaTaskType
+
+/** The order Stats lists them in: kanji tasks first, then the kana ones. */
+export const ALL_RECORDED_TASKS: AnyTaskType[] = [...ALL_TASK_TYPES, ...KANA_TASK_TYPES]
 
 /**
  * Points earned by one answer, in [0, 1]. Task deltas run [-1, +1] (−1 = fully wrong, +1 = fully
@@ -18,7 +27,7 @@ export function earnedPoints(delta: number): number {
 }
 
 /** Record one answered task: +1 attempt and its earned points against that task type's tally. */
-export function recordTaskResult(progress: Progress, type: TaskType, delta: number): Progress {
+export function recordTaskResult(progress: Progress, type: AnyTaskType, delta: number): Progress {
   const prev = progress.stats?.[type] ?? { attempts: 0, points: 0 }
   return {
     ...progress,
@@ -106,14 +115,17 @@ export function knownWordCount(progress: Progress, within?: ReadonlySet<string>)
 }
 
 export interface TaskRate {
-  type: TaskType
+  type: AnyTaskType
   attempts: number
   /** Success rate in [0, 1] (earned points ÷ attempts), or null if never attempted. */
   rate: number | null
 }
 
 /** Success rate per task type (defaults to the built-in roster; pass a language's `tasks` to scope it). */
-export function taskRates(progress: Progress, types: readonly TaskType[] = ALL_TASK_TYPES): TaskRate[] {
+export function taskRates(
+  progress: Progress,
+  types: readonly AnyTaskType[] = ALL_RECORDED_TASKS,
+): TaskRate[] {
   return types.map((type) => {
     const s = progress.stats?.[type]
     return {

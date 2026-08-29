@@ -4384,3 +4384,264 @@ button.known-words:disabled {
 .kana-word-dot.on {
   background: var(--c-300);
 }
+
+/* The meaning standing in for a sentence in a kana spelling question: it's the prompt, so it reads
+   as one — the size of a sentence, not of a caption. */
+.task-gloss {
+  color: var(--ink);
+  font-size: 1.25rem;
+}
+
+/* ── Kana word card ─────────────────────────────────────────────────────────
+   The kanji Learn card's layout with a word in it. Only the type differs: the brush face is for
+   kanji as objects of study, and kana keeps the gothic it wears everywhere else in the course. */
+.big-kana {
+  font-size: 3.4rem;
+  line-height: 1.15;
+  flex: none;
+}
+
+.kana-rare {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+/* Where the word came from (ビル ← ビルディング) — the only breakdown a phonetic word can have. */
+.kana-note {
+  max-width: 34ch;
+  margin: 0.5rem auto 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.kana-gloss-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.kana-word-card .ex-word {
+  font-size: 1.35rem;
+}
+
+@media (max-width: 480px) {
+  .big-kana {
+    font-size: 2.8rem;
+  }
+}
+
+/* ── Home: courses as sections ──────────────────────────────────────────────
+   Each card opens its section and also holds shortcuts past that section's landing, so the common
+   moves are one click from here. The heading row is the button; the card is the frame around it. */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1.75rem 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section-head-ja {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.section-card {
+  display: block;
+  padding: 0;
+}
+
+/* The card's own hover belongs to the button inside it now, or the whole frame lights up when the
+   pointer is only over a shortcut. */
+.section-card:hover {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+.section-open {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1.25rem;
+  width: 100%;
+  padding: 1.5rem;
+  border: none;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.section-open:hover {
+  background: var(--accent-soft);
+}
+
+.section-subs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0 1.5rem 1.25rem;
+}
+
+.sub-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.sub-action:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* The one move that needs no decision, so it gets the accent and sits alone below the sections. */
+.jump-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 1.25rem;
+  padding: 1rem 1.4rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  text-align: left;
+}
+
+.jump-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+/* The play mark opens the line rather than standing in a column of its own — it belongs to the
+   sentence "▶ Jump straight to practice", not beside it. */
+.jump-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.jump-sub {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* ── Vocabulary section ─────────────────────────────────────────────────────
+   The two "let the app choose" actions, side by side rather than stacked: they're a pair of ways to
+   let the app pick, not a list of steps. */
+.action-pair {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.action-pair .action-row {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.tally-note {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+/* Kanji / kana. One control, two halves — the moving part is which board is below it. */
+.segmented {
+  display: flex;
+  gap: 0.25rem;
+  margin: 1rem auto 0.5rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--border);
+  width: fit-content;
+}
+
+.segment {
+  padding: 0.4rem 1.4rem;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.segment.on {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+/* Word tiles are wider than kanji ones and sized by their content — a word is two to five
+   characters long, and a fixed square would either clip it or waste a row on it. */
+.word-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.word-tile {
+  width: auto;
+  height: auto;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  font-size: 1.05rem;
+}
+
+/* The hand-off from a page's header to the board below it. */
+.scroll-cue {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 1rem 0 0.25rem;
+}
+
+.cue-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.cue-arrows {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  /* A shade heavier than the rule: enough to read as arrows, not enough to leave the divider. */
+  color: color-mix(in srgb, var(--muted) 55%, transparent);
+  font-size: 0.7rem;
+}
+
+/* The alphabet's name under the tabs. Title and blurb are one block: the blurb finishes the sentence
+   the title starts, so they sit closer to each other than either does to the charts below. */
+.kana-script-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.kana-script-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}

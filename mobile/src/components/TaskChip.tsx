@@ -1,7 +1,7 @@
 import { Alert, Text, StyleSheet } from 'react-native'
 import type { IconName } from '@fortawesome/fontawesome-svg-core'
 import type { DrillFormat, WordFormat } from '@lib/kana'
-import type { TaskType } from '@lib/tasks'
+import type { AnyTaskType } from '@lib/stats'
 import { Icon } from './Icon'
 import { TapScale } from './TapScale'
 import { fonts, radius, spacing, type Palette } from '../theme'
@@ -14,12 +14,12 @@ import { useColors, useStyles } from '../hooks/theme'
  * four words, since it shares a line with the card. `blurb` is the popup, one or two sentences
  * saying how the task works and what counts as answering it.
  *
- * Keyed by every {@link TaskType}, including the two only Arabic offers, so a language turning one
- * on can't land an unlabelled card. Wording is close to `TASK_LABELS` (the Practice mix sliders in
+ * Keyed by every {@link AnyTaskType} — the kanji roster including the two only Arabic offers, plus
+ * the three kana-word questions — so a language turning one on can't land an unlabelled card. Wording is close to `TASK_LABELS` (the Practice mix sliders in
  * Settings) on purpose: the chip and the control that tunes how often you see it should read as the
  * same thing.
  */
-const TASKS: Record<TaskType, { icon: IconName; label: string; blurb: string }> = {
+const TASKS: Record<AnyTaskType, { icon: IconName; label: string; blurb: string }> = {
   'type-word': {
     icon: 'keyboard',
     label: 'Type reading in kana',
@@ -66,6 +66,28 @@ const TASKS: Record<TaskType, { icon: IconName; label: string; blurb: string }> 
     label: 'Pick the plural',
     blurb: 'A singular noun is shown. Choose its plural form from the options.',
   },
+  /*
+   * The kana-word questions. Wording matches KANA_WORD_TASKS below, which asks the same three things
+   * in the kana course's own drill — the same question shouldn't be described two ways depending on
+   * which screen you met it on.
+   */
+  'kana-spell': {
+    icon: 'keyboard',
+    label: 'Pick the spelling',
+    blurb:
+      'A meaning is shown and you pick the word that spells it. The wrong options differ only in long vowels, small kana or voicing marks.',
+  },
+  'kana-meaning': {
+    icon: 'bullseye',
+    label: 'Pick the meaning',
+    blurb: 'One word in the sentence is highlighted. Choose what it means.',
+  },
+  'kana-cloze': {
+    icon: 'puzzle-piece',
+    label: 'Fill in the kana word',
+    blurb:
+      'A sentence is missing one word written in kana. Pick the spelling that fills the gap — the sentence tells you which meaning you want.',
+  },
 }
 
 /**
@@ -73,7 +95,7 @@ const TASKS: Record<TaskType, { icon: IconName; label: string; blurb: string }> 
  * the Practice mix sliders in Settings and the per-task rates in Stats. Same glyph as the chip, so a
  * task looks the same wherever it's mentioned.
  */
-export function taskIcon(kind: TaskType): IconName | undefined {
+export function taskIcon(kind: AnyTaskType): IconName | undefined {
   return TASKS[kind]?.icon
 }
 
@@ -127,9 +149,11 @@ export function KanaWordChip({ format }: { format: WordFormat }) {
  * from the card's shape. This says it outright, in the same words every time.
  *
  * The explanation is `Alert.alert`, which is a real `UIAlertController` — a hand-drawn modal was
- * tried first and read as part of the app rather than as the system telling you something.
+ * tried twice and read as part of the app rather than as the system telling you something. The cost
+ * is the task's icon: an alert takes a title and a body and nothing else, so the glyph that
+ * identifies the task everywhere else can't appear in the one place that explains it.
  */
-export function TaskChip({ kind }: { kind: TaskType }) {
+export function TaskChip({ kind }: { kind: AnyTaskType }) {
   const task = TASKS[kind]
   if (!task) return null
   return <Chip {...task} />
@@ -155,7 +179,9 @@ function Chip({ icon, label, blurb }: { icon: IconName; label: string; blurb: st
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   chip: {
-    alignSelf: 'flex-start',
+    // Centred: the chip names the card it heads, and a card whose content is centred reads oddly
+    // with its own label pinned to one corner.
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,

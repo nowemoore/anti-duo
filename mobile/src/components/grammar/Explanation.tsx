@@ -200,7 +200,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     overflow: 'hidden',
     marginTop: spacing.xs,
   },
-  trackFill: { height: 6, backgroundColor: colors.accent },
+  /* Lavender, not the accent: a bar reports where you are, it isn't something to act on. */
+  trackFill: { height: 6, backgroundColor: colors.highlight },
   lockedNote: {
     color: colors.muted,
     fontFamily: fonts.body,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { buildWordDrill, charsOf, recordResult, type WordItem } from '../../lib/kana'
+import { buildWordDrill, charsOf, markWordMet, recordResult, type WordItem } from '../../lib/kana'
+import { recordWordResult } from '../../lib/stats'
 import type { KanaWord } from '../../../shared/types'
 import { useContent } from '../../context/ContentContext'
 import { useProgress } from '../../context/ProgressContext'
@@ -66,7 +67,17 @@ export function KanaWordPractice({ onBack }: { onBack: () => void }) {
   const resolve = (correct: boolean, picked?: string) => {
     if (!item || answered) return
     setAnswers((a) => [...a, { item, correct, picked }])
-    update((p) => recordResult(p, charsOf(item.word.word), correct))
+    // A correct answer meets the word as well as crediting its characters — the same state opening
+    // the word's page sets, since both say the learner has encountered it. One is enough: a word has
+    // no level to climb, so the vocabulary list should show it the moment they've read it once.
+    update((p) => {
+      let next = recordResult(p, charsOf(item.word.word), correct)
+      // The same run every other word in the app is scored on: +1 correct, walked back on a miss,
+      // "known" at WORD_KNOWN_STREAK. A kana word has no unit and so no level — words ride the
+      // streak, units ride the level, and this is a word.
+      next = recordWordResult(next, item.word.word, correct)
+      return correct ? markWordMet(next, item.word.idx, new Date().toISOString()) : next
+    })
   }
 
   const restart = () => {

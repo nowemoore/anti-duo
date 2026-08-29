@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Animated, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
 import { TapScale } from '../TapScale'
-import { buildWordDrill, charsOf, recordResult, type WordItem } from '@lib/kana'
+import { buildWordDrill, charsOf, markWordMet, recordResult, type WordItem } from '@lib/kana'
+import { recordWordResult } from '@lib/stats'
 import type { KanaWord } from '@shared/types'
 import { useContent } from '../../context/ContentContext'
 import { useProgress } from '../../context/ProgressContext'
@@ -14,7 +15,7 @@ import { PagerChevron } from '../PagerChevron'
 import { RevealSpacer } from '../RevealStrip'
 import { Tally } from '../Tally'
 import { useWordAudio } from './audio'
-import { fonts, radius, shadow, spacing, type Palette } from '../../theme'
+import { edge, fonts, radius, shadow, spacing, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 import { fadeColor, useVerdictFade } from '../../hooks/verdictFade'
 
@@ -83,14 +84,23 @@ export function KanaWordPractice({ onBack }: { onBack: () => void }) {
   /**
    * Credit every character of the word, not the word itself.
    *
-   * Reading パン correctly is evidence for パ and ン, and those are what the chart tracks — there is
-   * no per-word mastery here. It's the same call the character drill makes for a sequence, so a word
-   * run and a character run feed the same progress.
+   * Reading パン correctly is evidence for パ and ン, and those are what the chart tracks.
+   *
+   * A correct answer also *meets* the word — the same state opening its page sets, because both say
+   * the learner has encountered it. One is enough: a word is not a kanji, it has no level to climb,
+   * and the vocabulary grid should show it as met the moment they've read it once.
    */
   const resolve = (correct: boolean, picked?: string) => {
     if (!item || answered) return
     setAnswers((a) => [...a, { item, correct, picked }])
-    update((p) => recordResult(p, charsOf(item.word.word), correct))
+    update((p) => {
+      let next = recordResult(p, charsOf(item.word.word), correct)
+      // The same run every other word in the app is scored on: +1 correct, walked back on a miss,
+      // "known" at WORD_KNOWN_STREAK. A kana word has no unit and so no level — words ride the
+      // streak, units ride the level, and this is a word.
+      next = recordWordResult(next, item.word.word, correct)
+      return correct ? markWordMet(next, item.word.idx, new Date().toISOString()) : next
+    })
   }
 
   const step = (to: number) => setI(to)
@@ -364,7 +374,7 @@ const makeStyles = (colors: Palette) =>
       flex: 1,
       backgroundColor: colors.panel,
       borderRadius: radius.lg,
-      borderWidth: 1,
+      borderWidth: edge,
       borderColor: colors.border,
       padding: spacing.lg,
       ...shadow,
@@ -390,7 +400,7 @@ const makeStyles = (colors: Palette) =>
 
     options: { alignSelf: 'stretch', gap: spacing.sm },
     option: {
-      borderWidth: 1,
+      borderWidth: edge,
       borderColor: colors.border,
       borderRadius: radius.md,
       backgroundColor: colors.recessed,

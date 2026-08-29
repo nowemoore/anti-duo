@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { VoweledText } from '../../components/VoweledText'
-import { fonts, type Palette } from '../../theme'
+import { edge, fonts, type Palette } from '../../theme'
 import { useStyles } from '../../hooks/theme'
 
 // The 28 letters of the Arabic alphabet (isolated form + Latin transliteration), in abjadī... no —
@@ -138,7 +138,7 @@ export function ArabicChart() {
 }
 
 const card = (colors: Palette) => ({
-  borderWidth: 1,
+  borderWidth: edge,
   borderColor: colors.accentHover,
   borderRadius: 6,
   backgroundColor: colors.accentSoft,

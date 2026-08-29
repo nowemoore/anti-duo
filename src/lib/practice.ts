@@ -1,8 +1,10 @@
 import { EXPLORE_RATE, LEVEL_FLOOR, WARMUP_LEVEL, WARMUP_MAX_LOSS } from '../../shared/constants'
-import type { Progress } from '../../shared/types'
+import type { KanaWord, Progress } from '../../shared/types'
 import type { ContentIndex } from './content'
 import { introducedUnits } from './study'
 import { TASK_TUNING, hasAnyTask, type TaskType } from './tasks'
+import { isWordMet } from './kana'
+import { pickKanaTarget } from './kanaTasks'
 
 const lvlOf = (progress: Progress, idx: number): number => progress.units[idx]?.lvl ?? 0
 
@@ -124,4 +126,51 @@ export function levelSpread(
   if (introduced.length === 0) return null
   const levels = introduced.map((k) => lvlOf(progress, k.idx))
   return { min: Math.min(...levels), max: Math.max(...levels) }
+}
+
+// ---------------------------------------------------------------------------
+// Mixed targets: kanji units and kana words in one run
+// ---------------------------------------------------------------------------
+
+/**
+ * What a practice run is currently asking about.
+ *
+ * Two kinds, because the two halves of the vocabulary are different objects: a kanji is a `Unit`
+ * with a level, a kana word is a word with a streak. Everything downstream — generation, scoring,
+ * what gets written to progress — branches here and nowhere else.
+ */
+export type MixedTarget =
+  | { kind: 'unit'; idx: number; random: boolean }
+  | { kind: 'kana'; word: KanaWord }
+
+/**
+ * Pick the next target from both halves of the vocabulary.
+ *
+ * Kana words are eligible once *met* — opened from the vocabulary list, or answered right in the
+ * word drill — which is the kana equivalent of a kanji being introduced. Neither half is favoured:
+ * the draw is proportional to how much of each the learner owns, so someone who has met four words
+ * and eighty kanji is asked about kanji most of the time, and the balance shifts on its own as the
+ * kana list fills up.
+ *
+ * Within the kanji half the existing level-evening weighting still applies ({@link pickTarget}).
+ */
+export function pickMixedTarget(
+  index: ContentIndex,
+  progress: Progress,
+  opts: PickOpts = {},
+): MixedTarget | null {
+  const kana = (index.content.kanaWords ?? []).filter((w) => isWordMet(progress, w.idx))
+  const units = introducedUnits(index, progress).filter((k) => hasAnyTask(index, k.idx))
+  if (units.length === 0 && kana.length === 0) return null
+
+  const kanaShare = kana.length / (kana.length + units.length)
+  if (kana.length > 0 && Math.random() < kanaShare) {
+    const word = pickKanaTarget(index, kana)
+    if (word) return { kind: 'kana', word }
+  }
+  const unit = pickTarget(index, progress, opts)
+  if (unit) return { kind: 'unit', idx: unit.idx, random: unit.random }
+  // The kanji half had nothing askable after all — fall back rather than end the run early.
+  const word = pickKanaTarget(index, kana)
+  return word ? { kind: 'kana', word } : null
 }

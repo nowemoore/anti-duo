@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet } from 'react-native'
 import type { GrammarTopicProgress } from '@shared/types'
 import { missedItems, type GrammarContext, type GrammarTopic } from '@lib/grammar'
 import { Disclosure } from './PartCard'
-import { fonts, radius, spacing, type Palette } from '../../theme'
+import { edge, fonts, radius, spacing, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 /** Idle delay before an in-progress answer is committed to storage. */
@@ -137,7 +137,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     lineHeight: 20,
     backgroundColor: colors.panelStrong,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.md,
     padding: spacing.md,
   },

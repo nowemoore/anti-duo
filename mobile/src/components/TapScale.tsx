@@ -25,11 +25,13 @@ const OUT_MS = 160
  * dim multiplies into it rather than replacing it: the animated style is applied last, so writing a
  * bare `opacity` here would silently override every `disabled && styles.off` in the app.
  */
-export function usePressScale(base = 1) {
+export function usePressScale(base = 1, dim = true) {
   const press = useSharedValue(0)
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: 1 - press.value * SCALE }],
-    opacity: base * (1 - press.value * DIM),
+    // `dim: false` for anything wrapping a GlassView: animating opacity over the Liquid Glass
+    // material invalidates it, and the card renders as a flat white slab that never recovers.
+    opacity: dim ? base * (1 - press.value * DIM) : base,
   }))
   return {
     style,
@@ -47,6 +49,9 @@ export function usePressScale(base = 1) {
  * must be a plain style rather than the function form — the pressed state is expressed by the
  * animation, so a `({ pressed }) => …` style would be fighting it.
  *
+ * Pass `dim={false}` when the control contains glass: the scale still reads as a press, and the
+ * opacity animation that would otherwise ride along breaks the material underneath it.
+ *
  * Deliberately *not* used for grid cells (the kana chart, the kanji mosaic): those run to hundreds
  * of nodes on one screen, and each instance costs a shared value and an animated style.
  */
@@ -55,11 +60,16 @@ export function TapScale({
   onPressIn,
   onPressOut,
   children,
+  dim = true,
   ...props
-}: Omit<React.ComponentProps<typeof Pressable>, 'style'> & { style?: StyleProp<ViewStyle> }) {
+}: Omit<React.ComponentProps<typeof Pressable>, 'style'> & {
+  style?: StyleProp<ViewStyle>
+  /** False for controls containing a GlassView — see the note above. */
+  dim?: boolean
+}) {
   // Lift any opacity out of the incoming style so the animation can fold it in instead of winning.
   const flat = StyleSheet.flatten(style) ?? {}
-  const bump = usePressScale(typeof flat.opacity === 'number' ? flat.opacity : 1)
+  const bump = usePressScale(typeof flat.opacity === 'number' ? flat.opacity : 1, dim)
   return (
     <AnimatedPressable
       {...props}

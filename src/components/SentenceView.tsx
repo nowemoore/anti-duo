@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Token } from '../../shared/types'
 import { contentTokenDisplay } from '../lib/learned'
-import { useLearned } from '../lib/useLearned'
+import { useLearned, useMetWord } from '../lib/useLearned'
 import { useContent } from '../context/ContentContext'
 import { HoverGloss } from './HoverGloss'
 
@@ -16,6 +16,15 @@ export interface TokenOverride {
   hideReading?: boolean
   /** Don't reveal the meaning on hover so it isn't given away (T3c). */
   hideMeaning?: boolean
+  /** Blank this whole token out. Used where the answer is the word itself, not one char of it. */
+  blankToken?: boolean
+  /**
+   * Show this token in Japanese whatever the learner's progress says.
+   *
+   * An unmet kana word normally renders as English, which is right when reading a sentence and fatal
+   * when the question *is* what that word means — the prompt would print its own answer.
+   */
+  forceJa?: boolean
 }
 
 interface SentenceViewProps {
@@ -35,6 +44,7 @@ export function SentenceView({
   revealMeanings = false,
 }: SentenceViewProps) {
   const isLearned = useLearned()
+  const isMetWord = useMetWord()
   const index = useContent()
 
   return (
@@ -47,6 +57,15 @@ export function SentenceView({
           return (
             <span key={key} className="tok scaffold">
               {tok.surface}
+            </span>
+          )
+        }
+
+        // The whole word blanked: a kana cloze asks which word goes here, so nothing of it shows.
+        if (o?.blankToken) {
+          return (
+            <span key={key} className="tok content word cloze">
+              <span className="cloze-blank" aria-label="blank" />
             </span>
           )
         }
@@ -80,7 +99,9 @@ export function SentenceView({
           )
         }
 
-        const display = contentTokenDisplay(tok, isLearned, index.lang)
+        const display = o?.forceJa
+          ? 'native'
+          : contentTokenDisplay(tok, isLearned, index.lang, isMetWord)
         const cls = `tok content${o?.highlight ? ' highlight' : ''}`
 
         if (display === 'english') {

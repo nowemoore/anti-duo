@@ -15,7 +15,7 @@ import { Icon } from '../Icon'
 import { RevealStrip } from '../RevealStrip'
 import { Tally } from '../Tally'
 import { Furigana } from '../../lang/ja/Furigana'
-import { fonts, btnPrimary, type Palette, radius, spacing, btnLabel } from '../../theme'
+import { btnLabel, btnPrimary, edge, fonts, radius, spacing, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 const SCREEN_W = Dimensions.get('window').width
@@ -345,8 +345,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginBottom: spacing.md,
   },
   dot: { backgroundColor: colors.border },
-  dotAnswered: { backgroundColor: colors.accent, opacity: 0.5 },
-  dotCurrent: { backgroundColor: colors.accent, opacity: 1, transform: [{ scale: 1.6 }] },
+  dotAnswered: { backgroundColor: colors.highlight, opacity: 0.5 },
+  dotCurrent: { backgroundColor: colors.highlight, opacity: 1, transform: [{ scale: 1.6 }] },
   introCard: {
     alignItems: 'center',
     gap: spacing.md,
@@ -380,7 +380,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: OPT_ICON_GAP,
-    borderWidth: 1.5,
+    borderWidth: edge,
     borderColor: colors.border,
     borderRadius: 12,
     backgroundColor: colors.panel,
@@ -407,7 +407,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   primaryBtn: {
     ...btnPrimary(colors),
   },
-  ghostBtn: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.border },
+  ghostBtn: { backgroundColor: 'transparent', borderWidth: edge, borderColor: colors.border },
   ghostText: { color: colors.accentInk },
   finishBtn: { marginTop: spacing.md },
   primaryText: btnLabel(colors),

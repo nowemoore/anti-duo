@@ -14,6 +14,8 @@ export interface ContentIndex {
   byForm: Map<string, Unit>
   /** unit idx -> sentences containing it. */
   sentencesForUnit: Map<number, Sentence[]>
+  /** kana-word idx -> sentences containing it. The kana half of {@link sentencesForUnit}. */
+  sentencesForKanaWord: Map<number, Sentence[]>
   /** Categories ordered by their first (lowest) unit idx. */
   categories: Category[]
   /**
@@ -91,7 +93,13 @@ export function buildContentIndex(content: Content): ContentIndex {
   }
 
   const sentencesForUnit = new Map<number, Sentence[]>()
+  const sentencesForKanaWord = new Map<number, Sentence[]>()
   for (const s of content.sentences) {
+    for (const idx of s.kanaList ?? []) {
+      const list = sentencesForKanaWord.get(idx)
+      if (list) list.push(s)
+      else sentencesForKanaWord.set(idx, [s])
+    }
     for (const idx of s.unitList) {
       const list = sentencesForUnit.get(idx)
       if (list) list.push(s)
@@ -116,6 +124,7 @@ export function buildContentIndex(content: Content): ContentIndex {
     byIdx,
     byForm,
     sentencesForUnit,
+    sentencesForKanaWord,
     categories,
     words,
     wordEntries,

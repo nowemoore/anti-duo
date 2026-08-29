@@ -15,7 +15,7 @@ import { useProgress } from '../../context/ProgressContext'
 import { useScreenHeader } from '../../context/HeaderContext'
 import { Icon } from '../Icon'
 import { Bilingual } from '../Bilingual'
-import { fonts, radius, shadow, spacing, type Palette } from '../../theme'
+import { edge, fonts, radius, shadow, spacing, type Palette } from '../../theme'
 import { useColors, useStyles } from '../../hooks/theme'
 
 /** The grammar landing page: one card per subsection available in the current language. */
@@ -112,7 +112,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.panel,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: edge,
     borderRadius: radius.lg,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
@@ -126,7 +126,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: 'center',
   },
   cardLocked: { opacity: 0.55 },
-  iconDone: { backgroundColor: colors.c400 },
+  /* The lavender the app now uses for state everywhere else — a finished topic is a statement of
+     where you are, like a progress bar. It was a muted teal, the one colour from outside the
+     palette's two families. */
+  iconDone: { backgroundColor: colors.highlight },
   iconGated: { backgroundColor: colors.border },
   sub: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, textAlign: 'center' },
   subGated: { color: colors.ink },

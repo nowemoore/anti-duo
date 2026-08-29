@@ -6,6 +6,15 @@ import { useHandwriting } from '../../lib/useHandwriting'
 import { useHandwritingInput } from '../../lib/useHandwritingInput'
 import { Bilingual } from '../Bilingual'
 import { DrawCanvas, type Stroke } from '../DrawCanvas'
+import { saveDrawing } from '../../lib/drawings'
+import { useAuth } from '../../context/AuthContext'
+
+/*
+ * Kana isn't part of the numbered curriculum, so a written character has no unit to attribute it to.
+ * `drawings.unit_idx` is not nullable — every other row points at a curriculum unit — so these use a
+ * sentinel that can't collide with a real idx, and the `word` column carries what was written.
+ */
+const KANA_UNIT_IDX = -1
 import { useKanaAudio } from './audio'
 
 /** What was answered. Doubles as the run's history, so answered questions can be paged back to. */
@@ -223,12 +232,29 @@ function Draw({
   onAnswer: (correct: boolean, picked?: string) => void
 }) {
   const hw = useHandwriting()
+  const { session } = useAuth()
+  const userId = session?.user?.id
   const [strokes, setStrokes] = useState<Stroke[]>([])
   const reveal = answered != null
 
   const lockIn = () => {
     if (reveal || strokes.length === 0 || !hw) return
-    onAnswer(hw.gradeKana(item.target, strokes))
+    const correct = hw.gradeKana(item.target, strokes)
+    // Keep the strokes with the verdict the recognizer gave them: written unaided, with no guide to
+    // follow, these are the freest recall the app records. Signed out there is nowhere to put them.
+    // Fire-and-forget — a logging failure must never disrupt the drill.
+    if (userId) {
+      void saveDrawing({
+        userId,
+        lang: 'ja',
+        unitIdx: KANA_UNIT_IDX,
+        word: item.target,
+        strokes,
+        correct,
+        mode: 'recognized',
+      }).catch(() => {})
+    }
+    onAnswer(correct)
   }
 
   return (

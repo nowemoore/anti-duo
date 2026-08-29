@@ -28,7 +28,8 @@ export function MiniSlider({ value, min = 0, max = 3, step = 0.1, onChange, onCo
       step={step}
       onValueChange={onChange}
       onSlidingComplete={onComplete}
-      minimumTrackTintColor={colors.accent}
+      // The filled part of a track is a progress bar by another name, so it takes the lavender.
+      minimumTrackTintColor={colors.highlight}
       maximumTrackTintColor={colors.border}
       // iOS ignores this (its thumb is always the system white puck); Android honours it.
       thumbTintColor={colors.accentInk}
