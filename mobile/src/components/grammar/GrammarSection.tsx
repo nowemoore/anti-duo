@@ -188,8 +188,6 @@ export function GrammarSection({ topic }: { topic: GrammarTopic }) {
           />
         )}
       </PartCard>
-
-}
     </ScrollView>
   )
 }

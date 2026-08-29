@@ -65,6 +65,14 @@ export interface UiStrings {
   kanaEntry?: NativeText
   /** "Browse" entry — opens the list of already-studied units. */
   browseEntry: NativeText
+  /**
+   * The home screen's three sections, and the divider above them. `kanaSection` is optional for the
+   * same reason as {@link kanaEntry}: a language with no script course doesn't render that card.
+   */
+  todayHeader: NativeText
+  kanaSection?: NativeText
+  vocabSection: NativeText
+  grammarSection: NativeText
   learn: NativeText
   practice: NativeText
   notNow: NativeText

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import type { IconName } from '@fortawesome/fontawesome-svg-core'
 import { View, Text, ScrollView, StyleSheet } from 'react-native'
 import { DefaultTheme, NavigationContainer, useNavigationContainerRef, type Theme } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
@@ -15,6 +16,7 @@ import { Icon } from '../components/Icon'
 import { ActionRow } from '../components/ActionRow'
 import { ProgressTally } from '../components/ProgressTally'
 import { HelpButton } from '../components/HelpButton'
+import { Segmented } from '../components/Segmented'
 import { Stagger } from '../components/Stagger'
 import { Tally } from '../components/Tally'
 import { LearnPhase } from '../components/LearnPhase'
@@ -29,14 +31,15 @@ import { KanaWordPractice } from '../components/kana/KanaWordPractice'
 import { HeaderProvider, useHeaderConfig, useScreenHeader } from '../context/HeaderContext'
 import { useTabBarHeight } from '../context/TabBarContext'
 import { useLanguage } from '../context/LanguageContext'
-import { topicsForLang, type GrammarTopic } from '@lib/grammar'
-import { scriptsForLang, studiedCount, totalKanaCount, type KanaScript } from '@lib/kana'
+import { hasPassed, topicProgress, topicsForLang, type GrammarTopic } from '@lib/grammar'
+import { readableWords, scriptsForLang, studiedCount, totalKanaCount, type KanaScript } from '@lib/kana'
 import { fonts, radius, shadow, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 import {
   ackBatches,
   applyLearned,
   introducedUnits,
+  introducedWords,
   learnChunkSize,
   nextLearnSession,
   unlearnedUnits,
@@ -176,10 +179,14 @@ export function StudyView() {
             <ScreenFrame bare>
               <StudyHome
                 onOpen={() => go('menu')}
+                onPractice={() => go('practice')}
                 onGrammar={grammarTopics.length ? () => go('grammar') : undefined}
                 // A language with no script course (Arabic) simply doesn't get the card.
                 onKana={kanaScripts.length ? () => go('kana') : undefined}
+                onKanaPractice={() => go('kanaPractice')}
+                onKanaWords={() => go('kanaWords')}
                 kanaScripts={kanaScripts}
+                grammarTopics={grammarTopics}
               />
             </ScreenFrame>
           )}
@@ -480,33 +487,130 @@ function Watermark({ children }: { children: ReactNode }) {
   )
 }
 
-/** Welcome screen: greeting + the "Learn" entry card (with progress), grammar, and the script course. */
+/**
+ * A labelled rule across the column — "What's on today?" on one side, the same in the language being
+ * learned on the other. Sets the screen up as a menu of things to do rather than a stack of cards.
+ */
+function SectionHeader({ left, right }: { left: string; right: string }) {
+  const styles = useStyles(makeStyles)
+  return (
+    <View style={styles.rule}>
+      <Text style={styles.ruleLeft}>{left}</Text>
+      <View style={styles.ruleLine} />
+      <Text style={styles.ruleRight}>{right}</Text>
+    </View>
+  )
+}
+
+/** One of the home screen's sections: a heading row, then whatever actions that section offers. */
+function SectionCard({
+  icon,
+  title,
+  stat,
+  mark,
+  onPress,
+  children,
+}: {
+  icon: IconName
+  title: string
+  stat: ReactNode
+  /** Watermark glyph, or null for a language whose script has none to draw with. */
+  mark?: ReactNode
+  /** Set when the whole card is the action — it then shows a chevron and takes no child buttons. */
+  onPress?: () => void
+  children?: ReactNode
+}) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
+  const body = (
+    <>
+      {mark}
+      <View style={styles.sectionHead}>
+        <View style={styles.iconCircle}>
+          <Icon name={icon} size={20} color={colors.onAccent} />
+        </View>
+        <View style={styles.entryText}>
+          <Text style={styles.entryTitle}>{title}</Text>
+          <Text style={styles.entrySub}>{stat}</Text>
+        </View>
+        {onPress ? <Icon name="chevron-right" size={14} color={colors.muted} /> : null}
+      </View>
+      {children}
+    </>
+  )
+  /*
+   * A card carrying its own buttons must not be pressable itself: two overlapping targets, one of
+   * which wins by accident, is worse than a card that simply holds controls. Grammar has nothing
+   * inside it, so there the whole card is the button and it shows a chevron to say so.
+   */
+  return onPress ? (
+    <TapScale style={styles.section} onPress={onPress}>
+      {body}
+    </TapScale>
+  ) : (
+    <View style={styles.section}>{body}</View>
+  )
+}
+
+/** A secondary action inside a section — quiet, sitting under the heading row. */
+function SubAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  const colors = useColors()
+  const styles = useStyles(makeStyles)
+  return (
+    <TapScale style={styles.subBtn} onPress={onPress} accessibilityRole="button">
+      <Icon name={icon} size={13} color={colors.ink} />
+      <Text style={styles.subBtnText}>{label}</Text>
+    </TapScale>
+  )
+}
+
+/**
+ * Welcome screen: a greeting, then the three courses as sections you can act on directly.
+ *
+ * Each section says where you are and offers its own ways in, so the common moves — open the charts,
+ * browse the board, start practising — are one tap from here rather than three.
+ */
 function StudyHome({
   onOpen,
+  onPractice,
   onGrammar,
   onKana,
+  onKanaPractice,
+  onKanaWords,
   kanaScripts,
+  grammarTopics,
 }: {
   onOpen: () => void
+  onPractice: () => void
   onGrammar?: () => void
   onKana?: () => void
+  onKanaPractice: () => void
+  onKanaWords: () => void
   kanaScripts: KanaScript[]
+  grammarTopics: GrammarTopic[]
 }) {
   const colors = useColors()
   const styles = useStyles(makeStyles)
   const index = useContent()
   const { progress } = useProgress()
   const { ui, id: langId } = useLanguage()
+  /** Which half of the vocabulary this section is reporting on. */
+  const [vocabMode, setVocabMode] = useState(0)
 
   const introduced = introducedUnits(index, progress).length
   const remainingToLearn = unlearnedUnits(index, progress).length
   const enabledTotal = introduced + remainingToLearn
+  const wordsMet = introducedWords(index, progress).size
+  const kanaWords = index.content.kanaWords ?? []
+  const readable = readableWords(progress, kanaWords).length
+  const grammarDone = grammarTopics.filter((t) => hasPassed(topicProgress(progress, t.id))).length
   const name = progress.settings.name.trim()
 
   const hasRecord = Object.keys(progress.units).length > 0
   const greeting = ui.greeting(name, hasRecord)
   // Japanese only for now: the glyphs are Japanese, so Arabic keeps the same layout without them.
   const marks = langId === 'ja'
+  const onKanji = vocabMode === 0
 
   return (
     <View style={styles.home}>
@@ -519,69 +623,110 @@ function StudyHome({
 
       <View style={styles.cardsCol}>
         <Stagger>
-        {/* Only for languages that ship a script course; `kanaEntry` is optional for the same reason. */}
-        {onKana && ui.kanaEntry && (
-          <TapScale style={styles.entryCard} onPress={onKana}>
-            {marks && (
-              <Watermark>
-                <GlyphMark text="あア" size={150} opacity={0.06} />
-              </Watermark>
+          <SectionHeader left={ui.todayHeader.en} right={ui.todayHeader.native} />
+
+          {/* Only for languages that ship a script course; `kanaSection` is optional for that reason. */}
+          {onKana && ui.kanaSection && (
+            <SectionCard
+              icon="language"
+              title={`${ui.kanaSection.native}・${ui.kanaSection.en}`}
+              stat={
+                <>
+                  <Tally count={studiedCount(progress, kanaScripts)} total={totalKanaCount(kanaScripts)} />
+                  {' characters'}
+                </>
+              }
+              mark={
+                marks ? (
+                  <Watermark>
+                    <GlyphMark text="あア" size={150} opacity={0.06} />
+                  </Watermark>
+                ) : null
+              }
+            >
+              <View style={styles.subRow}>
+                <SubAction icon="table-cells" label="Charts" onPress={onKana} />
+                <SubAction icon="ear-listen" label="Practice" onPress={onKanaPractice} />
+              </View>
+            </SectionCard>
+          )}
+
+          <SectionCard
+            icon="pen-nib"
+            title={`${ui.vocabSection.native}・${ui.vocabSection.en}`}
+            stat={
+              onKanji ? (
+                <>
+                  {`${wordsMet} met · `}
+                  <Tally count={introduced} total={enabledTotal} />
+                  {` ${ui.noun}`}
+                </>
+              ) : (
+                <>
+                  <Tally count={readable} total={kanaWords.length} />
+                  {' words readable'}
+                </>
+              )
+            }
+            mark={
+              marks ? (
+                <Watermark>
+                  <GlyphMark text="言葉" size={150} opacity={0.06} />
+                </Watermark>
+              ) : null
+            }
+          >
+            {/* The same control the kana charts use, one level up: which half of the vocabulary this
+                section is about. It swaps the counter and the way in — not the practice below, which
+                draws on everything you know either way. */}
+            {kanaWords.length > 0 && (
+              <Segmented
+                values={['Kanji', 'Kana']}
+                index={vocabMode}
+                onChange={setVocabMode}
+                style={styles.vocabSwitch}
+              />
             )}
-            <View style={styles.iconCircle}>
-              <Icon name="language" size={22} color={colors.onAccent} />
+            <View style={styles.subRow}>
+              {onKanji ? (
+                <SubAction icon="table-cells" label="Board" onPress={onOpen} />
+              ) : (
+                <SubAction icon="comment" label="Kana words" onPress={onKanaWords} />
+              )}
             </View>
-            <View style={styles.entryText}>
-              <Text style={styles.entryTitle}>{ui.kanaEntry.native}</Text>
-              <Text style={styles.entrySub}>
-                <Tally count={studiedCount(progress, kanaScripts)} total={totalKanaCount(kanaScripts)} />
-                {' characters studied'}
-              </Text>
-            </View>
-          </TapScale>
-        )}
+            <TapScale style={styles.jumpBtn} onPress={onPractice} accessibilityRole="button">
+              <Icon name="play" size={13} color={colors.onAccent} />
+              <View style={styles.jumpText}>
+                <Text style={styles.jumpTitle}>Jump straight to practice</Text>
+                <Text style={styles.jumpSub}>{`${PRACTICE_ITERATIONS} mixed questions`}</Text>
+              </View>
+              <Icon name="chevron-right" size={14} color={colors.onAccent} />
+            </TapScale>
+          </SectionCard>
 
-        <TapScale style={styles.entryCard} onPress={onOpen}>
-          {marks && (
-            <Watermark>
-              <GlyphMark text="漢字" size={150} opacity={0.06} />
-            </Watermark>
-          )}
-          <View style={styles.iconCircle}>
-            <Icon name="pen-nib" size={22} color={colors.onAccent} />
-          </View>
-          <View style={styles.entryText}>
-            <Text style={styles.entryTitle}>{ui.learnEntry.native}</Text>
-            <Text style={styles.entrySub}>
-              <Tally count={introduced} total={enabledTotal} />
-              {` ${ui.noun} learnt`}
-            </Text>
-          </View>
-        </TapScale>
-
-        {/* Languages with no grammar subsections yet keep the original disabled placeholder. */}
-        <TapScale
-          style={[styles.entryCard, !onGrammar && styles.entryDisabled]}
-          onPress={onGrammar}
-          disabled={!onGrammar}
-        >
-          {marks && (
-            <Watermark>
-              {/*
-                Three brackets pulled into each other by the negative tracking, so they nest.
-                No `lineHeight` override: a box shorter than the font size clips the glyphs top and
-                bottom, which is what made the other marks look like the card was covering them.
-              */}
-              <GlyphMark text="《〈【" size={92} letterSpacing={-22} right={-4} opacity={0.07} />
-            </Watermark>
-          )}
-          <View style={[styles.iconCircle, !onGrammar && styles.iconMuted]}>
-            <Icon name="book" size={22} color={onGrammar ? colors.onAccent : colors.muted} />
-          </View>
-          <View style={styles.entryText}>
-            <Text style={styles.entryTitle}>{ui.grammarEntry.native}</Text>
-            <Text style={styles.entrySub}>{onGrammar ? 'grammar subsections' : 'coming soon'}</Text>
-          </View>
-        </TapScale>
+          {/* Languages with no grammar subsections yet keep the original disabled placeholder. */}
+          <SectionCard
+            icon="book"
+            title={`${ui.grammarSection.native}・${ui.grammarSection.en}`}
+            stat={
+              onGrammar ? (
+                <>
+                  <Tally count={grammarDone} total={grammarTopics.length} />
+                  {' subsections'}
+                </>
+              ) : (
+                'coming soon'
+              )
+            }
+            mark={
+              marks ? (
+                <Watermark>
+                  <GlyphMark text="《〈【" size={92} letterSpacing={-22} right={-4} opacity={0.07} />
+                </Watermark>
+              ) : null
+            }
+            onPress={onGrammar}
+          />
         </Stagger>
       </View>
     </View>
@@ -702,6 +847,62 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
    * it had when that content was a centred stack — hence the minHeight. Without it the row collapses
    * the card to roughly half its former height and the whole column shifts down the screen.
    */
+  /* A labelled rule: the label sits at one end, the line takes whatever is left. */
+  rule: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs },
+  ruleLeft: {
+    color: colors.accentInk,
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  ruleLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  ruleRight: { color: colors.muted, fontSize: 12 },
+  /*
+   * A section holds a heading row and its own controls, so it grows with its content rather than
+   * keeping the fixed height the old single-action cards needed.
+   */
+  section: {
+    ...shadow,
+    alignSelf: 'stretch',
+    gap: spacing.md,
+    backgroundColor: colors.panel,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  subRow: { flexDirection: 'row', gap: spacing.sm },
+  // Quiet, and each takes an equal share of the row however many there are.
+  subBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.panelStrong,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+  },
+  subBtnText: { color: colors.ink, fontFamily: fonts.medium, fontSize: 14 },
+  vocabSwitch: { marginBottom: spacing.xs },
+  /* The one filled control on the screen, and rounder than the quiet ones so it reads as the way in
+     rather than a third sibling. */
+  jumpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.accent,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
+  },
+  jumpText: { flex: 1 },
+  jumpTitle: { color: colors.onAccent, fontFamily: fonts.semibold, fontSize: 15 },
+  jumpSub: { color: colors.onAccent, fontFamily: fonts.body, fontSize: 12, opacity: 0.75 },
   entryCard: {
     ...shadow,
     flexDirection: 'row',
