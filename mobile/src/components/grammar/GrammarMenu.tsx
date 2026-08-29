@@ -5,6 +5,7 @@ import {
   bestAccuracy,
   hasPassed,
   isMinigameGated,
+  missingRequiredUnits,
   topicProgress,
   unitsNeededForVerbs,
   type GrammarTopic,
@@ -54,6 +55,10 @@ export function GrammarMenu({
         // The minimum number of extra kanji that would clear the gate — a real count, not the verb
         // shortfall relabelled, since a compound verb can need more than one.
         const kanjiToGo = gated ? unitsNeededForVerbs(index, progress, needed).length : 0
+        // A topic can be held back by its frames as well as by its verb bank.
+        const missingForms = gated
+          ? missingRequiredUnits(topic, ctx).map((i) => index.byIdx.get(i)?.form ?? '')
+          : []
 
         return (
           <TapScale
@@ -73,7 +78,9 @@ export function GrammarMenu({
             <Bilingual native={topic.titleNative} en={topic.titleEn} />
             <Text style={[styles.sub, gated && styles.subGated]}>
               {gated
-                ? `You need ${needed} verbs to start.`
+                ? missingForms.length > 0
+                  ? `Needs the kanji ${missingForms.join(' ')}.`
+                  : `You need ${needed} verbs to start.`
                 : done
                   ? `Completed · best ${Math.round(bestAccuracy(tp) * 100)}%`
                   : started
@@ -82,9 +89,11 @@ export function GrammarMenu({
             </Text>
             {gated && (
               <Text style={styles.subHint}>
-                {kanjiToGo > 0
-                  ? `Learn ${kanjiToGo} more kanji and come back.`
-                  : 'Learn more kanji and come back.'}
+                {missingForms.length > 0
+                  ? 'They frame every question, so the game needs them first.'
+                  : kanjiToGo > 0
+                    ? `Learn ${kanjiToGo} more kanji and come back.`
+                    : 'Learn more kanji and come back.'}
               </Text>
             )}
           </TapScale>

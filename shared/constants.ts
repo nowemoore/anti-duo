@@ -160,6 +160,14 @@ export const KANA_WORD_OPTIONS = 4
  */
 export const KANA_WORD_SPELL_STREAK = 2
 
+/**
+ * Dots shown beside a word on a character's page, standing for how solid its weakest character is.
+ *
+ * Three rather than {@link KANA_KNOWN_STREAK}'s five: this is a glance-able hint next to a word, not
+ * the practice model — five dots at that size read as a row of noise.
+ */
+export const KANA_WORD_DOTS = 3
+
 export const DEFAULT_SETTINGS: Settings = {
   name: '',
   disabledCategories: [],

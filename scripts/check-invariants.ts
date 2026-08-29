@@ -67,6 +67,19 @@ const FUNCTION_WORDS = new Set([
   'あちら',
   'どちら',
   'どちらも',
+  'あちこち',
+  // interrogatives and indefinite pro-forms — the same class as どこ / どちら above
+  'なぜ',
+  'いつ',
+  '何か',
+  '何も',
+  // nominalisers: grammar that attaches to a clause rather than vocabulary of its own
+  'つもり',
+  'はず',
+  'せい',
+  'おかげ',
+  'わけ',
+  'ため',
   // high-frequency adverbs / connectives
   'とても',
   'よく',
@@ -112,9 +125,32 @@ function json<T>(raw: string | undefined, where: string): T | null {
   }
 }
 
+/**
+ * The characters I5 polices — the same range the app treats as kanji (see e.g. server/content.ts).
+ *
+ * 々 is deliberately *not* one of them. It is the iteration mark: it has no reading and no meaning
+ * of its own, it only says "repeat the character before me" (時々 is ときどき because 時 is), so it
+ * can never be a curriculum unit and a learner has nothing to look up. Every other kanji test in the
+ * codebase already excludes it; this one used to name it explicitly, and flagged 別々 / 各々 / 時々
+ * — all three of which are taught words — for containing it.
+ */
+/**
+ * Kanji numerals, plus the two quantifiers that behave like them (何 "how many", 数 "several").
+ *
+ * A token built only from these is a *number*, and numbers are not vocabulary: 千二百 is one of
+ * infinitely many, formed by rule from digits the curriculum already teaches individually. Demanding
+ * an entry for each is a demand that can never be met, so I1 exempts them the way it exempts
+ * function words — the digits themselves are still taught, and still tested.
+ */
+const NUMERALS = new Set('一二三四五六七八九十百千万億兆何数')
+
+function isNumber(surface: string): boolean {
+  return surface.length > 0 && [...surface].every((c) => NUMERALS.has(c))
+}
+
 function isKanji(ch: string): boolean {
   const o = ch.codePointAt(0) ?? 0
-  return (o >= 0x4e00 && o <= 0x9fff) || (o >= 0x3400 && o <= 0x4dbf) || ch === '々'
+  return (o >= 0x4e00 && o <= 0x9fff) || (o >= 0x3400 && o <= 0x4dbf)
 }
 
 let failures = 0
@@ -144,6 +180,17 @@ async function main() {
 
   // Examples reference ja_words.csv by idx; resolve them so the coverage rules can talk about words.
   const wordByIdx = new Map(wordRows.map((r) => [Number(r.idx), r.word]))
+  /**
+   * Accepted alternate spellings -> the registry word they belong to (子ども -> 子供).
+   *
+   * One word may be written more than one way, and a sentence is free to pick either. Both spellings
+   * therefore satisfy I1, and either one attests the word for I2 — it is the same vocabulary item,
+   * not a second one to teach.
+   */
+  const variantOf = new Map<string, string>()
+  for (const r of wordRows)
+    for (const v of json<string[]>(r.variants || '[]', `word ${r.idx}.variants`) ?? [])
+      variantOf.set(v, r.word)
   const danglingWordRef: string[] = []
 
   /** Every example word the curriculum teaches -> the kanji idx values that teach it. */
@@ -191,6 +238,9 @@ async function main() {
       if (t.kind !== 'word' || !t.ja) continue
       seen.add(t.ja)
       if (t.lemma) seen.add(t.lemma)
+      // A variant spelling attests the word it spells (see `variantOf`).
+      const canonical = variantOf.get(t.ja)
+      if (canonical) seen.add(canonical)
 
       // S2/S3/S4 — every declared target resolves, and points at something actually present.
       for (const idx of t.targets ?? []) {
@@ -214,11 +264,11 @@ async function main() {
           badDeclaredKanji.push(`${row.id}  ${ch} in ${t.ja} is not a curriculum unit`)
       }
 
-      // I1 — the word is taught somewhere, by surface or by lemma.
-      const forms = [t.ja, t.lemma].filter(Boolean) as string[]
-      const taught = forms.some(
-        (f) => exampleWords.has(f) || kanaWords.has(f) || FUNCTION_WORDS.has(f),
-      )
+      // I1 — the word is taught somewhere, by surface, spelling variant, or lemma.
+      const forms = [t.ja, t.lemma, variantOf.get(t.ja)].filter(Boolean) as string[]
+      const taught =
+        isNumber(t.ja) ||
+        forms.some((f) => exampleWords.has(f) || kanaWords.has(f) || FUNCTION_WORDS.has(f))
       if (!taught) untaught.push(`${row.id}  ${t.ja}${t.lemma ? ` (lemma ${t.lemma})` : ''}`)
 
       // I5 — no kanji outside the curriculum.

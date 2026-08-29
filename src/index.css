@@ -4275,3 +4275,112 @@ button.known-words:disabled {
   color: var(--accent-ink);
   font-size: 0.78rem;
 }
+
+/* --- The words a character unlocks, on its own page ----------------------- */
+
+/* A dashed outline rather than another filled panel: this is a list of what the character is *for*,
+   attached to the card, not a second card competing with it. */
+.kana-words {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px dashed var(--accent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  text-align: left;
+}
+
+.kana-words-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.kana-words-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kana-words-native {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.kana-words-sub {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* The count is the summary of the list: how much of this character's vocabulary is open to you. */
+.kana-words-count {
+  flex: none;
+  padding: 0.2rem 0.6rem;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.kana-words-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kana-word {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.kana-word:first-child {
+  border-top: none;
+}
+
+/* Locked words stay in the list, faded — the missing characters are the next step, so hiding the
+   word would hide the reason to go and learn them. */
+.kana-word.locked {
+  opacity: 0.45;
+}
+
+.kana-word-form {
+  flex: none;
+  min-width: 5.5rem;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.kana-word-gloss {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.kana-word-lock {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.kana-word-dots {
+  flex: none;
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.kana-word-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.kana-word-dot.on {
+  background: var(--c-300);
+}

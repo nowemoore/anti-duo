@@ -5,6 +5,7 @@ import {
   availableItemCount,
   hasPassed,
   isPartUnlocked,
+  missingRequiredUnits,
   isReflectionComplete,
   markVocabDone,
   passProgress,
@@ -39,6 +40,9 @@ export function GrammarSection({ topic, onBack }: { topic: GrammarTopic; onBack:
   const neededItems = topic.minigame.minItems ?? 0
 
   const unlocked = (p: PartId) => isPartUnlocked(p, tp, topic, ctx)
+  // Two different things can hold part 2 back; the hint has to say which one applies.
+  const missingUnits = missingRequiredUnits(topic, ctx)
+  const missingForms = missingUnits.map((idx) => index.byIdx.get(idx)?.form ?? '').filter(Boolean)
   const passed = hasPassed(tp)
   const reflectionDone = isReflectionComplete(topic, tp)
   const reflectionCount = reflectionAnsweredCount(topic, tp)
@@ -119,7 +123,9 @@ export function GrammarSection({ topic, onBack }: { topic: GrammarTopic; onBack:
         lockedHint={
           tp.vocabDoneAt == null
             ? `Go through the ${topic.vocab.title.toLowerCase()} first.`
-            : `You need ${neededItems} verbs to start — you know ${availableItems}. Learn more kanji and come back.`
+            : missingForms.length > 0
+              ? `The questions are framed with ${missingForms.join(' ')} — learn ${missingForms.length === 1 ? 'that kanji' : 'those kanji'} first.`
+              : `You need ${neededItems} verbs to start — you know ${availableItems}. Learn more kanji and come back.`
         }
         done={passed}
         open={open === 'minigame'}
@@ -180,11 +186,6 @@ export function GrammarSection({ topic, onBack }: { topic: GrammarTopic; onBack:
         )}
       </PartCard>
 
-      {passed && (
-        <p className="grammar-credited">
-          Completing this subsection unlocked the kanji in its vocabulary — they now count as learned.
-        </p>
-      )}
     </section>
   )
 }

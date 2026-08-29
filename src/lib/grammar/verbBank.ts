@@ -26,8 +26,8 @@ interface VerbEntry {
 }
 
 /** Stable, word-derived item id. Survives bank growth, resampling, and reordering. */
-export function verbItemId(form: string): string {
-  return `v:${form}`
+export function verbItemId(form: string, reading?: string): string {
+  return reading ? `v:${form}|${reading}` : `v:${form}`
 }
 
 /**
@@ -39,25 +39,53 @@ export function verbItemId(form: string): string {
  */
 function candidates(index: ContentIndex): VerbEntry[] {
   const out: VerbEntry[] = []
+  /*
+   * One entry per *word*, not per listing. A word that is an example of more than one kanji — 出来る
+   * sits under both 出 and 来 — is visited once per unit by this loop, and the second visit is the
+   * same verb, not a second question.
+   *
+   * Sibling readings are the opposite case and both are kept: 止める is とめる "to stop" and やめる
+   * "to quit", 開く is あく and ひらく. Those are different verbs sharing a spelling, they conjugate
+   * differently (とめます / やめます), and the game shows the reading as furigana above the form — so
+   * the learner sees two distinct questions, not the same card twice. See {@link verbItemId} for what
+   * that means for their ids.
+   */
+  const seen = new Set<string>()
   for (const unit of index.content.units) {
     for (const word of unit.examples) {
       const cls = verbClassOf(word)
       if (!cls || cls === 'irregular-verb') continue
       // Skip anything we can't conjugate rather than risk teaching a wrong form.
       if (politeNonPast(word.reading, cls) === null) continue
+      const identity = `${word.word}|${word.reading}`
+      if (seen.has(identity)) continue
+      seen.add(identity)
       out.push({ word, unit, cls })
     }
   }
   return out
 }
 
-/** Conjugate one entry into a game item. */
-function toItem(e: VerbEntry, pattern: WrongPattern): GrammarItem | null {
+/**
+ * Written forms that more than one candidate shares, so their items can be told apart by id.
+ *
+ * Attempt history is keyed by item id, so `v:止める` alone would make a recorded answer ambiguous
+ * about which of the two verbs it was for. Only these forms take the longer `v:form|reading` id —
+ * every single-reading verb keeps the bare `v:食べる`, which is what history recorded under before.
+ */
+function ambiguousForms(entries: VerbEntry[]): Set<string> {
+  const counts = new Map<string, number>()
+  for (const e of entries) counts.set(e.word.word, (counts.get(e.word.word) ?? 0) + 1)
+  return new Set([...counts].filter(([, n]) => n > 1).map(([form]) => form))
+}
+
+/** Conjugate one entry into a game item. `ambiguous` = this spelling has more than one reading. */
+function toItem(e: VerbEntry, pattern: WrongPattern, ambiguous = false): GrammarItem | null {
   const correct = politeNonPast(e.word.reading, e.cls)
   const wrong = wrongPoliteNonPast(e.word.reading, e.cls, pattern)
   if (!correct || !wrong || correct === wrong) return null
   return {
-    id: verbItemId(e.word.word),
+    id: verbItemId(e.word.word, ambiguous ? e.word.reading : undefined),
     form: e.word.word,
     reading: e.word.reading,
     meaning: e.word.meaning,
@@ -77,9 +105,11 @@ function toItem(e: VerbEntry, pattern: WrongPattern): GrammarItem | null {
  * so resolving against a learner-scoped bank would blank out items they demonstrably answered.
  */
 export function allVerbItems(index: ContentIndex): GrammarItem[] {
+  const entries = candidates(index)
+  const ambiguous = ambiguousForms(entries)
   const out: GrammarItem[] = []
-  for (const e of candidates(index)) {
-    const item = toItem(e, 'bolt')
+  for (const e of entries) {
+    const item = toItem(e, 'bolt', ambiguous.has(e.word.word))
     if (item) out.push(item)
   }
   return out
@@ -190,8 +220,12 @@ function balancedPatterns(count: number): WrongPattern[] {
  * without any is fine (the explanation says as much).
  */
 export function buildVerbBank(ctx: GrammarContext): GrammarItem[] {
+  const all = candidates(ctx.index)
   const pool = dedupe(learnedCandidates(ctx.index, ctx.progress))
   const picked = shuffle(pool).slice(0, GRAMMAR_RUN_ITEMS)
+  // Against the whole curriculum, not this learner's slice: an id has to mean the same thing in
+  // every run, or history recorded before they learned the sibling reading would stop resolving.
+  const ambiguous = ambiguousForms(all)
 
   const plain = picked.filter((e) => !isDeceptive(e.word.reading, e.cls))
   const patterns = balancedPatterns(plain.length)
@@ -200,7 +234,7 @@ export function buildVerbBank(ctx: GrammarContext): GrammarItem[] {
   const out: GrammarItem[] = []
   for (const e of picked) {
     const deceptive = isDeceptive(e.word.reading, e.cls)
-    const item = toItem(e, deceptive ? 'cross' : patterns[n++])
+    const item = toItem(e, deceptive ? 'cross' : patterns[n++], ambiguous.has(e.word.word))
     if (item) out.push(item)
   }
   return out

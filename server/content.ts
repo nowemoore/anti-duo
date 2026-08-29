@@ -71,6 +71,7 @@ function buildWordRegistry(rows: Record<string, string>[]): Map<number, Word> {
     const surface = row.word?.trim()
     if (!surface) throw new ContentError(`Empty word at ${where}`)
     const tags = parseJsonField<string[]>(row.tags || '[]', `${where}.tags`)
+    const variants = parseJsonField<string[]>(row.variants || '[]', `${where}.variants`)
     parsed.push({
       idx,
       word: {
@@ -79,6 +80,7 @@ function buildWordRegistry(rows: Record<string, string>[]): Map<number, Word> {
         reading: row.reading?.trim() ?? '',
         meaning: row.meaning?.trim() ?? '',
         ...(tags.length ? { tags } : {}),
+        ...(variants.length ? { variants } : {}),
       },
     })
   }

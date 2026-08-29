@@ -24,6 +24,7 @@ import {
   topicItems,
   topicProgress,
   topicUnitIdxs,
+  topicRequiredUnits,
   topicsForLang,
 } from '../src/lib/grammar'
 import { learnedVerbCount, unitsNeededForVerbs } from '../src/lib/grammar/verbBank'
@@ -188,7 +189,32 @@ async function main() {
   const allIds = new Set(allItems.map((i) => i.id))
   checks.push(['the full candidate bank is non-empty', allItems.length > 0])
   checks.push(['candidate ids are unique', allIds.size === allItems.length])
-  checks.push(['ids are word-derived (v:…)', allItems.every((i) => i.id === `v:${i.form}`)])
+  /*
+   * Two verbs can share a spelling — 止める is とめる "to stop" and やめる "to quit" — and both are
+   * real questions, told apart on screen by the furigana. Their ids must differ too, since attempt
+   * history is keyed by id; `verbItemId` appends the reading for exactly these forms. Verify that a
+   * shared spelling never collapses to one id, and that single-reading verbs keep the bare id their
+   * history was recorded under.
+   */
+  const formCounts = new Map<string, number>()
+  for (const i of allItems) formCounts.set(i.form, (formCounts.get(i.form) ?? 0) + 1)
+  const shared = [...formCounts].filter(([, n]) => n > 1).map(([f]) => f)
+  checks.push([
+    'a shared spelling yields one item per reading',
+    shared.length > 0 &&
+      shared.every((f) => {
+        const items = allItems.filter((i) => i.form === f)
+        return new Set(items.map((i) => i.id)).size === items.length
+      }),
+  ])
+  checks.push([
+    'single-reading verbs keep the bare v:form id',
+    allItems.filter((i) => formCounts.get(i.form) === 1).every((i) => i.id === `v:${i.form}`),
+  ])
+  checks.push([
+    'ids are word-derived (v:… or v:…|reading)',
+    allItems.every((i) => i.id === `v:${i.form}` || i.id === `v:${i.form}|${i.reading}`),
+  ])
   checks.push([
     'candidate ids are deterministic across calls',
     topicItems(topic, full, 'all').map((i) => i.id).join(',') === allItems.map((i) => i.id).join(','),
@@ -328,19 +354,24 @@ async function main() {
     'cue glosses match ja_kanji.csv (kana-only exempt)',
     topic.minigame.cues.every((c) => kanaOnly.has(c.word) || meaningOf.get(c.word) === c.meaning),
   ])
-  const creditIdxs = topicUnitIdxs(topic)
+  const vocabIdxs = topicUnitIdxs(topic)
   checks.push([
-    'credited unit idxs all exist in the curriculum',
-    creditIdxs.length > 0 && creditIdxs.every((idx) => index.byIdx.has(idx)),
+    'vocabulary unit idxs all exist in the curriculum',
+    vocabIdxs.length > 0 && vocabIdxs.every((idx) => index.byIdx.has(idx)),
   ])
-  // The topic grants the time-word units on pass; if a bank verb sat under one of them, passing
-  // would feed the exercise its own new items. 来る under 来 (55) is exactly that case.
-  const bankUnitIdxs = new Set(
-    allItems.map((i) => tagged.find((t) => t.word === i.form)!.unit.idx),
-  )
+  // The prerequisite set: the kanji in the frames every question is asked in. Drawn from the cues
+  // rather than the whole vocabulary, so a word the intro lists but the game never shows (今日, 今)
+  // can't gate the topic.
+  const requiredIdxs = topicRequiredUnits(topic, index)
   checks.push([
-    'no bank verb sits under a unit this topic credits',
-    creditIdxs.every((idx) => !bankUnitIdxs.has(idx)),
+    'required unit idxs all exist in the curriculum',
+    requiredIdxs.length > 0 && requiredIdxs.every((idx) => index.byIdx.has(idx)),
+  ])
+  checks.push([
+    'every required unit is a kanji some cue is written with',
+    requiredIdxs.every((idx) =>
+      topic.minigame.cues.some((c) => c.word.includes(index.byIdx.get(idx)!.form)),
+    ),
   ])
 
   // --- navigation: free backwards, one step forwards ------------------------
@@ -429,7 +460,11 @@ async function main() {
   let tp = topicProgress(p, topic.id)
   checks.push(['part 3 unlocks after any completed attempt', unlocked('reflection', p)])
   checks.push(['part 4 locked below the threshold', !unlocked('explanation', p)])
-  checks.push(['low score does not credit units', p.units[creditIdxs[0]]?.lvl === undefined || creditIdxs.every((i) => store.units.slice(0, ALL).some((u) => u.idx === i))])
+  // Grammar owns its own progress and nothing else: an attempt must not touch unit levels at all.
+  checks.push([
+    'recording an attempt leaves unit levels untouched',
+    JSON.stringify(p.units) === JSON.stringify(profile(ALL).units),
+  ])
 
   const missed = missedItems(topic, tp, ctxFor(p))
   checks.push([
@@ -443,8 +478,8 @@ async function main() {
   checks.push(['threshold alone does not unlock part 4', hasPassed(tp) && !unlocked('explanation', p)])
   checks.push(['passedAt is stamped on the passing attempt', tp.passedAt === NOW])
   checks.push([
-    'passing credits every vocab kanji as learned',
-    creditIdxs.every((idx) => (p.units[idx]?.lvl ?? 0) >= INTRODUCED_LEVEL),
+    'passing still writes no unit levels',
+    JSON.stringify(p.units) === JSON.stringify(profile(ALL).units),
   ])
   checks.push(['best accuracy is kept, not the latest', bestAccuracy(tp) >= GRAMMAR_PASS_ACCURACY])
 
@@ -483,11 +518,11 @@ async function main() {
     availableItemCount(topic, ctxFor(narrowed)) < GRAMMAR_MIN_ITEMS && unlocked('minigame', narrowed),
   ])
 
-  // Credit never demotes a unit already above the introduced level.
+  // A pass never disturbs a unit's level, in either direction.
   let advanced = markVocabDone(profile(ALL), topic.id, NOW)
-  advanced = { ...advanced, units: { ...advanced.units, [creditIdxs[0]]: { lvl: 9 } } }
+  advanced = { ...advanced, units: { ...advanced.units, [requiredIdxs[0]]: { lvl: 9 } } }
   advanced = recordAttempt(advanced, topic, answer(ctxFor(advanced), pass), NOW)
-  checks.push(['crediting never lowers an existing level', advanced.units[creditIdxs[0]].lvl === 9])
+  checks.push(['a pass leaves an existing level alone', advanced.units[requiredIdxs[0]].lvl === 9])
 
   // --- reflections + persistence -------------------------------------------
   p = saveReflection(p, topic.id, 'q1', '  ru-verbs drop る  ', NOW)
@@ -503,8 +538,7 @@ async function main() {
       rtp.attempts.length === 3 &&
       rtp.reflections.q1?.answer === saved.answer &&
       rtp.reflections.q1?.feedback === null &&
-      rtp.passedAt === NOW &&
-      rtp.unitsCreditedAt === NOW,
+      rtp.passedAt === NOW,
   ])
   checks.push([
     'per-item results survive for later error analytics',

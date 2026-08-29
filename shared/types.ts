@@ -41,6 +41,13 @@ export interface Word {
    * one this card didn't happen to pick has not made a mistake.
    */
   accept?: string[]
+  /**
+   * Accepted *spellings* of the same word — 子供 is also written 子ども, 友達 also 友だち. One word,
+   * one entry, one set of progress; the variants are surfaces a sentence may legitimately use.
+   *
+   * Distinct from {@link accept}, which is about readings of one spelling. This is the other axis.
+   */
+  variants?: string[]
   /** Language-specific fields (e.g. Arabic `voweled`, `plural`) — read only by the language pack. */
   extra?: Record<string, unknown>
 }
@@ -292,6 +299,11 @@ export interface GrammarTopicProgress {
   reflections: Record<string, GrammarReflection>
   /** ISO timestamp of the first attempt to reach the pass threshold (unlocks the explanation). */
   passedAt?: string
-  /** Set once the topic's vocabulary kanji were credited as learned, so it only happens once. */
+  /**
+   * Legacy: set when passing a topic promoted its vocabulary kanji to "introduced". Nothing writes
+   * it any more — those kanji are a prerequisite for the topic now rather than a reward for it — but
+   * it is still read back, so a learner who passed under the old rule keeps the record of it (and
+   * keeps the levels it granted them).
+   */
   unitsCreditedAt?: string
 }

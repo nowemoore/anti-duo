@@ -8,6 +8,7 @@ import type {
   GrammarTopicProgress,
   Progress,
 } from '../../../shared/types'
+import type { ContentIndex } from '../content'
 import { pick, shuffle } from '../random'
 import type {
   CueKind,
@@ -77,9 +78,43 @@ export function availableItemCount(topic: GrammarTopic, ctx: GrammarContext): nu
   return topicItems(topic, ctx, 'run').length
 }
 
+/** Any CJK ideograph — the characters that map to curriculum units. Mirrors the loader's regex. */
+const KANJI_CHAR = /[㐀-䶿一-鿿豈-﫿]/
+
 /**
- * Whether the minigame is held back purely for want of material — the learner doesn't yet know
- * enough of the vocabulary it draws on.
+ * The curriculum units a learner must already own before this topic will open: the kanji written in
+ * its time-word frames.
+ *
+ * The frames are the one thing the game *shows* on every question — a learner who cannot read 毎朝
+ * is being asked to parse the frame rather than the verb form, which is not what the exercise is
+ * testing. Kana-only cues (よく) contribute nothing, and a cue character with no curriculum unit is
+ * skipped rather than making the topic unreachable.
+ *
+ * Deliberately the cues and not the whole vocabulary list: 今 and 今日 appear in the intro but never
+ * in a question, so requiring them would gate the topic on something the game never puts on screen.
+ */
+export function topicRequiredUnits(topic: GrammarTopic, index: ContentIndex): number[] {
+  const idxs = new Set<number>()
+  for (const cue of topic.minigame.cues) {
+    for (const ch of cue.word) {
+      if (!KANJI_CHAR.test(ch)) continue
+      const unit = index.byForm.get(ch)
+      if (unit) idxs.add(unit.idx)
+    }
+  }
+  return [...idxs]
+}
+
+/** Those of {@link topicRequiredUnits} the learner has not yet been introduced to. */
+export function missingRequiredUnits(topic: GrammarTopic, ctx: GrammarContext): number[] {
+  return topicRequiredUnits(topic, ctx.index).filter(
+    (idx) => (ctx.progress.units[idx]?.lvl ?? 0) < INTRODUCED_LEVEL,
+  )
+}
+
+/**
+ * Whether the minigame is held back — either for want of material (the learner doesn't know enough
+ * of the verbs it draws on) or because the frames it asks questions in aren't readable yet.
  *
  * Keyed on having *played*, not on having started the topic: reading the vocabulary intro must not
  * count, or the requirement would quietly stop being reported to exactly the people part-way in.
@@ -93,8 +128,9 @@ export function isMinigameGated(
   tp: GrammarTopicProgress,
   ctx: GrammarContext,
 ): boolean {
+  if (tp.attempts.length > 0) return false
   const needed = topic.minigame.minItems ?? 0
-  return tp.attempts.length === 0 && availableItemCount(topic, ctx) < needed
+  return availableItemCount(topic, ctx) < needed || missingRequiredUnits(topic, ctx).length > 0
 }
 
 /**
@@ -254,8 +290,13 @@ export function markVocabDone(progress: Progress, topicId: string, now: string):
 }
 
 /**
- * Record a finished attempt. Stamps `passedAt` the first time the threshold is reached and, at that
- * same moment, credits the topic's vocabulary units as learned (see {@link creditTopicUnits}).
+ * Record a finished attempt, stamping `passedAt` the first time the threshold is reached.
+ *
+ * Writes nothing outside the topic's own progress. Passing used to promote the kanji in the topic's
+ * vocabulary to "introduced", which made grammar the one course that silently moved another's state
+ * — and, because the item bank is derived from the learner's own units, let a pass hand the exercise
+ * new questions for itself. Those kanji are a prerequisite now (see {@link topicRequiredUnits}),
+ * which is the same relationship pointing the other way and needs no guard.
  */
 export function recordAttempt(
   progress: Progress,
@@ -269,7 +310,7 @@ export function recordAttempt(
     if (!updated.passedAt && hasPassed(updated)) updated.passedAt = now
     return updated
   })
-  return creditTopicUnits(next, topic, now)
+  return next
 }
 
 /** Save one reflection answer. `feedback` is left untouched (null until an LLM fills it in). */
@@ -292,26 +333,7 @@ export function saveReflection(
   })
 }
 
-/**
- * Once the topic is passed, promote every curriculum unit written in its vocabulary to "introduced"
- * — completing the subsection is how you unlock the words it taught you. Units already at or above
- * INTRODUCED_LEVEL keep their level, so this can never demote existing progress. Runs once, guarded
- * by `unitsCreditedAt`; a no-op before the topic is passed.
- */
-export function creditTopicUnits(progress: Progress, topic: GrammarTopic, now: string): Progress {
-  const tp = topicProgress(progress, topic.id)
-  if (!tp.passedAt || tp.unitsCreditedAt) return progress
-  const units = { ...progress.units }
-  for (const v of topic.vocab.words) {
-    for (const idx of v.unitIdxs) {
-      const lvl = units[idx]?.lvl ?? 0
-      if (lvl < INTRODUCED_LEVEL) units[idx] = { ...units[idx], lvl: INTRODUCED_LEVEL }
-    }
-  }
-  return withTopic({ ...progress, units }, topic.id, (t) => ({ ...t, unitsCreditedAt: now }))
-}
-
-/** Unit idx values this topic will credit, for the "you'll unlock these" hint in the intro. */
+/** Unit idx values written in this topic's vocabulary — the words part 1 lists. */
 export function topicUnitIdxs(topic: GrammarTopic): number[] {
   return [...new Set(topic.vocab.words.flatMap((v) => v.unitIdxs))]
 }

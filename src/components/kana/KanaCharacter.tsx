@@ -5,6 +5,7 @@ import { useProgress } from '../../context/ProgressContext'
 import { SpeakButton } from '../SpeakButton'
 import { useKanaAudio } from './audio'
 import { KanaTrace } from './KanaTrace'
+import { KanaWordsFor } from './KanaWordsFor'
 
 /**
  * The character page: hear it, look at it, then say you've met it.
@@ -96,6 +97,9 @@ export function KanaCharacter({
           <FontAwesomeIcon icon="chevron-right" />
         </button>
       </div>
+
+      {/* What the character is *for*: the words it unlocks, on the page where it's learned. */}
+      <KanaWordsFor char={char} />
 
       {/* Already met: say so plainly rather than offering the button again. Revisiting a character
           to hear it is a normal thing to want, and it shouldn't look like an unfinished task. */}
