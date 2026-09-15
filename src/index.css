@@ -7,6 +7,9 @@
   /* Body: Manrope (clean sans). Headings: Fraunces (warm serif). Japanese falls through to JP fonts. */
   font-family: 'Manrope', system-ui, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
   --font-heading: 'Fraunces', Georgia, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', serif;
+  /* Mincho: the Japanese half of the chrome — the nav chips and the home's headings. A serif face
+     for a serif language, where Manrope would fall through to whatever gothic the OS has. */
+  --font-mincho: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
   /* Brush face, used only for the decorative card watermarks. Google Fonts serves it split by
      unicode-range, so the handful of glyphs on the study home is all that's ever downloaded. */
   --font-brush: 'Yuji Syuku', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
@@ -109,6 +112,19 @@ button {
   padding: 0.5rem 1.25rem;
   font-size: 0.78rem;
   color: var(--muted);
+  /* Above the skyline (body::before, z-index 20), which paints over everything else on the page.
+     Nothing here is clickable, so it costs the layer below it nothing. */
+  position: relative;
+  z-index: 21;
+  pointer-events: none;
+}
+
+/* The brush signature, opposite the credit. */
+.footer-mark {
+  font-family: var(--font-brush);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--accent);
 }
 .footer-heart {
   color: var(--accent);
@@ -131,13 +147,15 @@ button {
   z-index: 10;
 }
 
+/* The bar spans the design width, wider than the reading column the older pages still use — it is
+   chrome, and chrome that stops short of the window's edges reads as a floating panel. */
 .topbar-inner {
-  max-width: 47.5rem; /* rem, so the page column scales with the fluid root font-size */
+  max-width: 68rem;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.85rem 1.25rem;
+  gap: 1.5rem;
+  padding: 0.7rem 1.5rem;
 }
 
 .brand {
@@ -148,6 +166,7 @@ button {
   color: inherit;
   font-weight: 700;
   font-size: 1.15rem;
+  flex: none;
 }
 
 /* Tiny Japanese flag next to the wordmark (inline SVG so it renders everywhere). */
@@ -175,45 +194,95 @@ button {
 
 .nav {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  flex: 1;
 }
 
-.nav button {
-  border: 1px solid transparent;
+/*
+ * One destination. Japanese leads and the English follows on the same line — the chip is one name
+ * for one place, and stacking the two made every destination two lines tall for no gain.
+ */
+.nav-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.35rem 1rem;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
-  border-radius: 999px;
-  padding: 0.4rem 0.85rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
 }
 
-.nav button:hover {
+.nav-chip:hover {
   color: var(--ink);
-  background: var(--bg);
+  background: var(--panel);
 }
 
-.nav button.active {
-  color: var(--accent-ink);
-  background: var(--accent-soft);
+/* Where you *are* is state, the same thing the progress bars report — so it takes the lavender,
+   not the accent, which belongs to the things you press. */
+.nav-chip.on {
+  color: var(--highlight-ink);
+  background: var(--highlight-wash);
+  border-color: var(--highlight-soft);
 }
 
-.nav-labels {
-  display: inline-flex;
-  flex-direction: column;
-  line-height: 1.05;
-  text-align: left;
-}
-
-.nav-labels .ja {
-  font-size: 0.95rem;
+.nav-ja {
+  font-family: var(--font-mincho);
+  font-size: 1rem;
   font-weight: 600;
 }
 
-.nav-labels .en {
-  font-size: 0.68rem;
-  opacity: 0.75;
+.nav-en {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Account-side chrome, pushed to the far edge. */
+.topbar-side {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: none;
+}
+
+.backup-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.backup-chip.bad {
+  color: var(--accent-ink);
+  border-color: var(--accent-soft);
+}
+
+/* A lit dot rather than a cloud glyph: "it is done" is a state, and a state is a light. */
+.backup-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--correct);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 /* Stacked Japanese-over-English label for chrome titles (Bilingual component) */
@@ -236,6 +305,14 @@ button {
   max-width: 47.5rem; /* rem, so the page column scales with the fluid root font-size */
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
+}
+
+/* The study home is a dashboard, not a page of prose: it takes the design width the top bar already
+   spans, rather than the column the reading views are set in. Wide, but still a column — on a big
+   monitor a page that runs edge to edge stops being a layout and becomes a wall. */
+.content.wide {
+  max-width: 68rem;
+  padding-inline: 1.5rem;
 }
 
 .panel {
@@ -601,20 +678,6 @@ button {
 
 .actions button.primary:hover {
   filter: brightness(1.05);
-}
-
-/* Study home: everything centred (horizontally + vertically) in the card */
-.study-home {
-  text-align: center;
-  justify-content: center;
-}
-
-/* The greeting is the only thing above the cards, so it can carry the page on its own. */
-.home-greeting {
-  margin: 0;
-  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
-  font-weight: 600;
-  line-height: 1.2;
 }
 
 /* "n / k kanji unlocked. Continue learning or [reset]" under the welcome heading */
@@ -1738,14 +1801,11 @@ ruby rt {
   color: var(--incorrect);
 }
 
-/* Help ("?") button in the top bar */
+/* Help ("?") button, in the Vocabulary head. It used to be pinned to the left edge of the topbar;
+   it sits in the flow of its row now, so nothing about it is positioned any more. */
 .help-btn {
-  /* pinned to the very left edge of the full-width topbar */
-  position: absolute;
-  left: 0.9rem;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
+  flex: none;
+  margin-left: auto;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
@@ -1943,12 +2003,6 @@ ruby rt {
   }
   .nav button {
     padding: 0.4rem 0.55rem;
-  }
-  .topbar-inner {
-    padding-left: 3.4rem;
-  }
-  .help-btn {
-    left: 0.5rem;
   }
 
   /* Denser settings + stats so bars/labels fit the width. */
@@ -3765,6 +3819,7 @@ button.kana-cell:focus-visible {
 
 /* `touch-action: none` is what makes a finger draw instead of scrolling the page. */
 .draw-surface {
+  position: relative;
   flex: 1;
   min-height: 13rem;
   border: 1px solid var(--border);
@@ -3792,7 +3847,11 @@ button.kana-cell:focus-visible {
   background: var(--incorrect-soft);
 }
 
+/* Pinned to the surface's box: the SVG carries pixel dimensions now, and this is what keeps those
+   in step with the border box the pointer coordinates are measured against. */
 .draw-ink {
+  position: absolute;
+  inset: 0;
   display: block;
 }
 
@@ -4239,7 +4298,7 @@ button.known-words:disabled {
 .board-filter {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
   min-width: 0;
 }
 
@@ -4433,117 +4492,372 @@ button.known-words:disabled {
   }
 }
 
-/* ── Home: courses as sections ──────────────────────────────────────────────
-   Each card opens its section and also holds shortcuts past that section's landing, so the common
-   moves are one click from here. The heading row is the button; the card is the frame around it. */
+/* ── Study home ─────────────────────────────────────────────────────────────
+   A wide two-column page. Every card sizes to its own content: nothing here stretches to fill the
+   viewport, and the slack that leaves at the foot of the page is where the skyline lives. */
+.study-home {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 0.25rem;
+}
+
+.home-greeting {
+  margin: 1.5rem 0 0;
+}
+
+.home-greeting-ja {
+  margin: 0;
+  font-family: var(--font-mincho);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+}
+
+.home-greeting-en {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* A labelled rule. Grouped tight with the cards below it — it is their heading, not a divider. */
 .section-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin: 1.75rem 0 0.6rem;
-  color: var(--muted);
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0 0.9rem;
+  color: var(--highlight-ink);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
+.section-head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  order: 1;
+}
+
 .section-head-ja {
+  order: 2;
+  font-family: var(--font-mincho);
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
   text-transform: none;
-  letter-spacing: 0;
+  color: var(--muted);
 }
 
-.section-card {
-  display: block;
-  padding: 0;
-}
-
-/* The card's own hover belongs to the button inside it now, or the whole frame lights up when the
-   pointer is only over a shortcut. */
-.section-card:hover {
-  border-color: var(--border);
-  background: var(--bg);
-}
-
-.section-open {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
+/* Vocabulary is where nearly every session goes, so it gets the width; kana and grammar are the two
+   other doors, stacked beside it at the size of doors. */
+.course-row {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  align-items: start;
   gap: 1.25rem;
-  width: 100%;
-  padding: 1.5rem;
-  border: none;
-  border-radius: 14px;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
 }
 
-.section-open:hover {
-  background: var(--accent-soft);
-}
-
-.section-subs {
+.course-card {
+  position: relative;
+  overflow: hidden;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0 1.5rem 1.25rem;
-}
-
-.sub-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.45rem 0.85rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--panel);
-  color: var(--ink);
-  font-size: 0.85rem;
-}
-
-.sub-action:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-/* The one move that needs no decision, so it gets the accent and sits alone below the sections. */
-.jump-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 1rem;
-  width: 100%;
-  margin-top: 1.25rem;
-  padding: 1rem 1.4rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.course-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* The head is the way into the section, so it is the button; the shortcuts under it are their own
+   controls, which is why the card itself can't be one. */
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0;
   border: none;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: transparent;
+  color: inherit;
   text-align: left;
 }
 
-.jump-text {
+.card-head:hover .card-title-en {
+  color: var(--accent-ink);
+}
+
+/* Bigger and lavender, on this page only: the cards name where you can go, they aren't the thing
+   you press — and the base badge is the app's accent one, used everywhere else. */
+.course-card .icon-circle {
+  width: 2.75rem;
+  height: 2.75rem;
+  background: var(--highlight);
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.card-head-text {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
   min-width: 0;
 }
 
-/* The play mark opens the line rather than standing in a column of its own — it belongs to the
-   sentence "▶ Jump straight to practice", not beside it. */
-.jump-title {
+.card-title {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.5rem;
-  font-size: 1rem;
+}
+
+.card-title-ja {
+  font-family: var(--font-mincho);
+  font-size: 1.15rem;
   font-weight: 600;
 }
 
-.jump-sub {
+.card-title-en {
+  font-size: 1.05rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.card-title-en::before {
+  content: '· ';
+  color: var(--muted);
+}
+
+/* The count is the fact; the denominator and the noun are the frame around it. */
+.card-tally {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.card-tally strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.progress-track {
+  height: 0.3rem;
+  border-radius: 999px;
+  background: var(--recessed);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--highlight);
+}
+
+/* The day's character. */
+.daily-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.daily-head-ja {
+  font-family: var(--font-mincho);
+  font-size: 1rem;
+}
+
+.daily-head-en {
+  color: var(--muted);
   font-size: 0.8rem;
-  opacity: 0.8;
+}
+
+.daily-body {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.daily-char {
+  font-family: var(--font-brush);
+  font-size: 4.5rem;
+  line-height: 1;
+}
+
+.daily-text {
+  min-width: 0;
+}
+
+/* Ink, not accent: the reading is the answer to the character beside it, and an accented reading
+   reads as something to click. */
+.daily-reading {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.35rem;
+}
+
+.daily-sub {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* The pair the whole page is for. */
+.course-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.big-action {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.big-action:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.big-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.big-action.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Centred against both lines rather than tucked into the first: the title and its detail are one
+   label, and a glyph inside the top line belongs to the words next to it, not to the button. */
+.big-action-icon {
+  flex: none;
+  font-size: 0.95rem;
+}
+
+.big-action-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.big-action-title {
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.big-action-sub {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.big-action.primary .big-action-sub {
+  color: color-mix(in srgb, var(--on-accent) 70%, transparent);
+}
+
+/* The shortcut, drawn as the key it names. */
+.keycap {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 7px;
+  background: var(--recessed);
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+}
+
+.big-action.primary .keycap {
+  background: color-mix(in srgb, var(--on-accent) 14%, transparent);
+}
+
+/* A card's quiet shortcuts: outline only, since the card is already a surface. */
+.card-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.sub-action {
+  flex: 1;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.sub-action:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Two columns is a desktop shape; below that the side cards fall under the main one. */
+@media (max-width: 900px) {
+  .course-row {
+    grid-template-columns: 1fr;
+  }
+  .course-actions {
+    grid-template-columns: 1fr;
+  }
+  .home-greeting-ja {
+    font-size: 1.9rem;
+  }
+}
+
+/* The hand-off from a page's header to the board below it. */
+.scroll-cue {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 1rem 0 0.25rem;
+}
+
+.cue-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.cue-arrows {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  /* A shade heavier than the rule: enough to read as arrows, not enough to leave the divider. */
+  color: color-mix(in srgb, var(--muted) 55%, transparent);
+  font-size: 0.7rem;
+}
+
+/* The alphabet's name under the tabs. Title and blurb are one block: the blurb finishes the sentence
+   the title starts, so they sit closer to each other than either does to the charts below. */
+.kana-script-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.kana-script-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
 }
 
 /* ── Vocabulary section ─────────────────────────────────────────────────────
@@ -4586,9 +4900,10 @@ button.known-words:disabled {
   font-size: 0.95rem;
 }
 
+/* Which half you are on is state, like the nav chip and the progress bars. */
 .segment.on {
-  background: var(--panel);
-  color: var(--ink);
+  background: var(--highlight-wash);
+  color: var(--highlight-ink);
 }
 
 /* Word tiles are wider than kanji ones and sized by their content — a word is two to five
@@ -4608,40 +4923,388 @@ button.known-words:disabled {
   font-size: 1.05rem;
 }
 
-/* The hand-off from a page's header to the board below it. */
-.scroll-cue {
+/* ── Kana section ───────────────────────────────────────────────────────────
+   The chart and the character you picked, side by side. They were two pages, and paging between
+   them was the whole experience of this section — click, land, go back, lose your place. One screen,
+   because it is one activity: the chart stays put and only the panel changes.
+
+   `kana-page`, not `kana-section`: that name is taken by one block of the help-button chart. */
+/* Three rows, both columns sharing them, which is what keeps the two sides level: the drills run
+   the height of the meta stack, so the card under them starts exactly where the chart does. */
+.kana-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  align-items: start;
+  column-gap: 1.5rem;
+}
+
+.kana-board-head { grid-area: 1 / 1; }
+.kana-board-meta { grid-area: 2 / 1; }
+.kana-charts     { grid-area: 3 / 1; }
+.kana-board-actions { grid-area: 2 / 2; align-self: stretch; }
+.kana-detail        { grid-area: 3 / 2; }
+
+/* Just the title, with the back control hung outside it so かな lines up with the chart below.
+   Everything else about the chart — script, tally, legend — reads centred underneath. */
+.kana-board-head {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  margin: 1rem 0 0.25rem;
+  margin-bottom: 0.75rem;
 }
 
-.cue-line {
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-.cue-arrows {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  /* A shade heavier than the rule: enough to read as arrows, not enough to leave the divider. */
-  color: color-mix(in srgb, var(--muted) 55%, transparent);
-  font-size: 0.7rem;
-}
-
-/* The alphabet's name under the tabs. Title and blurb are one block: the blurb finishes the sentence
-   the title starts, so they sit closer to each other than either does to the charts below. */
-.kana-script-head {
+.kana-board-meta {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  text-align: center;
 }
 
-.kana-script-title {
+.kana-board-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
   margin: 0;
-  font-size: 1.35rem;
+}
+
+.kana-board-ja {
+  font-family: var(--font-mincho);
+  font-size: 1.9rem;
+  font-weight: 400;
+}
+
+.kana-board-en {
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.kana-board-tally {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.kana-board-tally strong {
+  color: var(--ink);
+  font-size: 1.25rem;
   font-weight: 600;
+}
+
+/* The two drills side by side, filling the block they were given. */
+.kana-board-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+  /* The grid only sets a column gap — the left column spaces its own rows with margins — so this
+     row's own bottom margin is what keeps the drills off the card sitting directly under them.
+     Matched to the gap between the cards on the study home, so the page has one rhythm. */
+  margin-bottom: 1.25rem;
+}
+
+.kana-board-meta .segmented {
+  margin: 0;
+}
+
+/* Stacked rather than in a row: icon, label, then the shortcut if it has one, centred on both
+   axes. Equal shares of the width, and full height so the pair fills the block exactly. */
+.kana-drill-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.9rem 0.75rem;
+  border-radius: 14px;
+  text-align: center;
+}
+
+/* The label holds its line — "Practice by ear" was breaking in two and taking the button with it. */
+.kana-drill-btn .big-action-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kana-drill-btn .big-action-icon {
+  font-size: 1.15rem;
+}
+
+/* Outside the title's box rather than before it in the row: in flow it pushed かな off the
+   chart's left edge, which is the one thing it had to stay level with. */
+.kana-board-back {
+  position: absolute;
+  right: 100%;
+  margin-right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+
+.kana-board-back:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+
+
+.kana-legend {
+  justify-content: center;
+  gap: 0.9rem;
+}
+
+.legend-hint {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* The three states the data supports: never opened, opened, drilled to the top of its run. */
+.legend-swatch.kana-swatch-new {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.legend-swatch.kana-swatch-studied {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.legend-swatch.kana-swatch-known {
+  background: var(--accent);
+}
+
+/* One row per consonant group, named for the character it starts with — あ行 is "the あ row", which
+   is what Japanese calls it — with how much of it you have opened at the far end. */
+/* The three blocks abreast. Track widths follow how many characters each block is across — five,
+   five and three — so a cell comes out about the same size in all of them. */
+/* The three blocks side by side, so all of かな is on screen at once. The only gaps on the chart are
+   the ones between them. Centred, because the script switch and the tally above it are — a chart
+   pinned left under a centred pill reads as two things that missed each other. */
+.kana-charts {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.kana-block {
+  min-width: 0;
+}
+
+/* One grid for the whole block, so the cells start at the block's own left edge — where its title
+   sits. `--cols` is the number of consonant groups, which differs per block.
+   
+   A *capped* track, not a fraction: `1fr` divides the container between however many columns a block
+   happens to have, which made Voiced's five cells twice the width of Basic's eleven and the three
+   blocks read as three different charts. Capping means every cell is the same size in every block —
+   a narrow block just stops early — and the minmax still lets them shrink on a small window. */
+.kana-cells {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 5), minmax(0, var(--kana-cell, 2rem)));
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+/* Smaller cards: three blocks share the pane's width, and the chart is a map to scan rather than a
+   set of buttons to aim at. */
+.kana-cells .kana-cell {
+  padding: 0.15rem 0;
+  border-radius: 5px;
+}
+
+.kana-cells .kana-cell .kana {
+  font-size: 0.8rem;
+}
+
+.kana-cells .kana-cell .romaji {
+  font-size: 0.44rem;
+}
+
+/* The open character keeps a ring, so the chart says which one the panel is showing. */
+.kana-cell.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── the right column ────────────────────────────────────────────────────── */
+/* ── the character panel ─────────────────────────────────────────────────── */
+/* Scaled down with its column: the card is a place to look at one character, and at full size it
+   was competing with the chart it belongs to. */
+.kana-detail {
+  position: sticky;
+  top: 1.5rem;
+  min-width: 0;
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+/* The character and its sound, centred over the card. It is the subject of everything below it, and
+   a subject pinned to the left edge reads as a label on the panel rather than the point of it. */
+.kana-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.kana-detail-glyph {
+  flex: none;
+  font-size: 3.2rem;
+  line-height: 1;
+}
+
+.kana-detail-text {
+  min-width: 0;
+}
+
+
+/* Icon alone: the label said what the speaker already says, and said it every time. */
+.kana-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* Both ways out of the character, sharing one line under the card. */
+.kana-detail-foot {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.kana-detail-foot > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* The step that moves you on, in the accent — the other one only undoes. */
+.kana-trace-go {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.kana-trace-go:hover:not(:disabled) {
+  color: var(--on-accent);
+  filter: brightness(1.05);
+}
+
+.kana-trace-go:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Work on the left, the reason for it on the right. */
+.kana-detail-body {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.kana-detail-trace {
+  flex: 1 1 62%;
+  min-width: 0;
+}
+
+/* Inside the card the labelled rules sit in half a column, where the label itself would otherwise
+   wrap to three lines and the rule vanish. The words hold their line; the rule takes what's left. */
+.kana-detail .section-head > span {
+  white-space: nowrap;
+}
+
+/* The divider is a hairline on the column itself — a full rule would make the card look like two
+   cards that happen to be touching. */
+.kana-detail-words {
+  flex: 0 1 38%;
+  min-width: 6.5rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--border);
+}
+
+.kana-detail-words .section-head {
+  margin-top: 0;
+}
+
+/* Chips, not a list: this is a reason to learn the character, and a reason is better made short. */
+.kana-word-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.kana-detail-word {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 0.95rem;
+}
+
+.kana-next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* Below the two-column width the panel falls under the chart rather than squeezing beside it. */
+@media (max-width: 900px) {
+  .kana-page {
+    grid-template-columns: 1fr;
+  }
+  .kana-detail {
+    position: static;
+  }
+  /* One column: the five blocks fall back into source order down the page. */
+  .kana-board-head,
+  .kana-board-meta,
+  .kana-charts,
+  .kana-board-actions,
+  .kana-detail {
+    grid-area: auto;
+  }
+  .kana-board-actions {
+    margin-bottom: 1.25rem;
+  }
+  .kana-drill-btn {
+    height: auto;
+  }
+}
+
+/* Three columns need the width for it. Below that the blocks stack, as they used to — and the
+   back control comes back into the row, since there is no longer a margin to hang it in. */
+@media (max-width: 1240px) {
+  .kana-charts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+  .kana-board-back {
+    position: static;
+    margin-right: 0.6rem;
+  }
+}
+
+/* With the trace button moved out from under it, the canvas takes the height that freed up — it is
+   the thing you actually work in, and every other part of this card is a label on it. */
+.kana-detail .draw-surface {
+  min-height: 13rem;
 }

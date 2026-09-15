@@ -28,6 +28,18 @@
   --accent-hover: color-mix(in srgb, var(--accent) 28%, transparent);
   --on-accent: #2f2f2f; /* dark text/icons on a (light) pink fill */
 
+  /* A second highlight from the same family as the pink, one step toward the ground: the lavender
+     neighbour. It marks *state* — how far along you are, which page you are on — while the accent
+     stays with what you can act on. Keeping the two apart is what stops a screen reading as one
+     field of pink in which nothing is more urgent than anything else. */
+  --highlight: #9493b7;
+  --highlight-ink: #b8b7d6; /* lavender as text: the solid is 3.2:1 on the wash, this is 7.4:1 */
+  --highlight-soft: color-mix(in srgb, var(--highlight) 62%, transparent); /* edges */
+  --highlight-wash: color-mix(in srgb, var(--highlight) 26%, transparent); /* fills */
+
+  /* A well sunk below the surface, for the unfilled part of a progress track. */
+  --recessed: rgb(0 0 0 / 0.22);
+
   /* "Ready for more" — a teal that sits off the pink mastery ramp on purpose: a kanji with new
      example words waiting isn't further along the ramp, it's a different kind of state. */
   --ready: #007678;

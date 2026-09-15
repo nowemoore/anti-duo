@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native'
 import type { IconName } from '@fortawesome/fontawesome-svg-core'
 import { Icon } from './Icon'
 import { TapScale } from './TapScale'
-import { btnPrimary, btnSecondary, edge, radius, spacing, type Palette } from '../theme'
+import { btnPrimary, btnSecondary, edge, spacing, type Palette } from '../theme'
 import { useColors, useStyles } from '../hooks/theme'
 
 /**

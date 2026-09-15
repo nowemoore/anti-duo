@@ -64,7 +64,6 @@ import {
   learnItemKey,
   mixedChunkSize,
   nextMixedLearnSession,
-  unlearnedUnits,
   type LearnItem,
 } from '@lib/study'
 
@@ -816,8 +815,6 @@ function StudyMenu({
   const { progress } = useProgress()
   const { ui } = useLanguage()
   const introduced = introducedUnits(index, progress).length
-  const remainingUnits = unlearnedUnits(index, progress).length
-  const total = introduced + remainingUnits
   // What Learn will actually teach: kanji *and* readable kana words not yet met, so the button is
   // live while either half has something left.
   const chunkSize = mixedChunkSize(index, progress)

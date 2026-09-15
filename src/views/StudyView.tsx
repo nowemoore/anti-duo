@@ -1,8 +1,9 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
-import type { KanaWord, Unit } from '../../shared/types'
+import type { KanaWord, Progress, Unit } from '../../shared/types'
 import { PRACTICE_ITERATIONS } from '../../shared/constants'
+import { HelpButton } from '../components/HelpButton'
 import { Bilingual } from '../components/Bilingual'
 import { useContent } from '../context/ContentContext'
 import { useProgress } from '../context/ProgressContext'
@@ -15,11 +16,12 @@ import { WriteReview } from '../components/WriteReview'
 import { ProgressTally } from '../components/ProgressTally'
 import { ScrollCue } from '../components/ScrollCue'
 import { KanaMenu } from '../components/kana/KanaMenu'
-import { KanaCharacter } from '../components/kana/KanaCharacter'
 import { KanaPractice } from '../components/kana/KanaPractice'
 import { KanaWordPractice } from '../components/kana/KanaWordPractice'
 import { KanaWordBoard } from '../components/kana/KanaWordBoard'
 import { KanaWordCard } from '../components/kana/KanaWordCard'
+import { batchesUnlocked } from '../lib/tasks'
+import type { ContentIndex } from '../lib/content'
 import {
   ackBatches,
   applyLearnItem,
@@ -29,6 +31,8 @@ import {
   learnItemKey,
   mixedChunkSize,
   nextMixedLearnSession,
+  readyForMore,
+  seenBatches,
   type LearnItem,
 } from '../lib/study'
 import { metWordCount, scriptsForLang, studiedCount, totalKanaCount, type KanaScript } from '../lib/kana'
@@ -46,7 +50,6 @@ type Phase =
   | 'grammar'
   | 'grammar-topic'
   | 'kana'
-  | 'kana-char'
   | 'kana-practice'
   | 'kana-word'
   /** One kana word, opened from the vocabulary board. */
@@ -62,10 +65,6 @@ export default function StudyView() {
   // it. A kana word has no writing step — it needs no tracing, it is already the word.
   const [qi, setQi] = useState(0)
   const [stage, setStage] = useState<'learn' | 'write'>('learn')
-  // Which script's chart is open, and which character within it. Held here rather than in KanaMenu
-  // so returning from a character lands back on the chart it was opened from.
-  const [kanaScript, setKanaScript] = useState<KanaScript | null>(null)
-  const [kanaChar, setKanaChar] = useState<string | null>(null)
   /** Which half of the vocabulary section is showing, and which kana word is open in it. */
   const [vocabTab, setVocabTab] = useState<'kanji' | 'kana'>('kanji')
   const [vocabWord, setVocabWord] = useState<KanaWord | null>(null)
@@ -234,24 +233,9 @@ export default function StudyView() {
     return (
       <KanaMenu
         scripts={kanaScripts}
-        onSelect={(script, char) => {
-          setKanaScript(script)
-          setKanaChar(char)
-          setPhase('kana-char')
-        }}
         onPractice={() => setPhase('kana-practice')}
         onWordPractice={() => setPhase('kana-word')}
         onBack={() => setPhase('home')}
-      />
-    )
-
-  if (phase === 'kana-char' && kanaScript && kanaChar)
-    return (
-      <KanaCharacter
-        char={kanaChar}
-        script={kanaScript}
-        onChange={setKanaChar}
-        onBack={() => setPhase('kana')}
       />
     )
 
@@ -272,6 +256,53 @@ export default function StudyView() {
       grammarTopics={grammarTopics}
     />
   )
+}
+
+/**
+ * How many example words this unit has unlocked but not yet shown.
+ *
+ * The same boundary `readyForMore` tests, counted rather than asked as a yes/no: the batches between
+ * what the level has released and what the card last displayed.
+ */
+function newExampleCount(index: ContentIndex, progress: Progress, unit: Unit): number {
+  const lvl = progress.units[unit.idx]?.lvl ?? 0
+  const unlocked = batchesUnlocked(lvl, index.lang.batchUnlockEvery)
+  const shown = seenBatches(progress, unit.idx)
+  return unit.examples.filter((e) => {
+    const batch = e.batch ?? 1
+    return batch > shown && batch <= unlocked
+  }).length
+}
+
+/** Whole days since the epoch — the key that makes "of the day" hold still for a day. */
+function dayNumber(now: Date): number {
+  return Math.floor(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86_400_000,
+  )
+}
+
+/**
+ * The kanji this page opens on.
+ *
+ * Units with words waiting come first: those are the ones that have something new to say today, and
+ * this is where the old "Ready for more?" strip's job now lands — as one character you can act on
+ * rather than a count of characters you'd have to go find. Failing that it is simply one of the
+ * kanji you know, so the slot is never empty for someone who is up to date.
+ *
+ * Chosen by the date rather than at random, so it is the same character all day: a "kanji of the
+ * day" that changed every time you navigated home would be a kanji of the moment.
+ */
+function kanjiOfTheDay(
+  index: ContentIndex,
+  progress: Progress,
+  today: number,
+): { unit: Unit; fresh: number } | null {
+  const known = introducedUnits(index, progress)
+  const waiting = known.filter((u) => readyForMore(progress, u, index.lang.batchUnlockEvery))
+  const pool = waiting.length ? waiting : known
+  if (pool.length === 0) return null
+  const unit = pool[today % pool.length]
+  return { unit, fresh: newExampleCount(index, progress, unit) }
 }
 
 function StudyHome({
@@ -312,147 +343,269 @@ function StudyHome({
   // How far through the grammar course they are, for the card's one-liner.
   const grammarDone = grammarTopics.filter((t) => hasPassed(topicProgress(progress, t.id))).length
 
+  const chunkSize = mixedChunkSize(index, progress)
+  const canLearn = chunkSize > 0
+  const toGo = wordsTotal - wordsUnlocked
+
+  // Held for the life of the mount rather than read per render, so a component that re-renders at
+  // midnight doesn't swap the character out from under a click.
+  const [today] = useState(() => dayNumber(new Date()))
+  const daily = kanjiOfTheDay(index, progress, today)
+  const dailyReadings = daily ? (index.readingsOf.get(daily.unit.form) ?? []) : []
+
+  /*
+   * The two things you actually came here to do, on their initials. Ignored while a field has focus
+   * — the account form and the name box are both a keystroke away — and while a modifier is held,
+   * which belongs to the browser.
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const el = document.activeElement
+      if (el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return
+      const k = e.key.toLowerCase()
+      if (k === 'p') onPractice()
+      else if (k === 'l' && canLearn) onOpenVocab('kanji')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onPractice, onOpenVocab, canLearn])
+
   // Greeting: first visit (no name AND no saved progress) → はじめまして; otherwise welcome them back,
-  // with their name when we have it. Japanese only — it's a greeting, not something to be studied,
-  // and the English under it was a translation nobody needed twice.
+  // with their name when we have it.
   const hasRecord = Object.keys(progress.units).length > 0
-  const greeting = name
-    ? `おかえりなさい、${name}`
-    : hasRecord
-      ? 'おかえりなさい'
-      : 'はじめまして'
+  const greeting = name ? `おかえり、${name}` : hasRecord ? 'おかえりなさい' : 'はじめまして'
+  const greetingEn = name ? `Welcome back, ${name}` : hasRecord ? 'Welcome back' : 'Welcome'
 
   return (
-    <section className="panel intro study-home">
-      <h2 className="home-greeting">{greeting}</h2>
+    <section className="study-home">
+      <header className="home-greeting">
+        <h2 className="home-greeting-ja">{greeting}</h2>
+        <p className="home-greeting-en">{greetingEn}</p>
+      </header>
 
       <div className="section-head">
         <span>What&apos;s on today?</span>
-        <span className="section-head-ja">今日は</span>
+        <span className="section-head-ja">今日は何をしますか</span>
       </div>
 
-      <div className="study-choices">
-        {/* Kana first: it's where a learner with no Japanese at all should start, and the order the
-            cards sit in is the only recommendation the home screen makes. */}
-        {onKana && (
-          <SectionCard
-            icon="language"
-            mark={<GlyphMark text="あア" />}
-            title={<Bilingual ja="かな" en="Kana" />}
-            stat={
-              kanaStudied > 0
-                ? `${kanaStudied} / ${kanaTotal} characters studied`
-                : 'hiragana and katakana from scratch'
-            }
-            onOpen={onKana}
-          >
-            <SubAction icon="table-cells" label="Scripts" onClick={onKana} />
-            <SubAction icon="ear-listen" label="Practice" onClick={onKanaPractice} />
-          </SectionCard>
-        )}
-
-        <SectionCard
-          icon="pen-nib"
-          mark={<GlyphMark text="言葉" />}
-          title={<Bilingual ja="ことば" en="Vocabulary" />}
-          stat={`${wordsUnlocked} / ${wordsTotal} words unlocked`}
-          onOpen={() => onOpenVocab('kanji')}
-        >
-          {/* Both halves of the vocabulary, each opening the section on its own tab. */}
-          <SubAction icon="pen-nib" label="Kanji" onClick={() => onOpenVocab('kanji')} />
-          {kanaWords.length > 0 && (
-            <SubAction icon="comment" label="Kana words" onClick={() => onOpenVocab('kana')} />
-          )}
-        </SectionCard>
-
-        {/* Grammar last: its subsections gate on their own vocabulary rather than on a kanji count,
-            so it's open from day one — it's simply the one you get most out of last. The mark's
-            three brackets are pulled into each other so they nest rather than sitting in a row. */}
-        {onGrammar && (
-          <SectionCard
-            icon="book"
-            mark={<GlyphMark text="《〈【" className="nested" />}
-            title={<Bilingual ja="文法" en="Grammar" />}
-            stat={
-              grammarDone > 0
-                ? `${grammarDone} / ${grammarTopics.length} subsections completed`
-                : 'how the words fit together'
-            }
-            onOpen={onGrammar}
+      {/*
+        Two columns, not three equal cards. Vocabulary is where nearly every session goes, so it gets
+        the width and the day's character; kana and grammar are the two other doors, stacked beside
+        it at the size of doors.
+      */}
+      <div className="course-row">
+        <section className="course-card course-main">
+          <GlyphMark text="言葉" />
+          <CardHead
+            icon="pen-nib"
+            ja="言葉"
+            en="Vocabulary"
+            count={wordsUnlocked}
+            total={wordsTotal}
+            noun="words unlocked"
+            onOpen={() => onOpenVocab('kanji')}
           />
-        )}
-      </div>
+          <ProgressBar value={wordsUnlocked} total={wordsTotal} />
 
-      {/* The one move that needs no decision, so it sits on its own below the sections rather than
-          inside any one of them: practice draws on everything you know. */}
-      <button type="button" className="jump-btn" onClick={onPractice}>
-        <span className="jump-text">
-          <span className="jump-title">
-            <FontAwesomeIcon icon="play" />
-            Jump straight to practice
-          </span>
-          <span className="jump-sub">{PRACTICE_ITERATIONS} mixed questions</span>
-        </span>
-        <FontAwesomeIcon icon="chevron-right" />
-      </button>
+          {daily && (
+            <div className="daily">
+              <p className="daily-head">
+                <span className="daily-head-ja">今日の漢字</span>
+                <span className="daily-head-en">· Kanji of the day</span>
+              </p>
+              <div className="daily-body">
+                <span className="daily-char">{daily.unit.form}</span>
+                <div className="daily-text">
+                  {/* Ink, not accent: the reading is the answer to the character above it, and an
+                      accented reading reads as a thing to click. */}
+                  {/* The character's own readings, where the registry has them for it as a word.
+                      Silent when it doesn't — an invented reading is worse than a missing line. */}
+                  {dailyReadings.length > 0 && (
+                    <p className="daily-reading">{dailyReadings.join(' ・ ')}</p>
+                  )}
+                  <p className="daily-sub">
+                    {daily.unit.gloss.join('; ')}
+                    {daily.fresh > 0 &&
+                      ` · ${daily.fresh} new example ${daily.fresh === 1 ? 'word' : 'words'}`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* The pair the whole page is for: carry on, or meet more. */}
+          <div className="course-actions">
+            <BigAction
+              primary
+              icon="play"
+              title="Continue practising"
+              sub={`${PRACTICE_ITERATIONS} mixed questions`}
+              keycap="P"
+              onClick={onPractice}
+            />
+            <BigAction
+              icon="plus"
+              title={canLearn ? `Learn ${chunkSize} random words` : 'Nothing left to learn'}
+              sub={canLearn ? `${toGo} more to go` : 'all words introduced'}
+              keycap="L"
+              disabled={!canLearn}
+              onClick={() => onOpenVocab('kanji')}
+            />
+          </div>
+        </section>
+
+        <div className="course-side">
+          {/* Only for a language that ships a script course. */}
+          {onKana && (
+            <section className="course-card">
+              <GlyphMark text="あア" />
+              <CardHead
+                icon="language"
+                ja="かな"
+                en="Kana"
+                count={kanaStudied}
+                total={kanaTotal}
+                noun="characters unlocked"
+                onOpen={onKana}
+              />
+              <ProgressBar value={kanaStudied} total={kanaTotal} />
+              <div className="card-actions">
+                <SubAction label="Scripts" onClick={onKana} />
+                <SubAction label="Practice" onClick={onKanaPractice} />
+              </div>
+            </section>
+          )}
+
+          {/* The mark's three brackets are pulled into each other so they nest rather than sitting
+              in a row. */}
+          {onGrammar && (
+            <section className="course-card">
+              <GlyphMark text="《〈【" className="nested" />
+              <CardHead
+                icon="book"
+                ja="文法"
+                en="Grammar"
+                count={grammarDone}
+                total={grammarTopics.length}
+                noun="subsections unlocked"
+                onOpen={onGrammar}
+              />
+              <ProgressBar value={grammarDone} total={grammarTopics.length} />
+              <div className="card-actions">
+                <SubAction label="Continue" onClick={onGrammar} />
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
     </section>
   )
 }
 
 /**
- * One course, as a card you can act on directly.
+ * A card's heading: the lavender badge, the course's name in both scripts, and where you are in it.
  *
- * The card itself opens the section; the buttons inside it are shortcuts past the section's own
- * landing, so the common moves are one click from here rather than three. It's a div rather than a
- * button because it *contains* buttons — nesting those would be invalid markup — so the heading row
- * is the button and the card is the frame around it.
+ * The whole row is the way into the section, so it is the button — the shortcuts below it are
+ * separate controls, which is why the card itself can't be one.
  */
-function SectionCard({
+function CardHead({
   icon,
-  mark,
-  title,
-  stat,
+  ja,
+  en,
+  count,
+  total,
+  noun,
   onOpen,
-  children,
 }: {
   icon: IconProp
-  mark?: ReactNode
-  title: ReactNode
-  stat: ReactNode
+  ja: string
+  en: string
+  count: number
+  total: number
+  noun: string
   onOpen: () => void
-  children?: ReactNode
 }) {
   return (
-    <div className="study-choice section-card">
-      {mark}
-      <button type="button" className="section-open" onClick={onOpen}>
-        <span className="icon-circle">
-          <FontAwesomeIcon icon={icon} />
+    <button type="button" className="card-head" onClick={onOpen}>
+      <span className="icon-circle">
+        <FontAwesomeIcon icon={icon} />
+      </span>
+      <span className="card-head-text">
+        <span className="card-title">
+          <span className="card-title-ja">{ja}</span>
+          <span className="card-title-en">{en}</span>
         </span>
-        <span className="study-choice-text">
-          {title}
-          <span className="study-choice-sub">{stat}</span>
+        {/* The count is the fact; the denominator and the noun are the frame around it. */}
+        <span className="card-tally">
+          <strong>{count}</strong> / {total} {noun}
         </span>
-        <FontAwesomeIcon icon="chevron-right" className="action-chevron" />
-      </button>
-      {children && <div className="section-subs">{children}</div>}
+      </span>
+    </button>
+  )
+}
+
+/** How far along, as a bar. Lavender on a sunken track — it reports, it isn't a control. */
+function ProgressBar({ value, total }: { value: number; total: number }) {
+  const pct = total > 0 ? Math.min(100, Math.round((value / total) * 100)) : 0
+  return (
+    <div
+      className="progress-track"
+      role="progressbar"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={total}
+    >
+      <div className="progress-fill" style={{ width: `${pct}%` }} />
     </div>
   )
 }
 
-/** A secondary action inside a section — quiet, sitting under the heading row. */
-function SubAction({
+/**
+ * One of the two big actions at the foot of the Vocabulary card.
+ *
+ * The icon leads the whole button, centred against both lines rather than sitting inside the first
+ * one — the title and its detail are one label, and a glyph tucked into the top line belongs to the
+ * words next to it instead of to the button. The keycap at the far end names the shortcut.
+ */
+function BigAction({
   icon,
-  label,
+  title,
+  sub,
+  keycap,
+  primary,
+  disabled,
   onClick,
 }: {
   icon: IconProp
-  label: string
+  title: string
+  sub: string
+  keycap: string
+  primary?: boolean
+  disabled?: boolean
   onClick: () => void
 }) {
   return (
+    <button
+      type="button"
+      className={primary ? 'big-action primary' : 'big-action'}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <FontAwesomeIcon icon={icon} className="big-action-icon" />
+      <span className="big-action-text">
+        <span className="big-action-title">{title}</span>
+        <span className="big-action-sub">{sub}</span>
+      </span>
+      <kbd className="keycap">{keycap}</kbd>
+    </button>
+  )
+}
+
+/** A quiet shortcut inside a card — outline only, since the card is already a surface. */
+function SubAction({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
     <button type="button" className="sub-action" onClick={onClick}>
-      <FontAwesomeIcon icon={icon} />
       {label}
     </button>
   )
@@ -529,6 +682,9 @@ function VocabPage({
         <h2>
           <Bilingual ja="ことば" en="Vocabulary" />
         </h2>
+        {/* The hiragana chart lives here and nowhere else: this is the one place you are reading
+            words you may not have the kana for yet. */}
+        <HelpButton />
       </div>
 
       <ProgressTally count={wordsMet} total={wordsTotal} label="words unlocked" />

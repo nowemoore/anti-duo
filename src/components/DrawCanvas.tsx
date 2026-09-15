@@ -156,7 +156,19 @@ export function DrawCanvas({
         onPointerUp={end}
         onPointerCancel={end}
       >
-        <svg className="draw-ink" width="100%" height="100%">
+        {/*
+          Sized in pixels from the measured box rather than in percentages. A percentage-sized SVG
+          resolves against a containing block the surface doesn't always give it, and an SVG clips
+          to its own viewport — so a short viewport swallowed both the right of the guide and any
+          ink drawn over there, even though the pointer handlers had been recording it all along.
+          An explicit viewBox also pins the user-space unit to the CSS pixel `pointAt` reports in.
+        */}
+        <svg
+          className="draw-ink"
+          width={size.width}
+          height={size.height}
+          viewBox={`0 0 ${size.width} ${size.height}`}
+        >
           {/* Tracing guide, drawn first so it sits behind the ink. Hidden until the surface is
               measured, so it can't flash at the wrong size. */}
           {guide && guideSize > 0 && (
