@@ -26,6 +26,7 @@ import {
   ackBatches,
   applyLearnItem,
   enabledWords,
+  enabledUnits,
   introducedUnits,
   introducedWords,
   learnItemKey,
@@ -673,6 +674,12 @@ function VocabPage({
   const wordsMet = introducedWords(index, progress).size + metWordCount(progress, kanaWords)
   const wordsTotal = enabledWords(index, progress).size + kanaWords.length
 
+  // Each board's own count, in the board's own unit: the kanji grid is a grid of kanji, so it is
+  // counted in kanji; the kana board is a list of words, so it is counted in words. Both are the
+  // halves that add up to the section tally above, split so each grid says how far along *it* is.
+  const kanjiTotal = enabledUnits(index, progress).length
+  const kanaMet = metWordCount(progress, kanaWords)
+
   return (
     <section className="panel units-page">
       <div className="practice-head">
@@ -752,11 +759,13 @@ function VocabPage({
       {onKanji ? (
         <>
           {/* Neither board gesture is discoverable from the tiles, so both are spelled out. */}
+          <ProgressTally count={introduced} total={kanjiTotal} label="kanji introduced" />
           <p className="board-hint">click a kanji to learn it · hold (or right-click) to disable it for practice</p>
           <KanjiBoard onSelect={onSelectUnit} />
         </>
       ) : (
         <>
+          <ProgressTally count={kanaMet} total={kanaWords.length} label="kana words met" />
           <p className="board-hint">click a word to look at it · hold the eye for a phrase's meaning</p>
           <KanaWordBoard onSelect={onSelectWord} />
         </>
